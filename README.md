@@ -56,3 +56,6 @@ The 'Translation Data' object responsible for actually moving the character's po
 
 ### Dress Bones
 The bones that control how dresses move on the player should automatically adjust themselves based on the legs' locations, So you shouldn't need to worry about them.
+
+### Asset Library
+The 'Bip01' armature is marked as an asset for you to use in asset libraries.
