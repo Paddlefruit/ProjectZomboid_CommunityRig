@@ -22,6 +22,10 @@ To switch a certain limb from forward kinematics (KF) to inverse kinematics (IK)
 2. In the Context Tabs at the right of the 3D viewport (press N if it is not already open), open the 'Item' tab then scroll down to 'Properties'
 3. Change the value of the desired limb to switch it. A value of 0 is FK, and a value of 1 is IK. Be sure to keyframe this value for animations!
 4. To reveal or hide relevant controls, go to the 'Armature' tab in the Properties editor. Expand the 'CTRL' bone collection and hide or reveal the relevant collections you need.
+
+If you don't know what the difference between IK and FK is, here's a good video as a refresher:
+https://youtu.be/JnkAlwMjalc?feature=shared
+
    
 ### Toggling the 'Look Point' for the head
 If you would rather have the head rotate towards an object rather than rotating the head yourself, do the following instructions.
