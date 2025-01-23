@@ -41,7 +41,8 @@ Simply enable/disable the meshes you want or don't want. They are all located wi
 ### Selecting Objects
 Only select the following objects when exporting the rig:
 
-![PZ_Rig_Select](https://github.com/user-attachments/assets/44f389f7-d92c-4a5b-a0c6-9db86fb41e9d)
+![Screenshot from 2025-01-23 14-14-50](https://github.com/user-attachments/assets/2f789b8e-f2b3-4422-9c70-1741bf44b3b1)
+
 
 ### Export Options
 Make sure to select the following options when exporting as FBX:
