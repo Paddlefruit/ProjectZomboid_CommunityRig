@@ -34,12 +34,21 @@ Simply enable/disable the meshes you want or don't want. They are all located wi
 
 ## How to export
 
+### Selecting Objects
+Only select the following objects when exporting the rig:
+
+![PZ_Rig_Select](https://github.com/user-attachments/assets/44f389f7-d92c-4a5b-a0c6-9db86fb41e9d)
+
+### Export Options
+Make sure to select the following options when exporting as FBX:
+
+![PZ_Rig_Export](https://github.com/user-attachments/assets/0ab9ff5b-404e-4263-8a02-cea3bdf2ae94)
 
 
-### Things to note
+## Things to note
 
-## Translation Data
+### Translation Data
 The 'Translation Data' object responsible for actually moving the character's position in-game is parented to the 'CTRL_Root' bone. Moving this bone will move the entire character, both in Blender and in-game.
 
-## Dress Bones
+### Dress Bones
 The bones that control how dresses move on the player should automatically adjust themselves based on the legs' locations, So you shouldn't need to worry about them.
