@@ -1,4 +1,4 @@
-# Project Zomboid Community Human Rig V1.0
+# Project Zomboid Community Human Rig V1.0.1
 By Paddlefruit
 
 ![PZ_Rigs](https://github.com/user-attachments/assets/669da631-06f5-45e1-a482-903880af6272)
@@ -51,11 +51,8 @@ Make sure to select the following options when exporting as FBX:
 
 ## Things to note
 
-### Translation Data
-The 'Translation Data' object responsible for actually moving the character's position in-game is parented to the 'CTRL_Root' bone. Moving this bone will move the entire character, both in Blender and in-game.
-
 ### Dress Bones
 The bones that control how dresses move on the player should automatically adjust themselves based on the legs' locations, So you shouldn't need to worry about them.
 
 ### Asset Library
-The 'Bip01' armature is marked as an asset for you to use in asset libraries.
+The 'Dummy01' object containing the armature and Translation Data is marked as an asset for you to use in asset libraries.
