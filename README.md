@@ -1,7 +1,8 @@
-# Project Zomboid Community Human Rig V1.0.4
+# Project Zomboid Community Human Rig V1.0.5
 By Paddlefruit
 
-![PZ_Rigs](https://github.com/user-attachments/assets/669da631-06f5-45e1-a482-903880af6272)
+![PZ_Rigs](https://github.com/user-attachments/assets/8a50a094-093e-4813-9ba9-5730ac3fb688)
+
 
 ## Bone Collection Descriptions
 
@@ -35,6 +36,9 @@ If you would rather have the head rotate towards an object rather than rotating 
 ### Moving the Character Location
 If you want the animation to actually move the character in-game (not just the model), you need to animate the location of the 'CTRL_TranslationData' bone, NOT the 'CTRL_Root' bone. It may look unintuitive to not see the character moving with the TranslationData control in Blender, but that is how the game reads movement.
 
+### Moving Character's Held Items
+The prop bones (responsible for where the player holds weapons, etc.) automatically move along with the hands. If you need to adjust their rotation or location, you can do that on top of it. 
+
 ### Switching from the Male Model to the Female Model
 Simply enable/disable the meshes you want or don't want. They are all located within the 'Bip01' armature.
 
@@ -43,8 +47,7 @@ Simply enable/disable the meshes you want or don't want. They are all located wi
 ### Selecting Objects
 Only select the following objects when exporting the rig:
 
-![PZ_Rig_Select](https://github.com/user-attachments/assets/3e0c84ae-4595-4ce8-91a4-da299d98401b)
-
+![Screenshot from 2025-01-24 17-32-19](https://github.com/user-attachments/assets/ef128884-a938-47d3-8375-4fe67382e8b6)
 
 
 ### Export Options
