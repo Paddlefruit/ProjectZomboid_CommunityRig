@@ -1,4 +1,4 @@
-# Project Zomboid Community Human Rig V1.0.2
+# Project Zomboid Community Human Rig V1.0.3
 By Paddlefruit
 
 ![PZ_Rigs](https://github.com/user-attachments/assets/669da631-06f5-45e1-a482-903880af6272)
@@ -25,13 +25,15 @@ To switch a certain limb from forward kinematics (KF) to inverse kinematics (IK)
 
 If you don't know what the difference between IK and FK is, here's a good video as a refresher:
 https://youtu.be/JnkAlwMjalc?feature=shared
-
    
 ### Toggling the 'Look Point' for the head
 If you would rather have the head rotate towards an object rather than rotating the head yourself, do the following instructions.
 1. Follow steps 1 and 2 from the IK/FK Switching section.
 2. Change the value of the property 'Head_LookPointInfluence' from 0 to 1. Be sure to keyframe this value!
 3. To reveal the Look Point control object, reveal the collection 'CTRL_LookPoint', located under 'CTRL_Head'.
+
+### Moving the Character Location
+If you want the animation to actually move the character in-game (not just the model), you need to animate the location of the 'CTRL_TranslationData' bone, NOT the 'CTRL_Root' bone. It may look unintuitive to not see the character moving with the TranslationData control in Blender, but that is how the game reads movement.
 
 ### Switching from the Male Model to the Female Model
 Simply enable/disable the meshes you want or don't want. They are all located within the 'Bip01' armature.
@@ -41,7 +43,8 @@ Simply enable/disable the meshes you want or don't want. They are all located wi
 ### Selecting Objects
 Only select the following objects when exporting the rig:
 
-![Screenshot from 2025-01-23 14-14-50](https://github.com/user-attachments/assets/2f789b8e-f2b3-4422-9c70-1741bf44b3b1)
+![PZ_Rig_Select](https://github.com/user-attachments/assets/3e0c84ae-4595-4ce8-91a4-da299d98401b)
+
 
 
 ### Export Options
@@ -57,3 +60,10 @@ The bones that control how dresses move on the player should automatically adjus
 
 ### Asset Library
 The 'Dummy01' object containing the armature and Translation Data is marked as an asset for you to use in asset libraries.
+
+## Credits
+Rig made by Paddlefruit
+
+Special thanks to CrystalChris and others from the Discord helping test the rig out!
+
+Original rig, model, and textures are from The Indie Stone.
