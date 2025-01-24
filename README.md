@@ -1,4 +1,4 @@
-# Project Zomboid Community Human Rig V1.0.3
+# Project Zomboid Community Human Rig V1.0.4
 By Paddlefruit
 
 ![PZ_Rigs](https://github.com/user-attachments/assets/669da631-06f5-45e1-a482-903880af6272)
