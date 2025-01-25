@@ -51,7 +51,8 @@ Simply enable/disable the meshes you want or don't want. They are all located wi
 As with above, enable and disable the meshes you do or don't want to see.
 
 ### Textures
-Textures are not packed into the Blend file to limit its size. If you want the character textures, the basic ones are included in a folder in the GitHub repository. Install these (or any custom textures you want), then go to the Shading tab. In the Shader Node editor, select the 'Image Texture' node and select your texture from your files.
+Textures are not packed into the Blend file to limit its size. If you want the base game ones, go to your Project Zomboid install in the 'common' folder. They are found in: 'projectzomboid/media/textures/Body'.
+Once you have found there (or any custom textures you want), go to the Shading tab. In the Shader Node editor, select the 'Image Texture' node and select your texture from your files.
 
 ## How to export
 
