@@ -18,7 +18,7 @@ Extra bones for the IK solver. There is no need to mess with these.
 ## How to use
 
 ### IK/FK Switching
-To switch a certain limb from forward kinematics (KF) to inverse kinematics (IK) or vice versa, do the following instructions.
+To switch a certain limb from forward kinematics (FK) to inverse kinematics (IK) or vice versa, do the following instructions.
 1. In pose mode, select the 'CTRL_Root' bone (the white lines around the feet of the model).
 2. In the Context Tabs at the right of the 3D viewport (press N if it is not already open), open the 'Item' tab then scroll down to 'Properties'
 3. Change the value of the desired limb to switch it. A value of 0 is FK, and a value of 1 is IK. Be sure to keyframe this value for animations!
@@ -62,7 +62,7 @@ Make sure to select the following options when exporting as FBX:
 The bones that control how dresses move on the player should automatically adjust themselves based on the legs' locations, So you shouldn't need to worry about them.
 
 ### Asset Library
-The 'Dummy01' object containing the armature and Translation Data is marked as an asset for you to use in asset libraries.
+The 'Bip01' armature is marked as an asset for you to use in asset libraries.
 
 ## Credits
 Rig made by Paddlefruit
