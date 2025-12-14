@@ -1,7 +1,22 @@
-# Project Zomboid Community Human Rig V1.1.0
+# Project Zomboid Community Human Rig V2.0.0
 By Paddlefruit
 
-![PZ_Rigs](https://github.com/user-attachments/assets/8cb978a5-4bfa-4b4e-b7ce-79d22cc2e92f)
+<img width="1080" height="1080" alt="rigpreview" src="https://github.com/user-attachments/assets/af2ed701-3643-4239-b7e2-4286f8c47d25" />
+
+## CHANGED
+Replaced the deformation rig with a fixed one to finally circumvent that rotation snapping issue on animation transitions. This was due to an incorrect rig scale and a lock of the Dummy01 object as a parent, which has now been fixed.
+
+Changed the static boolean toggle of the 'IK/FK' options to a float value which should allow you to properly interpolate between the two now. 
+
+### TO MIGRATE PREVIOUS ANIMATIONS:
+1. Back up your animation just in case!
+2. Bring the new rig into whatever Blender file had your original animation (you can scale the Dummy01 object down to fit your scene if need be, usually by a magnitude of 100. Just don't apply the scale.)
+3. Assign the new rig the Action that the previous rig had in the Action Editor.
+4. Go to the Graph Editor and select all the control bones. (Make sure that the new rig has the same IK/FK settings as the previous one!)
+5. Set the 2D cursor at y-level 0 and set the 'Pivot Point' (the option next to the snapping toggle) to '2D Cursor'. This is to ensure that the animation data is scaled properly. 
+6. Filter the animation channels to only include 'Location' channels. Grab every curve that is visible. 
+7. Initiate a scale operation ('S' by default), restrict the scaling to the Y-axis (press 'Y' during the scalling operation), type '100', then enter.
+8. Now your animation should look identical on the new rig. If it doesn't, make sure you did all the steps correctly! Feel free to dm me (@Paddlefruit) if you need some help.
 
 
 ## Bone Collection Descriptions
@@ -31,6 +46,8 @@ If you would rather have the head rotate towards an object rather than rotating 
 1. Follow steps 1 and 2 from the IK/FK Switching section.
 2. Change the value of the property 'Head_UseLookPoint' from False to True. Be sure to keyframe this value. It will reveal and hide the necessary controls you need.
 
+<img width="365" height="596" alt="rootselect" src="https://github.com/user-attachments/assets/7b8b398f-4955-44d4-b08d-3b1f7ac7273f" />
+
 ### Moving the Character Location
 If you want the animation to actually move the character in-game (not just the model), you need to animate the location of the 'CTRL_TranslationData' bone, NOT the 'CTRL_Root' bone. It may look unintuitive to not see the character moving with the TranslationData control in Blender, but that is how the game reads movement.
 
@@ -51,7 +68,7 @@ Simply enable/disable the meshes you want or don't want. They are all located wi
 As with above, enable and disable the meshes you do or don't want to see.
 
 ### Textures
-Textures are not packed into the Blend file to limit its size. If you want the base game ones, go to your Project Zomboid install in the 'common' folder. They are found in: 'projectzomboid/media/textures/Body'.
+There are some textures packed into the file. If you want more, go to your Project Zomboid install in the 'common' folder. They are found in: 'projectzomboid/media/textures/Body'.
 Once you have found there (or any custom textures you want), go to the Shading tab. In the Shader Node editor, select the 'Image Texture' node and select your texture from your files.
 
 ## How to export
@@ -59,14 +76,12 @@ Once you have found there (or any custom textures you want), go to the Shading t
 ### Selecting Objects
 Only select the following objects when exporting the rig:
 
-![Screenshot from 2025-01-25 13-15-12](https://github.com/user-attachments/assets/9b4b58f1-1e8e-40b8-b838-fc86335015ba)
-
+<img width="391" height="277" alt="newselection" src="https://github.com/user-attachments/assets/def567e9-514b-4991-bf08-0146047c392f" />
 
 ### Export Options
 Make sure to select the following options when exporting as FBX:
 
-![PZ_Rig_Export](https://github.com/user-attachments/assets/0ab9ff5b-404e-4263-8a02-cea3bdf2ae94)
-
+<img width="244" height="894" alt="settings" src="https://github.com/user-attachments/assets/f0e860e9-3645-4078-8705-2c29824c9358" />
 
 ## Things to note
 
@@ -74,7 +89,7 @@ Make sure to select the following options when exporting as FBX:
 The dress bones should automatically move according to the legs, but may require some adjustment from the animator. I plan to make them move more intelligently in the future.
 
 ### Asset Library
-The 'Bip01' armature is marked as an asset for you to use in asset libraries.
+The 'CH-PZ_Human' collection is marked as an asset for you to use in asset libraries.
 
 ## Credits
 Rig made by Paddlefruit
