@@ -4,7 +4,7 @@ By Paddlefruit
 <img width="1080" height="1080" alt="rigpreview" src="https://github.com/user-attachments/assets/af2ed701-3643-4239-b7e2-4286f8c47d25" />
 
 ## CHANGED
-Replaced the deformation rig with a fixed one to finally circumvent that rotation snapping issue on animation transitions. This was due to an incorrect rig scale and a lock of the Dummy01 object as a parent, which has now been fixed.
+Replaced the deformation rig with a fixed one to finally circumvent that rotation snapping issue on animation transitions. This was due to an incorrect rig scale and a lack of the Dummy01 object as a parent, which has now been fixed.
 
 Changed the static boolean toggle of the 'IK/FK' options to a float value which should allow you to properly interpolate between the two now. 
 
