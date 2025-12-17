@@ -1,0 +1,42 @@
+# This code will only work on Blender 5.0 and up, and won't for Blender 4
+# Assign the action you want to convert onto the updated rig, then run this script.
+# Make sure that the updated rig has the proper names in the scene! (Bip01, Dummy01, Translation_Data and NOT Bip01.01 or Bip02 or anything like that)
+
+import bpy
+from bpy_extras import anim_utils
+
+context = bpy.context
+
+# Force Selecting Bip01
+bpy.ops.object.mode_set(mode='OBJECT')
+obj = bpy.data.objects.get('Bip01')
+if obj is not None:
+    bpy.ops.object.select_all(action='DESELECT')
+    context.view_layer.objects.active = obj
+    obj.select_set(True)
+
+# Enter Pose Mode
+bpy.ops.object.mode_set(mode='POSE')
+
+# Get Animation Channels
+anim_data = obj.animation_data
+channelbag = anim_utils.action_get_channelbag_for_slot(anim_data.action, anim_data.action_slot)
+
+# Set Graph Editor 2D Cursor at (0,0)
+for area in bpy.context.screen.areas:
+    if area.type == 'GRAPH_EDITOR':
+        with bpy.context.temp_override(area=area):
+            area.spaces[0].pivot_point = 'CURSOR'
+            bpy.context.space_data.cursor_position_x = 0.0
+            bpy.context.space_data.cursor_position_y = 0.0
+            break
+
+# Filter curves so we only have locations of CTRL bones, and exclude prop bones
+fcurves = [fc for fc in channelbag.fcurves if 'location' in fc.data_path and 'CTRL_' in fc.data_path and 'Prop' not in fc.data_path]
+
+# Scale all the curve's keyframes and handles by 100 on the Y axis
+for fc in fcurves:
+    for keyframe_point in fc.keyframe_points:
+        keyframe_point.co.y *= 100
+        keyframe_point.handle_left[1] *= 100
+        keyframe_point.handle_right[1] *= 100
