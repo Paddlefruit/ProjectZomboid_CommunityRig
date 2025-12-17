@@ -9,6 +9,16 @@ Replaced the deformation rig with a fixed one to finally circumvent that rotatio
 Changed the static boolean toggle of the 'IK/FK' options to a float value which should allow you to properly interpolate between the two now. 
 
 ### TO MIGRATE PREVIOUS ANIMATIONS:
+
+#### Automatic
+
+1. Download the 'PY_RigMigrator_Blender5' script from the repository. 
+2. Open the script in the text editor in the Blender file. Note that this script requires Blender 5.
+3. Assign the action you want to convert onto the updated armature. Make sure that the updated rig has the proper names in the scene! (Bip01, Dummy01, Translation_Data and NOT Bip01.01 or Bip02 or anything like that)
+4. Run the script.
+
+#### Manual
+
 1. Back up your animation just in case!
 2. Bring the new rig into whatever Blender file had your original animation (you can scale the Dummy01 object down to fit your scene if need be, usually by a magnitude of 100. Just don't apply the scale.)
 3. Assign the new rig the Action that the previous rig had in the Action Editor.
