@@ -1,9 +1,15 @@
-# Project Zomboid Community Human Rig V2.1.0
+# Project Zomboid Community Human Rig V2.2.0
 By Paddlefruit
 
 <img width="1080" height="1080" alt="rigpreview" src="https://github.com/user-attachments/assets/af2ed701-3643-4239-b7e2-4286f8c47d25" />
 
 ## CHANGED
+
+The root of the custom animations should now properly point to the pelvis rather than the ground, to be on par with vanilla animations. This should remove the excess jitter when transitioning to and from vanilla animations.
+- This won't require any migration steps from you, but you will need to re-export your animation if you want the fix
+
+Prop bones are now properly oriented by default
+
 Replaced the deformation rig with a fixed one to finally circumvent that rotation snapping issue on animation transitions. This was due to an incorrect rig scale and a lack of the Dummy01 object as a parent, which has now been fixed.
 
 Changed the static boolean toggle of the 'IK/FK' options to a float value which should allow you to properly interpolate between the two now. 
