@@ -1,4 +1,4 @@
-# Project Zomboid Community Human Rig V2.2.0
+# Project Zomboid Community Human Rig V2.2.1
 By Paddlefruit
 
 <img width="1080" height="1080" alt="rigpreview" src="https://github.com/user-attachments/assets/af2ed701-3643-4239-b7e2-4286f8c47d25" />
