@@ -1,39 +1,15 @@
-# Project Zomboid Community Human Rig V2.2.1
+# Project Zomboid Community Human Rig V3.0.0
 By Paddlefruit
 
-<img width="1080" height="1080" alt="rigpreview" src="https://github.com/user-attachments/assets/af2ed701-3643-4239-b7e2-4286f8c47d25" />
+<img width="829" height="862" alt="IMG-RigV3_Preview" src="https://github.com/user-attachments/assets/f0a869da-9b89-4150-b6ac-d6bf1c87c8b4" />
 
 ## CHANGED
 
-The root of the custom animations should now properly point to the pelvis rather than the ground, to be on par with vanilla animations. This should remove the excess jitter when transitioning to and from vanilla animations.
-- This won't require any migration steps from you, but you will need to re-export your animation if you want the fix
+- Rig is updated to now primarially support GLB exports instead of FBX exports. GLB files are dramatically smaller in size than FBX files, so it is best practice to use them instead.
+- To do so, use the new script included, 'PY-BobBatchExportGLB', to easily export either all actions in the scene or the active action on Bip01.
 
-Prop bones are now properly oriented by default
-
-Replaced the deformation rig with a fixed one to finally circumvent that rotation snapping issue on animation transitions. This was due to an incorrect rig scale and a lack of the Dummy01 object as a parent, which has now been fixed.
-
-Changed the static boolean toggle of the 'IK/FK' options to a float value which should allow you to properly interpolate between the two now. 
-
-### TO MIGRATE PREVIOUS ANIMATIONS:
-
-#### Automatic
-
-1. Download the 'PY_RigMigrator_Blender5' script from the repository. 
-2. Open the script in the text editor in the Blender file. Note that this script requires Blender 5.
-3. Assign the action you want to convert onto the updated armature. Make sure that the updated rig has the proper names in the scene! (Bip01, Dummy01, Translation_Data and NOT Bip01.01 or Bip02 or anything like that)
-4. Run the script.
-
-#### Manual
-
-1. Back up your animation just in case!
-2. Bring the new rig into whatever Blender file had your original animation (you can scale the Dummy01 object down to fit your scene if need be, usually by a magnitude of 100. Just don't apply the scale.)
-3. Assign the new rig the Action that the previous rig had in the Action Editor.
-4. Go to the Graph Editor and select all the control bones. (Make sure that the new rig has the same IK/FK settings as the previous one!)
-5. Set the 2D cursor at y-level 0 and set the 'Pivot Point' (the option next to the snapping toggle) to '2D Cursor'. This is to ensure that the animation data is scaled properly. 
-6. Filter the animation channels to only include 'Location' channels. Grab every curve that is visible. 
-7. Initiate a scale operation ('S' by default), restrict the scaling to the Y-axis (press 'Y' during the scalling operation), type '100', then enter.
-8. Now your animation should look identical on the new rig. If it doesn't, make sure you did all the steps correctly! Feel free to dm me (@Paddlefruit) if you need some help.
-
+- Automatic skirt bone positioning is now much better.
+- Added the male and female skeleton models from the game as attatched meshes to Bip01 that you can toggle on (just for fun!)
 
 ## Bone Collection Descriptions
 
@@ -52,7 +28,7 @@ Extra bones for the IK solver. There is no need to mess with these.
 To switch a certain limb from forward kinematics (FK) to inverse kinematics (IK) or vice versa, do the following instructions.
 1. In pose mode, select the 'CTRL_Root' bone (the white lines around the feet of the model).
 2. In the Context Tabs at the right of the 3D viewport (press N if it is not already open), open the 'Item' tab then scroll down to 'Properties'
-3. Change the value of the desired limb to switch it. A value of False is FK, and a value of True is IK. Be sure to keyframe this value for animations. This value will also automatically hide and reveal whatever control bones are needed for a certain context.
+3. Change the value of the desired limb to switch it. A value of 0 is FK, and a value of 1 is IK. Be sure to keyframe this value for animations. This value will also automatically hide and reveal whatever control bones are needed for a certain context.
 
 If you don't know what the difference between IK and FK is, here's a good video as a refresher:
 https://youtu.be/JnkAlwMjalc?feature=shared
@@ -60,9 +36,9 @@ https://youtu.be/JnkAlwMjalc?feature=shared
 ### Toggling the 'Look Point' for the head
 If you would rather have the head rotate towards an object rather than rotating the head yourself, do the following instructions.
 1. Follow steps 1 and 2 from the IK/FK Switching section.
-2. Change the value of the property 'Head_UseLookPoint' from False to True. Be sure to keyframe this value. It will reveal and hide the necessary controls you need.
+2. Change the value of the property 'Head_UseLookPoint' from 0 to 1. Be sure to keyframe this value. It will reveal and hide the necessary controls you need.
 
-<img width="365" height="596" alt="rootselect" src="https://github.com/user-attachments/assets/7b8b398f-4955-44d4-b08d-3b1f7ac7273f" />
+<img width="454" height="639" alt="IMG-Properties" src="https://github.com/user-attachments/assets/f04e49f1-df48-4bbf-9359-6883ff3b563d" />
 
 ### Moving the Character Location
 If you want the animation to actually move the character in-game (not just the model), you need to animate the location of the 'CTRL_TranslationData' bone, NOT the 'CTRL_Root' bone. It may look unintuitive to not see the character moving with the TranslationData control in Blender, but that is how the game reads movement.
@@ -87,28 +63,46 @@ As with above, enable and disable the meshes you do or don't want to see.
 There are some textures packed into the file. If you want more, go to your Project Zomboid install in the 'common' folder. They are found in: 'projectzomboid/media/textures/Body'.
 Once you have found there (or any custom textures you want), go to the Shading tab. In the Shader Node editor, select the 'Image Texture' node and select your texture from your files.
 
-## How to export
+## Exporting
 
-### Selecting Objects
-Only select the following objects when exporting the rig:
+### Animations
+#### GLB (Reccomended)
+- Make sure that the objects 'Dummy01', 'Bip01', 'GEO-MaleBody', and 'Translation_Data' are visible in the scene.
+- Open 'PY-BobBatchExportGLB' in the Blender text editor in your Blender project containing your animation. (Script is in the GitHub repository if you lose it)
+- Run the script. It will prompt you to select a file path, and this is where your animations will be exported to.
+- By default it will export every action in the Blend file that contains the substring 'Bob_'. If you want to only export the active action on Bip01, uncheck 'Export All Animations' in the file path popup.
+ 
+<img width="785" height="476" alt="IMG-ExportScript" src="https://github.com/user-attachments/assets/4095b2c8-5890-4805-af88-b8677c6600e6" />
 
-<img width="391" height="277" alt="newselection" src="https://github.com/user-attachments/assets/def567e9-514b-4991-bf08-0146047c392f" />
+#### FBX (Currently Not Working)
+- Currently this version of the rig does not support FBX exports. Use the GLB exports instead. (There is no difference to PZ which type you use, and you can mix and match FBXs and GLBs)
 
-### Export Options
-Make sure to select the following options when exporting as FBX:
+### AnimationMeshes
+This is for when you want to export a custom model to the game, potentially to replace the main human mesh.
+#### GLB
+- Select the following objects (with your custom model selected instead of 'GEO-MaleBody'):
 
-<img width="244" height="894" alt="settings" src="https://github.com/user-attachments/assets/f0e860e9-3645-4078-8705-2c29824c9358" />
+<img width="446" height="323" alt="IMG-Selection" src="https://github.com/user-attachments/assets/373ec824-5469-4e4f-870e-1e380bbf46cb" />
+
+- Open the standard GLTF/GLB Blender exporter (not the script!).
+- Select the following options:
+
+<img width="243" height="917" alt="IMG-Settings1" src="https://github.com/user-attachments/assets/e12c335f-8da5-41d3-b0c2-df76c85a938d" />
+<img width="243" height="810" alt="IMG-Settings2" src="https://github.com/user-attachments/assets/481f723a-3ae5-44f1-bbe7-793a5e23ad02" />
+
+- Export
+
 
 ## Things to note
 
 ### Dress Bones
-The dress bones should automatically move according to the legs, but may require some adjustment from the animator. I plan to make them move more intelligently in the future.
+The dress bones should automatically move according to the legs, but may require some adjustment from the animator.
 
 ### Asset Library
 The 'CH-PZ_Human' collection is marked as an asset for you to use in asset libraries.
 
 ## Credits
-Rig made by Paddlefruit
+Rig and scripts made by Paddlefruit
 
 Special thanks to CrystalChris and others from the Discord helping test the rig out!
 
