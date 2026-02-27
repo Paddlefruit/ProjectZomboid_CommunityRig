@@ -55,7 +55,7 @@ class ExportZomboidGLBs(Operator, ExportHelper):
         translation_data_track.name = action.name
                 
         bip01.animation_data.action = action
-        anim_length = int(action.frame_range[0])
+        anim_length = int(action.frame_range[0]) - 1
         bip01_strip = bip01_track.strips.new(action.name, anim_length, action)
                 
         translation_data.animation_data.action = action
