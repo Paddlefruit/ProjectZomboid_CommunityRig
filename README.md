@@ -1,4 +1,4 @@
-# Project Zomboid Community Human Rig V3.0.0
+# Project Zomboid Community Human Rig V3.1.0
 By Paddlefruit
 
 <img width="829" height="862" alt="IMG-RigV3_Preview" src="https://github.com/user-attachments/assets/f0a869da-9b89-4150-b6ac-d6bf1c87c8b4" />
