@@ -26,10 +26,33 @@ Additionally, make sure that you have the 'DirectX .X Importer' extension by Sai
 installed and enabled. It can be found on the official Blender Extensions website 
 (https://extensions.blender.org/add-ons/io-directx-x/)
 
----------------------------------------------------------------------------------------
-
 If you run into any issues, errors, or questions, please contact me at the Official Project 
 Zomboid Discord or the PZ Modding Discord @Paddlefruit
+
+---------------------------------------------------------------------------------------
+CONFIRMED WORKING VERSIONS
+
+- Blender 5.1.2
+- DirectX .X Importer 1.3.1
+- Project Zomboid 42.19.0
+
+RECCOMENDED MODS
+
+- The Frockin' Splendor! Series
+- Spongies Open Jackets
+- Spongies Hair
+- Fluffy Hair
+- MedievalZ
+
+INCOMPATIBLE MODS
+
+- Yaki's Hair Salon
+- Yaki's Barbershop
+- SoulFilcher's Beautifying Time
+
+Some mods like Yaki's store their data in weird ways that are near impossible to parse through.
+If you encounter errors on importing a modded asset, try to ascertain which mod it was and
+remove it from your mod directories, then parse the assets again.
 '''
 
 #=================================================================================================================================================
@@ -43,6 +66,7 @@ import sys
 import math
 import time
 import re
+import functools
 import xml.etree.ElementTree as ET
 import numpy as np
 
@@ -131,6 +155,16 @@ class PZ_ZombieInjury(PropertyGroup):
     texture_path : StringProperty()
 
 # ============================================================================================
+# BODY INJURY
+# ============================================================================================
+
+class PZ_BodyInjury(PropertyGroup):
+    texture_path : StringProperty()
+    body_part : StringProperty()
+    damage_type : StringProperty()
+    sex : StringProperty()
+
+# ============================================================================================
 # CLOTHING MESH SLOT
 # ============================================================================================
 
@@ -151,13 +185,7 @@ class PZ_ClothingMeshSlot(PropertyGroup):
     female_model_path : StringProperty(
         name="Female Model Path"
     )
-    model_type : EnumProperty(
-        name="Model Type",
-        items=[
-            ('X', "X", "Model type is .x", 0),
-            ('FBX', "FBX", "Model type is .fbx", 1),
-            ('GLB', "GLB", "Model type is .glb", 2)
-        ]
+    model_type : StringProperty(
     )
     texture_path : StringProperty(
         name="Texture Path"
@@ -216,13 +244,13 @@ class PZ_PropMeshSlot(PropertyGroup):
     female_model_path : StringProperty(
         name="Female Model Path"
     )
-    model_type : EnumProperty(
-        name="Model Type",
-        items=[
-            ('X', "X", "Model type is .x", 0),
-            ('FBX', "FBX", "Model type is .fbx", 1),
-            ('GLB', "GLB", "Model type is .glb", 2)
-        ]
+    model_type : StringProperty(
+        # name="Model Type",
+        # items=[
+        #     ('X', "X", "Model type is .x", 0),
+        #     ('FBX', "FBX", "Model type is .fbx", 1),
+        #     ('GLB', "GLB", "Model type is .glb", 2)
+        # ]
     )
     texture_path : StringProperty(
         name="Texture Path"
@@ -273,15 +301,7 @@ class PZ_ClothingItemSlot(PropertyGroup):
         name="Female Model Path", 
         subtype='FILE_PATH', 
     )
-    model_type : EnumProperty(
-        name="Model Type",
-        items=[
-            ('X', "X", "Model type is .x", 0),
-            ('FBX', "FBX", "Model type is .fbx", 1),
-            ('GLB', "GLB", "Model type is .glb", 2),
-            ('NONE', "None", "Item has no model", 3)
-        ]
-    )
+    model_type : StringProperty()
     texture_choices : CollectionProperty(type=PZ_ClothingItemTextureChoices)
     tintable : BoolProperty(
         name="Tintable", 
@@ -383,21 +403,338 @@ class PZ_ModDirectorySlot(PropertyGroup):
 These are the various functions that do not warrant their own Operators.
 '''
 
-# region Texture Methods
+# region Path Methods
+
+# ============================================================================================
+# IS DIRECTX IMPORTER ENABLED
+# ============================================================================================
+
+def directx_import_available():
+    checks = ['bl_ext.blender_org.io_directx_x',
+                'bl_ext.user_default.io_directx_x'
+             ]
+    for check in checks:
+        if check in bpy.context.preferences.addons.keys():
+            return True
+    return False
+
+# ============================================================================================
+# GET ZOMBOID ASSET
+# ============================================================================================
+
+@functools.lru_cache(maxsize=128)
+def get_zomboid_asset_folders(context, parent_path):
+    g = context.scene.pz_human_global_props
+    mods = context.scene.pz_human_mod_directory_slots
+
+    results = []
+
+    vanilla_results = [dir for dir in Path(g.pz_directory).rglob(parent_path, case_sensitive=False) if dir.is_dir()]
+    for path in vanilla_results:
+        results.append((path, 'Project Zomboid'))
+
+    for mod in mods:
+        candidate_paths = [
+            Path(mod.mod_dir),
+            Path(mod.mod_dir).parent / 'common'
+        ]
+        for path in candidate_paths:
+            modded_results = [dir for dir in path.rglob(parent_path, case_sensitive=False) if dir.is_dir()]
+            for path in modded_results:
+                results.append((path, mod.name))
+    return results
+
+def get_zomboid_asset(context, item_path):
+    item_path = item_path.replace('\\', '/')
+    parent_name = Path(item_path).parent.name
+    asset_name = Path(item_path).stem
+
+    for folder, mod_name in get_zomboid_asset_folders(context, parent_name):
+        for file in folder.glob(f"{asset_name}.*", case_sensitive=False):
+            if file.is_file():
+                return file, file.suffix.lower()
+
+    print('Could not find ' + item_path)
+    return (None, None)
+
+# endregion
+
+# region Texture & Material Methods
+
+# ============================================================================================
+# CREATE MODEL MATERIAL
+# ============================================================================================
+
+def create_model_material(context, texture_path, category):
+        p = context.active_object.pz_human_props
+
+        m_list = None
+        m = None
+
+        match category:
+            case 'PROP':
+                m_list = context.active_object.pz_human_prop_mesh_slots
+                m = m_list[p.prop_mesh_slot_active_index]
+            case 'CLOTHING':
+                m_list = context.active_object.pz_human_clothing_mesh_slots
+                m = m_list[p.clothing_mesh_slot_active_index]
+
+        instance_str = ' (' + str(p.rig_instance) + ')'
+        
+        mat_name = ''
+        match category:
+            case 'PROP':
+                mat_name = 'MAT-PropMaterial' + str(p.prop_mesh_slot_active_index) + instance_str
+            case 'CLOTHING':
+                mat_name = 'MAT-ClothingMaterial' + str(p.clothing_mesh_slot_active_index) + instance_str
+
+        old_mat = bpy.data.materials.get(mat_name)
+        if old_mat:
+            bpy.data.materials.remove(old_mat, do_unlink=True)
+        
+        if Path(texture_path).is_file():
+            mat = bpy.data.materials.new(name=mat_name)
+            nodes = mat.node_tree.nodes
+            links = mat.node_tree.links
+            
+            # Get the texture node, or create it if it does not exist
+            tex_node = nodes.new(type='ShaderNodeTexImage')
+            tex_node.name = "NDE-TexSlot"
+            tex_node.select = True
+            
+            # Get the color tint node, or create it if it does not exist
+            tint_node = nodes.new(type='ShaderNodeMix')
+            tint_node.name = "NDE-TexTint"
+            tint_node.select = True
+            
+            # Create a frame node and group all these nodes inside of it
+            frame_node = nodes.get("NDE-GroupFrame")
+            if frame_node is None:
+                frame_node = nodes.new(type='NodeFrame')
+                frame_node.name = "NDE-GroupFrame"
+                frame_node.label = str(Path(texture_path).name)
+            
+            for node in nodes:
+                if node.select and node != frame_node:
+                    node.parent = frame_node
+            
+            # Get the emission shader node
+            emission_node = nodes.new(type='ShaderNodeEmission')
+            emission_node.name = "NDE-EmissionShader"
+            
+            # Get the PBR shader node
+            pbr_node = nodes.new(type='ShaderNodeBsdfPrincipled')
+            pbr_node.name = "NDE-PBRShader"
+            
+            # Get the mix shader node
+            mix_shader_node = nodes.new(type='ShaderNodeMixShader')
+            mix_shader_node.name = "NDE-MixShader"
+            
+            output_node = nodes.get("Material Output")
+            
+            # Create the custom shader node
+            custom_shader_group = nodes.new(type='ShaderNodeGroup')
+            mix_shader_node.name = "NDE-CustomShader"
+
+            # Create the custom shader mix node
+            mix_custom_shader_node = nodes.new(type='ShaderNodeMixShader')
+            mix_custom_shader_node.name = "NDE-MixCustomShader"
+
+            #------------------#
+            
+            ### Set the texture node properties ###
+            tex_node.image = bpy.data.images.load(texture_path)
+            
+            # Interpolation Driver 
+            path = 'nodes["NDE-TexSlot"].interpolation'
+            fcurve = mat.node_tree.driver_add(path)
+            driver = fcurve.driver
+            driver.type = 'AVERAGE'
+            
+            var = driver.variables.new()
+            target = var.targets[0]
+            target.id = context.active_object
+            target.data_path = "pz_human_props.texture_interpolation_index"
+            
+            ### Set the color tint node properties ###
+            c = m.tint_color
+            
+            tint_node.data_type = 'RGBA'
+            tint_node.blend_type = 'MULTIPLY'
+            
+            # Factor Driver
+            path = 'nodes["NDE-TexTint"].inputs[0].default_value'
+            fcurve = mat.node_tree.driver_add(path)
+            driver = fcurve.driver
+            driver.type = 'AVERAGE'
+            
+            var = driver.variables.new()
+            target = var.targets[0]
+            target.id = context.active_object
+            target.data_path = "pz_human_prop_mesh_slots[" + str(p.prop_mesh_slot_active_index) + "].tintable"
+            
+            # Color Drivers
+            
+            for i in range(3):
+                path = 'nodes["NDE-TexTint"].inputs[7].default_value'
+                fcurve = mat.node_tree.driver_add(path, i)
+                driver = fcurve.driver
+                driver.type = 'AVERAGE'
+                
+                var = driver.variables.new()
+                target = var.targets[0]
+                target.id = context.active_object
+                target.data_path = "pz_human_prop_mesh_slots[" + str(p.prop_mesh_slot_active_index) + "].tint_color[" + str(i) + "]"
+            
+            ### Set the mix shader node properties ###
+            
+            # Factor Driver
+            path = 'nodes["NDE-MixShader"].inputs[0].default_value'
+            fcurve = mat.node_tree.driver_add(path)
+            driver = fcurve.driver
+            driver.type = 'AVERAGE'
+            
+            var = driver.variables.new()
+            target = var.targets[0]
+            target.id = context.active_object
+            target.data_path = "pz_human_props.shading_type_index"
+            
+            ### Set the emission node properties ###
+            
+            # Strength Driver
+            path = 'nodes["NDE-EmissionShader"].inputs[1].default_value'
+            fcurve = mat.node_tree.driver_add(path)
+            driver = fcurve.driver
+            driver.type = 'AVERAGE'
+            
+            var = driver.variables.new()
+            target = var.targets[0]
+            target.id = context.active_object
+            target.data_path = "pz_human_props.emission_strength"
+            
+            ### Set the PBR node properties ###
+            
+            # Roughness Driver
+            path = 'nodes["NDE-PBRShader"].inputs[2].default_value'
+            fcurve = mat.node_tree.driver_add(path)
+            driver = fcurve.driver
+            driver.type = 'AVERAGE'
+            
+            var = driver.variables.new()
+            target = var.targets[0]
+            target.id = context.active_object
+            target.data_path = "pz_human_props.roughness"
+            
+            # Metallic Driver
+            path = 'nodes["NDE-PBRShader"].inputs[1].default_value'
+            fcurve = mat.node_tree.driver_add(path)
+            driver = fcurve.driver
+            driver.type = 'AVERAGE'
+            
+            var = driver.variables.new()
+            target = var.targets[0]
+            target.id = context.active_object
+            target.data_path = "pz_human_props.metallic"
+            
+            #------------------#
+            
+            # Connect the color from the texture node to the 1st color in the tint node
+            links.new(tex_node.outputs['Color'], tint_node.inputs['A'])
+            
+            # Connect the output from the tint node to the shader nodes
+            links.new(tint_node.outputs['Result'], emission_node.inputs['Color'])
+            links.new(tint_node.outputs['Result'], pbr_node.inputs['Base Color'])
+            
+            # Connect the outputs from the tint node to the mix shader nodes
+            links.new(emission_node.outputs['Emission'], mix_shader_node.inputs[1])
+            links.new(pbr_node.outputs['BSDF'], mix_shader_node.inputs[2])
+            
+            # Connect the output from the emission node to the material output
+            links.new(mix_shader_node.outputs['Shader'], output_node.inputs['Surface'])
+            
+            #------------------#
+            
+            tex_node.location = (0.0, 0.0)
+            
+            tint_node.location = (200.0, 0.0)
+            
+            emission_node.location = (400.0, 0.0)
+            
+            output_node.location = (600.0, 0.0)
+            
+            #------------------#
+            
+            return({'FINISHED'})
+        else:
+            print("Could not find a texture file named " + target)
+            return({'CANCELLED'})
+
+# ============================================================================================
+# REMOVE MODEL MATERIAL
+# ============================================================================================
+
+def remove_model_material(context, category):
+    p = context.active_object.pz_human_props
+    instance_str = ' (' + str(p.rig_instance) + ')'
+    index = -1
+    a_list = None
+
+    mat_name = ''
+    match category:
+        case 'PROP':
+            mat_name = 'MAT-PropMaterial' + str(index) + instance_str
+            a_list = context.active_object.pz_human_prop_mesh_slots
+            index = p.prop_mesh_slot_active_index
+        case 'CLOTHING':
+            mat_name = 'MAT-ClothingMaterial' + str(index) + instance_str
+            a_list = context.active_object.pz_human_clothing_mesh_slots
+            index = p.clothing_mesh_slot_active_index
+
+    old_mat = bpy.data.materials.get(mat_name)
+    if old_mat:
+        
+        drivers = old_mat.node_tree.animation_data.drivers
+        for i in range(len(drivers) - 1, -1, -1):
+            drivers.remove(drivers[i]) 
+        
+        bpy.data.materials.remove(old_mat, do_unlink=True)
+        
+    for i in range(index, len(a_list)):
+        index_mat = bpy.data.materials.get(mat_name)
+        if index_mat:
+            match category:
+                case 'PROP':
+                    index_mat.name = 'MAT-PropMaterial' + str(i - 1) + instance_str 
+                case 'CLOTHING':
+                    index_mat.name = 'MAT-ClothingMaterial' + str(i - 1) + instance_str 
+            
+            for fcurve in index_mat.node_tree.animation_data.drivers:
+                driver = fcurve.driver
+                target = driver.variables[0].targets[0]
+                
+                match category:
+                    case 'PROP':
+                        old_path = "pz_human_prop_mesh_slots[" + str(i) + "]"
+                        new_path = "pz_human_prop_mesh_slots[" + str(i - 1) + "]"
+                    case 'CLOTHING':
+                        old_path = "pz_human_clothing_mesh_slots[" + str(i) + "]"
+                        new_path = "pz_human_clothing_mesh_slots[" + str(i - 1) + "]"
+                
+                target.data_path = target.data_path.replace(old_path, new_path)
 
 # ============================================================================================
 # SKIN TEXTURE UPDATER
 # ============================================================================================
 
 def update_skin_texture(self, context):
-    prop = context.active_object.pz_human_props
+    p = context.active_object.pz_human_props
     
-    skin_5_fix = prop.skin_color == 4 and prop.zombification != 0
-    zombie_3_fix = prop.skin_color == 2 and prop.zombification > 1
+    skin_5_fix = p.skin_color == 4 and p.zombification != 0
+    zombie_3_fix = p.skin_color == 2 and p.zombification > 1
     
-    s = str(prop.skin_color) if skin_5_fix else str(prop.skin_color + 1)
-    z = str(prop.zombification)
-    sex = 'Male' if prop.model_sex_index == 0 else 'Female'
+    s = str(p.skin_color) if skin_5_fix else str(p.skin_color + 1)
+    z = str(p.zombification)
+    sex = 'Male' if p.model_sex_index == 0 else 'Female'
     
     target_image = None
     
@@ -406,45 +743,41 @@ def update_skin_texture(self, context):
     else:
         target_image = bpy.data.images.get("TEX-" + sex + s + 'Zombie' + z)
     
-    mat = prop.body_mat
+    mat = p.body_mat
     
     if target_image and mat:
         mat.node_tree.nodes.get('TEX-SkinTexture').image = target_image
-
-# endregion
-
-# region Parenting Methods
 
 # ============================================================================================
 # DYNAMIC OBJECT PARENTING
 # ============================================================================================
 
 def update_lookpoint_parent_object(self, context):
-    prop = context.active_object.pz_human_props
+    p = context.active_object.pz_human_props
     
     bip01 = bpy.data.objects.get('Bip01')
     lookpoint = bip01.pose.bones.get('CTRL-LookPoint')
     copy_constraint = lookpoint.constraints.get('Copy Location')
     
-    copy_constraint.target = prop.lookpoint_parent_object
+    copy_constraint.target = p.lookpoint_parent_object
 
 def update_left_prop_parent_object(self, context):
-    prop = context.active_object.pz_human_props
+    p = context.active_object.pz_human_props
     
     bip01 = bpy.data.objects.get('Bip01')
     lookpoint = bip01.pose.bones.get('CTRL-Prop.L')
     copy_constraint = lookpoint.constraints.get('Copy Location')
     
-    copy_constraint.target = prop.left_prop_parent_object
+    copy_constraint.target = p.left_prop_parent_object
 
 def update_right_prop_parent_object(self, context):
-    prop = context.active_object.pz_human_props
+    p = context.active_object.pz_human_props
     
     bip01 = bpy.data.objects.get('Bip01')
     lookpoint = bip01.pose.bones.get('CTRL-Prop.R')
     copy_constraint = lookpoint.constraints.get('Copy Location')
     
-    copy_constraint.target = prop.right_prop_parent_object
+    copy_constraint.target = p.right_prop_parent_object
 
 # endregion
 
@@ -458,65 +791,65 @@ def update_right_prop_parent_object(self, context):
 # Clothing Sex Visibility
 
 def update_clothing_sex_visibility(self, context):
-    prop = context.active_object.pz_human_props
-    mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
+    p = context.active_object.pz_human_props
+    m_list = context.active_object.pz_human_clothing_mesh_slots
     
-    instance_str = ' (' + str(prop.rig_instance) + ')'
+    instance_str = ' (' + str(p.rig_instance) + ')'
 
     male_collection = bpy.data.collections.get('GEO-PZ_Human_Male_Clothes' + instance_str)
     female_collection = bpy.data.collections.get('GEO-PZ_Human_Female_Clothes' + instance_str)
     
-    current_sex = prop.model_sex_index
+    current_sex = p.model_sex_index
     
-    for i in range(len(mesh_prop_list)):
-        mesh_prop = mesh_prop_list[i]
+    for i in range(len(m_list)):
+        m = m_list[i]
         
         obj = male_collection.objects.get('OBJ-MaleClothingMesh' + str(i) + instance_str)
         if obj:
-            obj.hide_viewport = obj['sex'] != current_sex or not mesh_prop.slot_hide_viewport
+            obj.hide_viewport = obj['sex'] != current_sex or not m.slot_hide_viewport
             
         obj = female_collection.objects.get('OBJ-FemaleClothingMesh' + str(i) + instance_str)
         if obj:
-            obj.hide_viewport = obj['sex'] != current_sex or not mesh_prop.slot_hide_viewport
+            obj.hide_viewport = obj['sex'] != current_sex or not m.slot_hide_viewport
     
 def update_clothing_sex_render(self, context):
-    prop = context.active_object.pz_human_props
-    mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
+    p = context.active_object.pz_human_props
+    m_list = context.active_object.pz_human_clothing_mesh_slots
     
-    instance_str = ' (' + str(prop.rig_instance) + ')'
+    instance_str = ' (' + str(p.rig_instance) + ')'
 
     male_collection = bpy.data.collections.get('GEO-PZ_Human_Male_Clothes' + instance_str)
     female_collection = bpy.data.collections.get('GEO-PZ_Human_Female_Clothes' + instance_str)
     
-    current_sex = prop.model_sex_index
+    current_sex = p.model_sex_index
     
-    for i in range(len(mesh_prop_list)):
-        mesh_prop = mesh_prop_list[i]
+    for i in range(len(m_list)):
+        m = m_list[i]
         
         obj = male_collection.objects.get('OBJ-MaleClothingMesh' + str(i) + instance_str)
         if obj:
-            obj.hide_render = obj['sex'] != current_sex or not mesh_prop.slot_hide_render
+            obj.hide_render = obj['sex'] != current_sex or not m.slot_hide_render
             
         obj = female_collection.objects.get('OBJ-FemaleClothingMesh' + str(i) + instance_str)
         if obj:
-            obj.hide_render = obj['sex'] != current_sex or not mesh_prop.slot_hide_render
+            obj.hide_render = obj['sex'] != current_sex or not m.slot_hide_render
 
 #-------------------------------------------------------------#
 # Prop Sex Visibility
 
 def update_prop_sex_visibility(self, context):
-    prop = context.active_object.pz_human_props
-    prop_prop_list = context.active_object.pz_human_prop_mesh_slots
+    p = context.active_object.pz_human_props
+    a_list = context.active_object.pz_human_prop_mesh_slots
     
-    instance_str = ' (' + str(prop.rig_instance) + ')'
+    instance_str = ' (' + str(p.rig_instance) + ')'
 
     male_collection = bpy.data.collections.get('GEO-PZ_Human_Male_Props' + instance_str)
     female_collection = bpy.data.collections.get('GEO-PZ_Human_Female_Props' + instance_str)
     
-    current_sex = prop.model_sex_index
+    current_sex = p.model_sex_index
     
-    for i in range(len(prop_prop_list)):
-        prop_prop = prop_prop_list[i]
+    for i in range(len(a_list)):
+        prop_prop = a_list[i]
         
         obj = male_collection.objects.get('OBJ-MalePropMesh' + str(i) + instance_str)
         if obj:
@@ -527,18 +860,18 @@ def update_prop_sex_visibility(self, context):
             obj.hide_viewport = obj['sex'] != current_sex or not prop_prop.slot_hide_viewport
     
 def update_prop_sex_render(self, context):
-    prop = context.active_object.pz_human_props
-    prop_prop_list = context.active_object.pz_human_prop_mesh_slots
+    p = context.active_object.pz_human_props
+    a_list = context.active_object.pz_human_prop_mesh_slots
     
-    instance_str = ' (' + str(prop.rig_instance) + ')'
+    instance_str = ' (' + str(p.rig_instance) + ')'
 
     male_collection = bpy.data.collections.get('GEO-PZ_Human_Male_Props' + instance_str)
     female_collection = bpy.data.collections.get('GEO-PZ_Human_Female_Props' + instance_str)
     
-    current_sex = prop.model_sex_index
+    current_sex = p.model_sex_index
     
-    for i in range(len(prop_prop_list)):
-        prop_prop = prop_prop_list[i]
+    for i in range(len(a_list)):
+        prop_prop = a_list[i]
         
         obj = male_collection.objects.get('OBJ-MalePropMesh' + str(i) + instance_str)
         if obj:
@@ -552,15 +885,15 @@ def update_prop_sex_render(self, context):
 # Hair Sex Visibility
 
 def update_hair_sex_visibility(self, context):
-    prop = context.active_object.pz_human_props
+    p = context.active_object.pz_human_props
     
-    instance_str = ' (' + str(prop.rig_instance) + ')'
-    hair_collection = prop.rig_collection.children.get('GEO-PZ_Human' + instance_str).children.get('GEO-PZ_Human_Hair' + instance_str)
+    instance_str = ' (' + str(p.rig_instance) + ')'
+    hair_collection = p.rig_collection.children.get('GEO-PZ_Human' + instance_str).children.get('GEO-PZ_Human_Hair' + instance_str)
     male_collection = hair_collection.children.get('GEO-PZ_Human_Hair_Male' + instance_str)
     female_collection = hair_collection.children.get('GEO-PZ_Human_Hair_Female' + instance_str)
     beard_collection = hair_collection.children.get('GEO-PZ_Human_Hair_Beard' + instance_str)
     
-    current_sex = prop.model_sex_index
+    current_sex = p.model_sex_index
         
     obj = male_collection.objects.get('OBJ-MaleHair' + instance_str)
     if obj:
@@ -575,15 +908,15 @@ def update_hair_sex_visibility(self, context):
         obj.hide_viewport = obj['sex'] != current_sex
     
 def update_hair_sex_render(self, context):
-    prop = context.active_object.pz_human_props
+    p = context.active_object.pz_human_props
     
-    instance_str = ' (' + str(prop.rig_instance) + ')'
-    hair_collection = prop.rig_collection.children.get('GEO-PZ_Human' + instance_str).children.get('GEO-PZ_Human_Hair' + instance_str)
+    instance_str = ' (' + str(p.rig_instance) + ')'
+    hair_collection = p.rig_collection.children.get('GEO-PZ_Human' + instance_str).children.get('GEO-PZ_Human_Hair' + instance_str)
     male_collection = hair_collection.children.get('GEO-PZ_Human_Hair_Male' + instance_str)
     female_collection = hair_collection.children.get('GEO-PZ_Human_Hair_Female' + instance_str)
     beard_collection = hair_collection.children.get('GEO-PZ_Human_Hair_Beard' + instance_str)
     
-    current_sex = prop.model_sex_index
+    current_sex = p.model_sex_index
         
     obj = male_collection.objects.get('OBJ-MaleHair' + instance_str)
     if obj:
@@ -622,31 +955,15 @@ class PZ_ConstructBodyTexture(Operator):
     def reconstruct_body_tex_node(self, context, tex_path, node_index):   
              
         # Get reference to the rig's properties
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        dir_list = context.scene.pz_human_mod_directory_slots
-        tex_prop = context.active_object.pz_human_body_texture_slots[node_index]
-        tex_prop_list = context.active_object.pz_human_body_texture_slots
+        p = context.active_object.pz_human_props
+
+        t_list = context.active_object.pz_human_body_texture_slots
+        t = t_list[node_index]
         
-        textures_dir = ''
-        
-        # Construct the filepath to the 'textures' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            textures_dir = global_prop.pz_directory + 'media\\textures\\'
-            tex_path = tex_path.replace('\\', '\\\\')
-        elif sys.platform == 'linux':
-            textures_dir = global_prop.pz_directory + 'projectzomboid/media/textures/'
-            tex_path = tex_path.replace('\\', '/')
-        
-        # Construct the name of the target file
-        target = textures_dir + tex_path + ".png"
-        target = bpy.path.resolve_ncase(target)
-        
-        if Path(target).is_file():
+        if Path(tex_path).is_file():
             
             # Get reference to the human material
-            mat = prop.body_mat
+            mat = p.body_mat
             nodes = mat.node_tree.nodes
             links = mat.node_tree.links
             
@@ -685,7 +1002,7 @@ class PZ_ConstructBodyTexture(Operator):
             if frame_node is None:
                 frame_node = nodes.new(type='NodeFrame')
                 frame_node.name = "NDE-GroupFrame" + str(node_index)
-                frame_node.label = tex_prop.name
+                frame_node.label = t.name
             
             for node in nodes:
                 if node.select and node != frame_node:
@@ -729,7 +1046,7 @@ class PZ_ConstructBodyTexture(Operator):
             mix_node.data_type = 'RGBA'
             
             ### Set the texture node properties ###
-            tex_node.image = bpy.data.images.load(str(target))
+            tex_node.image = bpy.data.images.load(tex_path)
             
             injury_node.image = bpy.data.images.get('TEX-BodyInjuries')
             
@@ -745,7 +1062,7 @@ class PZ_ConstructBodyTexture(Operator):
             target.data_path = "pz_human_props.texture_interpolation_index"
             
             ### Set the color tint node properties ###
-            c = tex_prop.tint_color
+            c = t.tint_color
             
             tint_node.data_type = 'RGBA'
             tint_node.blend_type = 'MULTIPLY'
@@ -794,7 +1111,7 @@ class PZ_ConstructBodyTexture(Operator):
             target.fallback_value = 1.0
                 
                 
-            opacity_node.inputs[1].default_value = tex_prop.opacity
+            opacity_node.inputs[1].default_value = t.opacity
             
             ### Set the alpha add node properties ###
             alpha_add_node.operation = 'ADD'
@@ -835,12 +1152,12 @@ class PZ_ConstructBodyTexture(Operator):
                 
                 prev_alpha_add = nodes.get("NDE-AlphaAdd" + str(node_index - 1))
                 links.new(prev_alpha_add.outputs['Value'], alpha_add_node.inputs[0])
-            elif prop.use_skin_textures and node_index == 0:
+            elif p.use_skin_textures and node_index == 0:
                 links.new(injury_overlay_node.outputs['Result'], mix_node.inputs['A'])  
                 links.new(skin_node.outputs['Alpha'], alpha_add_node.inputs[0]) 
 
             # If this is the last entry in the list, connect it to the blood mix node
-            if node_index == len(tex_prop_list) - 1:
+            if node_index == len(t_list) - 1:
                 links.new(mix_node.outputs['Result'], blood_mix_node.inputs['A'])
                 links.new(alpha_add_node.outputs['Value'], base_alpha_mix_node.inputs['Factor'])
             
@@ -886,101 +1203,99 @@ class PZ_ConstructBodyTexture(Operator):
             
             #------------------#
             
-            ## DECALS ##
-            if tex_prop.decal_group != 'None':
-                for node in nodes:
-                    node.select = False
+            # ## DECALS ##
+            # if t.decal_group != 'None':
+            #     for node in nodes:
+            #         node.select = False
                 
-                decals = context.scene.pz_human_decals
-                decal = decals[randint(0, len(decals)) - 1]
+            #     decals = context.scene.pz_human_decals
+            #     decal = decals[randint(0, len(decals)) - 1]
                 
-                decal_path = decal.texture_path
-                if sys.platform == 'win32':
-                    decal_path = decal_path.replace('\\', '\\\\')
-                elif sys.platform == 'linux':
-                    decal_path = decal_path.replace('\\', '/')
+            #     decal_path = decal.texture_path
+            #     if sys.platform == 'win32':
+            #         decal_path = decal_path.replace('\\', '\\\\')
+            #     elif sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
+            #         decal_path = decal_path.replace('\\', '/')
                 
-                target = textures_dir + decal_path + '.png'
+            #     # Create the texture node for the decal texture
+            #     decal_tex_node = nodes.new(type='ShaderNodeTexImage')
+            #     decal_tex_node.name = "NDE-DecalTexSlot" + str(node_index)
+            #     decal_tex_node.select = True
                 
-                # Create the texture node for the decal texture
-                decal_tex_node = nodes.new(type='ShaderNodeTexImage')
-                decal_tex_node.name = "NDE-DecalTexSlot" + str(node_index)
-                decal_tex_node.select = True
+            #     # Create the texture coordinates node for the decal texture
+            #     decal_coordinates_node = nodes.new(type='ShaderNodeTexCoord')
+            #     decal_coordinates_node.name = "NDE-DecalCoordinatesSlot" + str(node_index)
+            #     decal_coordinates_node.select = True
                 
-                # Create the texture coordinates node for the decal texture
-                decal_coordinates_node = nodes.new(type='ShaderNodeTexCoord')
-                decal_coordinates_node.name = "NDE-DecalCoordinatesSlot" + str(node_index)
-                decal_coordinates_node.select = True
+            #     # Create the texture mapping node for the decal texture
+            #     decal_mapping_node = nodes.new(type='ShaderNodeMapping')
+            #     decal_mapping_node.name = "NDE-DecalMappingSlot" + str(node_index)
+            #     decal_mapping_node.select = True
                 
-                # Create the texture mapping node for the decal texture
-                decal_mapping_node = nodes.new(type='ShaderNodeMapping')
-                decal_mapping_node.name = "NDE-DecalMappingSlot" + str(node_index)
-                decal_mapping_node.select = True
+            #     # Create the decal mix node for the decal texture
+            #     decal_mix_node = nodes.new(type='ShaderNodeMix')
+            #     decal_mix_node.name = "NDE-DecalMixSlot" + str(node_index)
+            #     decal_mix_node.select = True
                 
-                # Create the decal mix node for the decal texture
-                decal_mix_node = nodes.new(type='ShaderNodeMix')
-                decal_mix_node.name = "NDE-DecalMixSlot" + str(node_index)
-                decal_mix_node.select = True
+            #     ### Set the decal texture node properties ###
+            #     decal_tex_node.image = bpy.data.images.load(tex_path)
+            #     decal_tex_node.extension = 'CLIP'
                 
-                ### Set the decal texture node properties ###
-                decal_tex_node.image = bpy.data.images.load(target)
-                decal_tex_node.extension = 'CLIP'
+            #     # Interpolation Driver 
+            #     path = 'nodes["NDE-DecalTexSlot' + str(node_index) +'"].interpolation'
+            #     fcurve = mat.node_tree.driver_add(path)
+            #     driver = fcurve.driver
+            #     driver.type = 'AVERAGE'
                 
-                # Interpolation Driver 
-                path = 'nodes["NDE-DecalTexSlot' + str(node_index) +'"].interpolation'
-                fcurve = mat.node_tree.driver_add(path)
-                driver = fcurve.driver
-                driver.type = 'AVERAGE'
+            #     var = driver.variables.new()
+            #     target = var.targets[0]
+            #     target.id = context.active_object
+            #     target.data_path = "pz_human_props.texture_interpolation_index"
                 
-                var = driver.variables.new()
-                target = var.targets[0]
-                target.id = context.active_object
-                target.data_path = "pz_human_props.texture_interpolation_index"
+            #     ### Set the decal mapping node properties ###
+            #     decal_mapping_node.vector_type = 'TEXTURE'
                 
-                ### Set the decal mapping node properties ###
-                decal_mapping_node.vector_type = 'TEXTURE'
+            #     decal_mapping_node.inputs[1].default_value[0] = 0.43
+            #     decal_mapping_node.inputs[1].default_value[1] = 0.52
                 
-                decal_mapping_node.inputs[1].default_value[0] = 0.43
-                decal_mapping_node.inputs[1].default_value[1] = 0.52
+            #     decal_mapping_node.inputs[3].default_value[0] = 0.15
+            #     decal_mapping_node.inputs[3].default_value[1] = 0.15
                 
-                decal_mapping_node.inputs[3].default_value[0] = 0.15
-                decal_mapping_node.inputs[3].default_value[1] = 0.15
+            #     ### Set the decal mix node properties ###
+            #     decal_mix_node.data_type = 'RGBA'
                 
-                ### Set the decal mix node properties ###
-                decal_mix_node.data_type = 'RGBA'
+            #     # Connect the UV output from the coordinates node to the vector input of the mapping node
+            #     links.new(decal_coordinates_node.outputs['UV'], decal_mapping_node.inputs['Vector'])
                 
-                # Connect the UV output from the coordinates node to the vector input of the mapping node
-                links.new(decal_coordinates_node.outputs['UV'], decal_mapping_node.inputs['Vector'])
+            #     # Connect the vector output from the mapping node to the vector input of the texture node
+            #     links.new(decal_mapping_node.outputs['Vector'], decal_tex_node.inputs['Vector'])
                 
-                # Connect the vector output from the mapping node to the vector input of the texture node
-                links.new(decal_mapping_node.outputs['Vector'], decal_tex_node.inputs['Vector'])
+            #     # Connect the output from the shirt texture to the first input of the mix node
+            #     links.new(mix_node.outputs['Result'], decal_mix_node.inputs['A'])
                 
-                # Connect the output from the shirt texture to the first input of the mix node
-                links.new(mix_node.outputs['Result'], decal_mix_node.inputs['A'])
+            #     # Connect the output from the decal texture to the respective inputs of the mix node
+            #     links.new(decal_tex_node.outputs['Color'], decal_mix_node.inputs['B'])
+            #     links.new(decal_tex_node.outputs['Alpha'], decal_mix_node.inputs['Factor'])
                 
-                # Connect the output from the decal texture to the respective inputs of the mix node
-                links.new(decal_tex_node.outputs['Color'], decal_mix_node.inputs['B'])
-                links.new(decal_tex_node.outputs['Alpha'], decal_mix_node.inputs['Factor'])
+            #     # If this is the last entry in the list, connect it to the blood mix node
+            #     if node_index == len(t_list) - 1:
+            #         links.new(decal_mix_node.outputs['Result'], blood_mix_node.inputs['A'])
                 
-                # If this is the last entry in the list, connect it to the blood mix node
-                if node_index == len(tex_prop_list) - 1:
-                    links.new(decal_mix_node.outputs['Result'], blood_mix_node.inputs['A'])
+            #     #------------------#
                 
-                #------------------#
+            #     decal_coordinates_node.location.x = tex_node.location.x 
+            #     decal_coordinates_node.location.y = tex_node.location.y - 400.0
                 
-                decal_coordinates_node.location.x = tex_node.location.x 
-                decal_coordinates_node.location.y = tex_node.location.y - 400.0
-                
-                decal_mapping_node.location.x = tint_node.location.x - 100.0
-                decal_mapping_node.location.y = tint_node.location.y - 450.0
+            #     decal_mapping_node.location.x = tint_node.location.x - 100.0
+            #     decal_mapping_node.location.y = tint_node.location.y - 450.0
 
-                decal_tex_node.location.x  = mix_node.location.x  - 150.0
-                decal_tex_node.location.y = mix_node.location.y - 700.0
+            #     decal_tex_node.location.x  = mix_node.location.x  - 150.0
+            #     decal_tex_node.location.y = mix_node.location.y - 700.0
                 
-                decal_mix_node.location.x = mix_node.location.x + 200.0
-                decal_mix_node.location.y = mix_node.location.y
+            #     decal_mix_node.location.x = mix_node.location.x + 200.0
+            #     decal_mix_node.location.y = mix_node.location.y
                 
-                #------------------#
+            #     #------------------#
                 
             return({'FINISHED'})
         else:
@@ -991,9 +1306,9 @@ class PZ_ConstructBodyTexture(Operator):
     # Skin with no additional textures
     
     def construct_default_skin(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
-        mat = prop.body_mat
+        mat = p.body_mat
         nodes = mat.node_tree.nodes
         links = mat.node_tree.links
         
@@ -1017,10 +1332,10 @@ class PZ_ConstructBodyTexture(Operator):
     # Execute
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
-        tex_prop_list = context.active_object.pz_human_body_texture_slots
+        p = context.active_object.pz_human_props
+        t_list = context.active_object.pz_human_body_texture_slots
         
-        mat = prop.body_mat
+        mat = p.body_mat
         nodes = mat.node_tree.nodes
         
         for node in nodes:
@@ -1030,11 +1345,11 @@ class PZ_ConstructBodyTexture(Operator):
                     bpy.data.images.remove(image_to_delete)
                 nodes.remove(node)
         
-        if len(tex_prop_list) == 0:
+        if len(t_list) == 0:
             self.construct_default_skin(context)
         else:
-            for i, tex_prop in enumerate(tex_prop_list):
-                self.reconstruct_body_tex_node(context, tex_prop.texture_path, i)
+            for i, t in enumerate(t_list):
+                self.reconstruct_body_tex_node(context, t.texture_path, i)
         
         return({'FINISHED'})
 
@@ -1050,27 +1365,25 @@ class PZ_HumanRig_CreateBodyInjuryTexture(Operator):
     injury_textures = []
     
     def get_injury_textures(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
         
         self.injury_textures.clear()
-        
-        textures_dir = ''
 
-        # Construct the filepath to the 'textures' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            textures_dir = global_prop.pz_directory + 'media\\textures\\BodyDmg\\'
-        elif sys.platform == 'linux':
-            textures_dir = global_prop.pz_directory + 'projectzomboid/media/textures/BodyDmg/'
-        
-        injury_props = [prop.upper_torso_injury, prop.lower_torso_injury, prop.left_hand_injury,
-                        prop.right_hand_injury, prop.left_forearm_injury, prop.right_forearm_injury,
-                        prop.left_upperarm_injury, prop.right_upperarm_injury, prop.head_injury,
-                        prop.neck_injury, prop.groin_injury, prop.left_thigh_injury, 
-                        prop.right_thigh_injury, prop.left_shin_injury, prop.right_shin_injury,
-                        prop.left_foot_injury, prop.right_foot_injury]
-        
+        body_injury_textures = context.scene.pz_human_body_injuries
+        zombie_injury_textures = context.scene.pz_human_zombie_injuries
+
+        injury_props = [p.upper_torso_injury, p.lower_torso_injury, p.left_hand_injury,
+                        p.right_hand_injury, p.left_forearm_injury, p.right_forearm_injury,
+                        p.left_upperarm_injury, p.right_upperarm_injury, p.head_injury,
+                        p.neck_injury, p.groin_injury, p.left_thigh_injury, 
+                        p.right_thigh_injury, p.left_shin_injury, p.right_shin_injury,
+                        p.left_foot_injury, p.right_foot_injury]
+
+        body_injury_lookup = {
+            (tex.sex, tex.damage_type, tex.body_part) : tex.texture_path for tex in body_injury_textures
+        }
+
         body_part_dict = {
             0 : 'chest',
             1 : 'abdomen',
@@ -1091,43 +1404,29 @@ class PZ_HumanRig_CreateBodyInjuryTexture(Operator):
             16 : 'right_foot'
         }
         
-        injury_dict = {
-            'SCRATCH' : 'scratches',
-            'LACERATION' : 'lacerations',
-            'BITE' : 'bites',
-            'BANDAGE' : 'bandages',
-            'BANDAGEBLOODY' : 'bandages'
-        }
-        
-        sex_dict = {
-            'MALE' : 'MaleBody01',
-            'FEMALE' : 'FemaleBody01'
-        }
-        
-        index = 0
-        for injury in injury_props:
+        sex = p.model_sex
+
+        for index, injury in enumerate(injury_props):
             if injury != 'NONE':
-                if injury in ('BANDAGE', 'BANDAGEBLOODY'):
-                    tex_name = 'MaleBody01' + '_' + injury_dict[injury] + '_' + body_part_dict[index]
-                else:
-                    tex_name = sex_dict[prop.model_sex] + '_' + injury_dict[injury] + '_' + body_part_dict[index]
-                if injury == 'BANDAGEBLOODY':
-                    tex_name = tex_name + '_blood'
-                tex_name = textures_dir + tex_name +'.png'
-                self.injury_textures.append(tex_name)
-            index = index + 1
+                key = (sex, injury, body_part_dict[index])
+                if key in body_injury_lookup:
+                    self.injury_textures.append(body_injury_lookup[key])
         
         for injury in context.active_object.pz_human_zombie_injuries:
-            tex_name = textures_dir + injury.texture_path.split('\\')[1] + '.png'
-            tex_name = bpy.path.resolve_ncase(tex_name)
-            self.injury_textures.append(tex_name)
+            self.injury_textures.append(injury.texture_path)
+
+        mat = p.body_mat
+        nodes = mat.node_tree.nodes
+        injury_tex_node = nodes.get('TEX-InjuryTexture')
+        if injury_tex_node:
+            injury_tex_node.image = p.injury_tex
 
         return ({'FINISHED'})
     
     def generate_injury_texture(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        instance_str = ' (' + str(p.rig_instance) + ')'
         generated_image = bpy.data.images.get('TEX-BodyInjuries' + instance_str)
         if generated_image is None:
             generated_image = bpy.data.images.new(name='TEX-BodyInjuries' + instance_str, width=256, height=256, alpha=True)
@@ -1161,9 +1460,9 @@ class PZ_HumanRig_CreateBodyInjuryTexture(Operator):
         return ({'FINISHED'})
     
     def execute(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
 
-        if global_prop.pz_directory != '':
+        if g.pz_directory != '':
             self.get_injury_textures(context)
             self.generate_injury_texture(context)
             return ({'FINISHED'})
@@ -1190,26 +1489,28 @@ class PZ_HumanRig_CreateBodyBloodinessTexture(Operator):
     blood_textures = []
     
     def get_blood_textures(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
         
         self.blood_textures.clear()
         
-        textures_dir = ''
+        textures_dir = None
 
         # Construct the filepath to the 'textures' folder in the PZ directory
         # Linux has an additional 'projectzomboid' subfolder
         if sys.platform == 'win32':
-            textures_dir = global_prop.pz_directory + 'media\\textures\\BloodTextures\\'
-        elif sys.platform == 'linux':
-            textures_dir = global_prop.pz_directory + 'projectzomboid/media/textures/BloodTextures/'
+            textures_dir = Path(g.pz_directory) / 'media' / 'textures' / 'BloodTextures'
+        elif sys.platform.startswith('linux'):
+            textures_dir = Path(g.pz_directory) / 'projectzomboid' / 'media' / 'textures' / 'BloodTextures'
+        elif sys.platform.startswith('darwin'):
+            textures_dir = Path(g.pz_directory) / 'Project Zomboid.app' / 'Contents' / 'Java' / 'media' / 'textures' / 'BloodTextures'
         
-        blood_props =  [prop.upper_torso_bloodiness, prop.lower_torso_bloodiness, prop.left_hand_bloodiness,
-                        prop.right_hand_bloodiness, prop.left_forearm_bloodiness, prop.right_forearm_bloodiness,
-                        prop.left_upperarm_bloodiness, prop.right_upperarm_bloodiness, prop.head_bloodiness,
-                        prop.neck_bloodiness, prop.groin_bloodiness, prop.left_thigh_bloodiness, 
-                        prop.right_thigh_bloodiness, prop.left_shin_bloodiness, prop.right_shin_bloodiness,
-                        prop.left_foot_bloodiness, prop.right_foot_bloodiness, prop.back_bloodiness]
+        blood_props =  [p.upper_torso_bloodiness, p.lower_torso_bloodiness, p.left_hand_bloodiness,
+                        p.right_hand_bloodiness, p.left_forearm_bloodiness, p.right_forearm_bloodiness,
+                        p.left_upperarm_bloodiness, p.right_upperarm_bloodiness, p.head_bloodiness,
+                        p.neck_bloodiness, p.groin_bloodiness, p.left_thigh_bloodiness, 
+                        p.right_thigh_bloodiness, p.left_shin_bloodiness, p.right_shin_bloodiness,
+                        p.left_foot_bloodiness, p.right_foot_bloodiness, p.back_bloodiness]
         
         body_part_dict = {
             0 : 'Chest',
@@ -1236,7 +1537,7 @@ class PZ_HumanRig_CreateBodyBloodinessTexture(Operator):
         for blood in blood_props:
             if blood != 0:
                 tex_name = 'BloodMask' + body_part_dict[index]
-                tex_name = textures_dir + tex_name + '.png'
+                tex_name = str(textures_dir / (tex_name + '.png'))
                 self.blood_textures.append((tex_name, blood))
             index = index + 1
         
@@ -1244,11 +1545,11 @@ class PZ_HumanRig_CreateBodyBloodinessTexture(Operator):
     
     def generate_bloodiness_texture(self, context):
         
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
-        generated_image = bpy.data.images.get('MASK-MaskData (' + str(prop.rig_instance) +')')
+        generated_image = bpy.data.images.get('MASK-MaskData (' + str(p.rig_instance) +')')
         if generated_image is None:
-            generated_image = bpy.data.images.new(name='MASK-MaskData (' + str(prop.rig_instance) +')', width=256, height=256, alpha=True)
+            generated_image = bpy.data.images.new(name='MASK-MaskData (' + str(p.rig_instance) +')', width=256, height=256, alpha=True)
 
         num_pixels = generated_image.size[0] * generated_image.size[1]
 
@@ -1291,9 +1592,9 @@ class PZ_HumanRig_CreateBodyBloodinessTexture(Operator):
         return ({'FINISHED'})
     
     def execute(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
 
-        if global_prop.pz_directory != '':
+        if g.pz_directory != '':
             self.get_blood_textures(context)
             self.generate_bloodiness_texture(context)
             return ({'FINISHED'})
@@ -1320,26 +1621,28 @@ class PZ_HumanRig_CreateBodyDirtinessTexture(Operator):
     dirt_textures = []
     
     def get_dirt_textures(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
         
         self.dirt_textures.clear()
         
-        textures_dir = ''
+        textures_dir = None
 
         # Construct the filepath to the 'textures' folder in the PZ directory
         # Linux has an additional 'projectzomboid' subfolder
         if sys.platform == 'win32':
-            textures_dir = global_prop.pz_directory + 'media\\textures\\BloodTextures\\'
-        elif sys.platform == 'linux':
-            textures_dir = global_prop.pz_directory + 'projectzomboid/media/textures/BloodTextures/'
+            textures_dir = Path(g.pz_directory) / 'media' / 'textures' / 'BloodTextures'
+        elif sys.platform.startswith('linux'):
+            textures_dir = Path(g.pz_directory) / 'projectzomboid' / 'media' / 'textures' / 'BloodTextures'
+        elif sys.platform.startswith('darwin'):
+            textures_dir = Path(g.pz_directory) / 'Project Zomboid.app' / 'Contents' / 'Java' / 'media' / 'textures' / 'BloodTextures'
         
-        dirt_props = [prop.upper_torso_dirtiness, prop.lower_torso_dirtiness, prop.left_hand_dirtiness,
-                        prop.right_hand_dirtiness, prop.left_forearm_dirtiness, prop.right_forearm_dirtiness,
-                        prop.left_upperarm_dirtiness, prop.right_upperarm_dirtiness, prop.head_dirtiness,
-                        prop.neck_dirtiness, prop.groin_dirtiness, prop.left_thigh_dirtiness, 
-                        prop.right_thigh_dirtiness, prop.left_shin_dirtiness, prop.right_shin_dirtiness,
-                        prop.left_foot_dirtiness, prop.right_foot_dirtiness, prop.back_dirtiness]
+        dirt_props = [p.upper_torso_dirtiness, p.lower_torso_dirtiness, p.left_hand_dirtiness,
+                        p.right_hand_dirtiness, p.left_forearm_dirtiness, p.right_forearm_dirtiness,
+                        p.left_upperarm_dirtiness, p.right_upperarm_dirtiness, p.head_dirtiness,
+                        p.neck_dirtiness, p.groin_dirtiness, p.left_thigh_dirtiness, 
+                        p.right_thigh_dirtiness, p.left_shin_dirtiness, p.right_shin_dirtiness,
+                        p.left_foot_dirtiness, p.right_foot_dirtiness, p.back_dirtiness]
         
         body_part_dict = {
             0 : 'Chest',
@@ -1366,7 +1669,7 @@ class PZ_HumanRig_CreateBodyDirtinessTexture(Operator):
         for dirt in dirt_props:
             if dirt != 0:
                 tex_name = 'BloodMask' + body_part_dict[index]
-                tex_name = textures_dir + tex_name + '.png'
+                tex_name = str(textures_dir / (tex_name + '.png'))
                 self.dirt_textures.append((tex_name, dirt))
             index = index + 1
         
@@ -1374,11 +1677,11 @@ class PZ_HumanRig_CreateBodyDirtinessTexture(Operator):
     
     def generate_dirtiness_texture(self, context):
         
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
-        generated_image = bpy.data.images.get('MASK-MaskData (' + str(prop.rig_instance) +')')
+        generated_image = bpy.data.images.get('MASK-MaskData (' + str(p.rig_instance) +')')
         if generated_image is None:
-            generated_image = bpy.data.images.new(name='MASK-MaskData (' + str(prop.rig_instance) +')', width=256, height=256, alpha=True)
+            generated_image = bpy.data.images.new(name='MASK-MaskData (' + str(p.rig_instance) +')', width=256, height=256, alpha=True)
 
         num_pixels = generated_image.size[0] * generated_image.size[1]
         
@@ -1421,9 +1724,9 @@ class PZ_HumanRig_CreateBodyDirtinessTexture(Operator):
         return ({'FINISHED'})
     
     def execute(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
 
-        if global_prop.pz_directory != '':
+        if g.pz_directory != '':
             self.get_dirt_textures(context)
             self.generate_dirtiness_texture(context)
             return ({'FINISHED'})
@@ -1449,19 +1752,22 @@ class PZ_HumanRig_CreateMaskTexture(Operator):
     mask_textures = []
 
     def get_mask_textures(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
 
         self.mask_textures.clear()
         
-        textures_dir = ''
+
+        textures_dir = None
 
         # Construct the filepath to the 'textures' folder in the PZ directory
         # Linux has an additional 'projectzomboid' subfolder
         if sys.platform == 'win32':
-            textures_dir = global_prop.pz_directory + 'media\\textures\\Body\\Masks\\'
-        elif sys.platform == 'linux':
-            textures_dir = global_prop.pz_directory + 'projectzomboid/media/textures/Body/Masks/'
+            textures_dir = Path(g.pz_directory) / 'media' / 'textures' / 'Body' / 'Masks'
+        elif sys.platform.startswith('linux'):
+            textures_dir = Path(g.pz_directory) / 'projectzomboid' / 'media' / 'textures' / 'Body' / 'Masks'
+        elif sys.platform.startswith('darwin'):
+            textures_dir = Path(g.pz_directory) / 'Project Zomboid.app' / 'Contents' / 'Java' / 'media' / 'textures' / 'Body' / 'Masks'
 
         mask_dict = {
         0 : "Head",
@@ -1484,20 +1790,21 @@ class PZ_HumanRig_CreateMaskTexture(Operator):
         }
 
         index = 0
-        for hide in prop.mask_array:
+        for hide in p.mask_array:
             if hide:
-                tex_name = textures_dir + mask_dict[index] + '.png' 
+                tex_name = mask_dict[index] + '.png' 
+                tex_name = str(textures_dir / tex_name)
                 self.mask_textures.append(tex_name)
             index = index + 1
 
         return ({'FINISHED'})
 
     def generate_mask_texture(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
-        generated_image = bpy.data.images.get('MASK-MaskData (' + str(prop.rig_instance) +')')
+        generated_image = bpy.data.images.get('MASK-MaskData (' + str(p.rig_instance) +')')
         if generated_image is None:
-            generated_image = bpy.data.images.new(name='MASK-MaskData (' + str(prop.rig_instance) +')', width=256, height=256, alpha=True)
+            generated_image = bpy.data.images.new(name='MASK-MaskData (' + str(p.rig_instance) +')', width=256, height=256, alpha=True)
 
         num_pixels = generated_image.size[0] * generated_image.size[1]
         
@@ -1540,9 +1847,9 @@ class PZ_HumanRig_CreateMaskTexture(Operator):
         return ({'FINISHED'})
 
     def execute(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
 
-        if global_prop.pz_directory != '':
+        if g.pz_directory != '':
             self.get_mask_textures(context)
             self.generate_mask_texture(context)
             return ({'FINISHED'})
@@ -1857,244 +2164,12 @@ class PZ_ImportClothingMesh(Operator):
     bl_idname = "zomboid.import_clothing_mesh"
     bl_label = "Import Clothing Mesh"
     
-    #-------------------------------------------------------------#
-    # Create Clothing Material
-    
-    def create_clothing_material(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        dir_list = context.scene.pz_human_mod_directory_slots
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
-        mesh_prop = mesh_prop_list[prop.clothing_mesh_slot_active_index]
-
-        textures_dir = ''
-        tex_path = mesh_prop.texture_path
-        # Construct the filepath to the 'textures' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            textures_dir = global_prop.pz_directory + 'media\\textures\\'
-            tex_path = tex_path.replace('\\', '\\\\')
-        elif sys.platform == 'linux':
-            textures_dir = global_prop.pz_directory + 'projectzomboid/media/textures/'
-            tex_path = tex_path.replace('\\', '/')
+    def import_clothing_model(self, context, model_path, model_type, sex):
+        p = context.active_object.pz_human_props
         
-        instance_str = ' ( ' + prop.rig_instance + ')'
-
-        # Construct the name of the target file
-        target = textures_dir + tex_path + ".png"
-        target = bpy.path.resolve_ncase(target)
+        instance_str = ' (' + str(p.rig_instance) + ')'
         
-        old_mat = bpy.data.materials.get('MAT-ClothingMaterial' + str(prop.clothing_mesh_slot_active_index) + instance_str)
-        if old_mat:
-            bpy.data.materials.remove(old_mat, do_unlink=True)
-        
-        if Path(target).is_file():
-            mat = bpy.data.materials.new(name='MAT-ClothingMaterial' + str(prop.clothing_mesh_slot_active_index) + instance_str)
-            nodes = mat.node_tree.nodes
-            links = mat.node_tree.links
-            
-            # Get the texture node, or create it if it does not exist
-            tex_node = nodes.new(type='ShaderNodeTexImage')
-            tex_node.name = "NDE-TexSlot"
-            tex_node.select = True
-            
-            # Get the color tint node, or create it if it does not exist
-            tint_node = nodes.new(type='ShaderNodeMix')
-            tint_node.name = "NDE-TexTint"
-            tint_node.select = True
-            
-            # Create a frame node and group all these nodes inside of it
-            frame_node = nodes.get("NDE-GroupFrame")
-            if frame_node is None:
-                frame_node = nodes.new(type='NodeFrame')
-                frame_node.name = "NDE-GroupFrame"
-                frame_node.label = str(target)
-            
-            for node in nodes:
-                if node.select and node != frame_node:
-                    node.parent = frame_node
-            
-            # Get the emission shader node
-            emission_node = nodes.new(type='ShaderNodeEmission')
-            emission_node.name = "NDE-EmissionShader"
-            
-            # Get the PBR shader node
-            pbr_node = nodes.new(type='ShaderNodeBsdfPrincipled')
-            pbr_node.name = "NDE-PBRShader"
-            
-            # Get the mix shader node
-            mix_shader_node = nodes.new(type='ShaderNodeMixShader')
-            mix_shader_node.name = "NDE-MixShader"
-            
-            output_node = nodes.get("Material Output")
-            
-            #------------------#
-            
-            ### Set the texture node properties ###
-            tex_node.image = bpy.data.images.load(str(target))
-            
-            # Interpolation Driver 
-            path = 'nodes["NDE-TexSlot"].interpolation'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.texture_interpolation_index"
-            
-            ### Set the color tint node properties ###
-            c = mesh_prop.tint_color
-            
-            tint_node.data_type = 'RGBA'
-            tint_node.blend_type = 'MULTIPLY'
-            
-            # Factor Driver
-            path = 'nodes["NDE-TexTint"].inputs[0].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_clothing_mesh_slots[" + str(prop.clothing_mesh_slot_active_index) + "].tintable"
-            
-            # Color Drivers
-            
-            for i in range(3):
-                path = 'nodes["NDE-TexTint"].inputs[7].default_value'
-                fcurve = mat.node_tree.driver_add(path, i)
-                driver = fcurve.driver
-                driver.type = 'AVERAGE'
-                
-                var = driver.variables.new()
-                target = var.targets[0]
-                target.id = context.active_object
-                target.data_path = "pz_human_clothing_mesh_slots[" + str(prop.clothing_mesh_slot_active_index) + "].tint_color[" + str(i) + "]"
-            
-            ### Set the mix shader node properties ###
-            
-            # Factor Driver
-            path = 'nodes["NDE-MixShader"].inputs[0].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.shading_type_index"
-            
-            ### Set the emission node properties ###
-            
-            # Strength Driver
-            path = 'nodes["NDE-EmissionShader"].inputs[1].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.emission_strength"
-            
-            ### Set the PBR node properties ###
-            
-            # Roughness Driver
-            path = 'nodes["NDE-PBRShader"].inputs[2].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.roughness"
-            
-            # Metallic Driver
-            path = 'nodes["NDE-PBRShader"].inputs[1].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.metallic"
-            
-            #------------------#
-            
-            # Connect the color from the texture node to the 1st color in the tint node
-            links.new(tex_node.outputs['Color'], tint_node.inputs['A'])
-            
-            # Connect the output from the tint node to the shader nodes
-            links.new(tint_node.outputs['Result'], emission_node.inputs['Color'])
-            links.new(tint_node.outputs['Result'], pbr_node.inputs['Base Color'])
-            
-            # Connect the outputs from the tint node to the mix shader nodes
-            links.new(emission_node.outputs['Emission'], mix_shader_node.inputs[1])
-            links.new(pbr_node.outputs['BSDF'], mix_shader_node.inputs[2])
-            
-            # Connect the output from the emission node to the material output
-            links.new(mix_shader_node.outputs['Shader'], output_node.inputs['Surface'])
-            
-            #------------------#
-            
-            tex_node.location = (0.0, 0.0)
-            
-            tint_node.location = (200.0, 0.0)
-            
-            emission_node.location = (400.0, 0.0)
-            
-            output_node.location = (600.0, 0.0)
-            
-            #------------------#
-            
-            return({'FINISHED'})
-        else:
-            self.report({'ERROR'}, "Could not find a texture file named " + target)
-            return({'CANCELLED'})
-            
-    #-------------------------------------------------------------#
-    # Import Male Model
-    
-    def import_male_model(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        dir_list = context.scene.pz_human_mod_directory_slots
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
-        mesh_prop = mesh_prop_list[prop.clothing_mesh_slot_active_index]
-        
-        instance_str = ' (' + str(prop.rig_instance) + ')'
-
-        models_dir = ''
-        model_path = mesh_prop.male_model_path
-        
-        # Construct the filepath to the 'models_X/Skinned' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            models_dir = global_prop.pz_directory
-            model_path = model_path.replace('\\', '\\\\')
-        elif sys.platform == 'linux':
-            models_dir = global_prop.pz_directory + 'projectzomboid/'
-            model_path = model_path.replace('\\', '/')
-        
-        # Construct the name of the target file
-        target = models_dir + model_path
-
-        match mesh_prop.model_type:
-            case 'X':
-                target = target + '.x'
-            case 'FBX':
-                target = target + '.fbx'
-            case 'GLB':
-                target = target + '.glb'
-        
-        target = bpy.path.resolve_ncase(target)
-        
-        if Path(target).is_file():
+        if Path(model_path).is_file():
                 
             # Store the current context (current mode, selected objects, and active object) to restore later when operation is finished
             prev_mode = context.mode
@@ -2104,40 +2179,40 @@ class PZ_ImportClothingMesh(Operator):
             
             bpy.ops.object.mode_set(mode='OBJECT')
             
-            cols_before = set(bpy.data.collections)
             objs_before = set(bpy.context.scene.objects)
             
-            match mesh_prop.model_type:
-                case 'X':
-                    if 'bl_ext.blender_org.io_directx_x' not in bpy.context.preferences.addons.keys():
-                        self.report({"ERROR"}, "The .x importer is not enabled or installed")
+            match model_type:
+                case '.x':
+                    if not directx_import_available():
+                        print("The .x importer is not enabled or installed")
                         return({'CANCELLED'})
                     
                     bpy.ops.import_scene.directx_x(
-                        filepath = str(target),
+                        filepath = model_path,
                         import_textures = False,
                         import_materials = False,
-                        import_armature = False
+                        import_armature = False,
+                        import_animation = False,
+                        use_import_collection = False
                     )
                     
-                case 'FBX':
+                case '.fbx':
                     bpy.ops.import_scene.fbx(
-                        filepath = str(target),
+                        filepath = model_path,
                         global_scale = 100.0
                     )
-                case 'GLB':
-                    pass
+                case '.glb':
+                    bpy.ops.import_scene.gltf(
+                        filepath = model_path,
+                        disable_bone_shape = True
+                    )
             
-            cols_after = set(bpy.data.collections)
             objs_after = set(bpy.context.scene.objects)
             
             imported_objects = list(objs_after - objs_before)
-            imported_collections = list(cols_before - cols_after)
             
-            for col in imported_collections:
-                pass
-            
-            male_collection = bpy.data.collections.get('GEO-PZ_Human_Male_Clothes' + instance_str)
+            sex_collection_name = 'GEO-PZ_Human_Male_Clothes' if sex == 'MALE' else 'GEO-PZ_Human_Female_Clothes'
+            clothing_collection = bpy.data.collections.get(sex_collection_name + instance_str)
             
             # Check for a special condition if the Bob_Trousers model is used. It has an issue where it has two meshes instead of one, which causes issues
             x = None
@@ -2157,150 +2232,11 @@ class PZ_ImportClothingMesh(Operator):
                 elif obj.type == 'EMPTY':
                     bpy.data.objects.remove(obj, do_unlink=True)
                 elif obj.type == 'MESH':
-                    old_obj = bpy.data.objects.get('OBJ-MaleClothingMesh' + str(prop.clothing_mesh_slot_active_index))
-                    if old_obj:
-                        bpy.data.objects.remove(old_obj, do_unlink=True)
-                    
-                    #-------------------------
-                    
-                    # Fix for incorrectly assigned hats that have off rotations
-                    if 'WeddingVeil' in obj.name:
-                        obj.rotation_euler[0] += math.radians(2)
-                    
-                    #-------------------------
-                    
-                    obj.name = 'OBJ-MaleClothingMesh' + str(prop.clothing_mesh_slot_active_index)
-                    
-                    for collection in obj.users_collection[:]:
-                        collection.objects.unlink(obj)
-                    
-                    if obj.name not in male_collection.objects:
-                        male_collection.objects.link(obj)
-                       
-                    match mesh_prop.model_type:
-                        case 'X':
-                            obj.rotation_euler[2] += math.pi
-                            obj.scale[0] = -1
-                            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-                        case 'FBX':
-                            bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
-                            obj.rotation_euler[0] = -math.pi / 2
-                        case 'GLB':
-                            pass
-                    
-                    obj.modifiers.clear()
-                    
-                    arm_mod = obj.modifiers.new(name="Armature", type='ARMATURE')
-                    arm_mod.object = bpy.data.objects.get('Bip01')
-                    
-                    obj.active_material = bpy.data.materials.get('MAT-ClothingMaterial' + str(prop.clothing_mesh_slot_active_index))
-                    
-                    obj["sex"] = 0
-                    obj.hide_viewport = obj['sex'] != prop.model_sex_index
-                    obj.hide_render = obj['sex'] != prop.model_sex_index
-                    
-                #    obj.parent = bpy.data.objects.get('Bip01')
-                        
-            # Deselect all objects
-            bpy.ops.object.select_all(action='DESELECT')
-            
-            for obj in prev_selected_objects:
-                obj.select_set(True)
-            if prev_active_object is not None:
-                context.view_layer.objects.active = prev_active_object
-                
-            # Restore the context that was before the operation was called
-            bpy.ops.object.mode_set(mode=prev_mode)
-            return({'FINISHED'})
-        else:
-            self.report({'ERROR'}, "Could not find a model file at the path: " + target)
-            return({'CANCELLED'})
-    
-    #-------------------------------------------------------------#
-    # Import Female Model
-    
-    def import_female_model(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        dir_list = context.scene.pz_human_mod_directory_slots
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
-        mesh_prop = mesh_prop_list[prop.clothing_mesh_slot_active_index]
-        
-        instance_str = ' (' + str(prop.rig_instance) + ')'
 
-        models_dir = ''
-        model_path = mesh_prop.female_model_path
-        
-        # Construct the filepath to the 'models_X/Skinned' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            models_dir = global_prop.pz_directory
-            model_path = model_path.replace('\\', '\\\\')
-        elif sys.platform == 'linux':
-            models_dir = global_prop.pz_directory + 'projectzomboid/'
-            model_path = model_path.replace('\\', '/')
-        
-        # Construct the name of the target file
-        target = models_dir + model_path
-        
-        match mesh_prop.model_type:
-            case 'X':
-                target = target + '.x'
-            case 'FBX':
-                target = target + '.fbx'
-            case 'GLB':
-                target = target + '.glb'
-        
-        target = bpy.path.resolve_ncase(target)
-        
-        if Path(target).is_file():
-            
-            # Store the current context (current mode, selected objects, and active object) to restore later when operation is finished
-            prev_mode = context.mode
-            if context.active_object is not None:
-                prev_active_object = context.active_object
-            prev_selected_objects = context.selected_objects
-            
-            bpy.ops.object.mode_set(mode='OBJECT')
-            
-        #    cols_before = set(bpy.context.scene.collections)
-            objs_before = set(bpy.context.scene.objects)
-            
-            match mesh_prop.model_type:
-                case 'X':
-                    if 'bl_ext.blender_org.io_directx_x' not in bpy.context.preferences.addons.keys():
-                        self.report({"ERROR"}, "The .x importer is not enabled or installed")
-                        return({'CANCELLED'})
-                    
-                    bpy.ops.import_scene.directx_x(
-                        filepath = str(target),
-                        import_textures = False,
-                        import_materials = False,
-                        import_armature = False
-                    )
-                    
-                case 'FBX':
-                    bpy.ops.import_scene.fbx(
-                        filepath = str(target),
-                        global_scale = 100.0
-                    )
-                case 'GLB':
-                    pass
-            
-            objs_after = set(bpy.context.scene.objects)
-            
-            imported_objects = list(objs_after - objs_before)
-            
-            female_collection = bpy.data.collections.get('GEO-PZ_Human_Female_Clothes' + instance_str)
-            
-            for obj in imported_objects:                
-                if obj.type == 'ARMATURE':
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                elif obj.type == 'EMPTY':
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                elif obj.type == 'MESH':
-                    
-                    old_obj = bpy.data.objects.get('OBJ-FemaleClothingMesh' + str(prop.clothing_mesh_slot_active_index))
+                    sex_name = 'OBJ-MaleClothingMesh' if sex == 'MALE' else 'OBJ-FemaleClothingMesh'
+                    obj_name = sex_name + str(p.clothing_mesh_slot_active_index) + instance_str
+
+                    old_obj = bpy.data.objects.get(obj_name)
                     if old_obj:
                         bpy.data.objects.remove(old_obj, do_unlink=True)
                     
@@ -2312,37 +2248,46 @@ class PZ_ImportClothingMesh(Operator):
                     
                     #-------------------------
                     
-                    obj.name = 'OBJ-FemaleClothingMesh' + str(prop.clothing_mesh_slot_active_index)
+                    obj.name = obj_name
                     
                     for collection in obj.users_collection[:]:
                         collection.objects.unlink(obj)
                     
-                    if obj.name not in female_collection.objects:
-                        female_collection.objects.link(obj)
-                    
-                    match mesh_prop.model_type:
-                        case 'X':
+                    if obj.name not in clothing_collection.objects:
+                        clothing_collection.objects.link(obj)
+                       
+                    match model_type:
+                        case '.x':
                             obj.rotation_euler[2] += math.pi
                             obj.scale[0] = -1
-                            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-                        case 'FBX':
-                            bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
-                            obj.rotation_euler[0] = -math.pi / 2
-                        case 'GLB':
-                            pass
+                        case '.fbx':
+                         #   matrix_world = obj.matrix_world.copy()
+                            obj.parent = None
+                          #  obj.matrix_world = matrix_world
+                            obj.data.materials.clear()
+                            obj.rotation_euler[0] += math.pi / 2
+                        case '.glb':
+                            matrix_world = obj.matrix_world.copy()
+                            obj.parent = None
+                            obj.matrix_world = matrix_world
+                            obj.scale[0] = 1.0
+                            obj.scale[1] = 1.0
+                            obj.scale[2] = 1.0
                     
                     obj.modifiers.clear()
                     
                     arm_mod = obj.modifiers.new(name="Armature", type='ARMATURE')
-                    arm_mod.object = bpy.data.objects.get('Bip01')
+                    arm_mod.object = prev_active_object
                     
-                    obj.active_material = bpy.data.materials.get('MAT-ClothingMaterial' + str(prop.clothing_mesh_slot_active_index))
+                    obj.active_material = bpy.data.materials.get('MAT-ClothingMaterial' + str(p.clothing_mesh_slot_active_index) + instance_str)
                     
-                    obj["sex"] = 1
-                    obj.hide_viewport = obj['sex'] != prop.model_sex_index
-                    obj.hide_render = obj['sex'] != prop.model_sex_index
+                    obj["sex"] = 0 if sex == 'MALE' else 1
+                    obj.hide_viewport = obj['sex'] != p.model_sex_index
+                    obj.hide_render = obj['sex'] != p.model_sex_index
                     
-                 #   obj.parent = bpy.data.objects.get('Bip01')
+                    # matrix_world = obj.matrix_world.copy()
+                    # obj.parent = prev_active_object
+                    # obj.matrix_world = matrix_world
                         
             # Deselect all objects
             bpy.ops.object.select_all(action='DESELECT')
@@ -2354,38 +2299,39 @@ class PZ_ImportClothingMesh(Operator):
                 
             # Restore the context that was before the operation was called
             bpy.ops.object.mode_set(mode=prev_mode)
-        
             return({'FINISHED'})
         else:
-            self.report({'ERROR'}, "Could not find a model file at the path: " + target)
+            print("Could not find a model file at the path: " + model_path)
             return({'CANCELLED'})
-    
-    #-------------------------------------------------------------#
-    # Check Masks
-    
-    def check_masks(self, context):
-        prop = context.active_object.pz_human_props
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
-        mesh_prop = mesh_prop_list[prop.clothing_mesh_slot_active_index]
+
+    def add_masks(self, context):
+        p = context.active_object.pz_human_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
+        m = m_list[p.clothing_mesh_slot_active_index]
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
-        for i in range(len(mesh_prop.mask_array)):
-            if mesh_prop.mask_array[i] == True:
-                prop.mask_array[i] = True
+        for i in range(len(m.mask_array)):
+            if m.mask_array[i] == True:
+                p.mask_array[i] = True
         
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
         
         return({'FINISHED'})
-    
-    #-------------------------------------------------------------#
-    # Execute
-    
+
     def execute(self, context):
-        self.create_clothing_material(context)
-        self.import_male_model(context)
-        self.import_female_model(context)
-        self.check_masks(context)
+
+        p = context.active_object.pz_human_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
+        m = m_list[p.clothing_mesh_slot_active_index]
+
+        create_model_material(context, m.texture_path, 'CLOTHING')
+
+        self.import_clothing_model(context, m.male_model_path, m.model_type, 'MALE')
+        self.import_clothing_model(context, m.female_model_path, m.model_type, 'FEMALE')
+
+        self.add_masks(context)
+
         return({'FINISHED'})
 
 # ============================================================================================
@@ -2396,402 +2342,12 @@ class PZ_ImportPropMesh(Operator):
     bl_idname = "zomboid.import_prop_mesh"
     bl_label = "Import Prop Mesh"
     
-    #-------------------------------------------------------------#
-    # Create Clothing Material
-    
-    def create_prop_material(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        dir_list = context.scene.pz_human_mod_directory_slots
-        mesh_prop_list = context.active_object.pz_human_prop_mesh_slots
-        mesh_prop = mesh_prop_list[prop.prop_mesh_slot_active_index]
+    def import_prop_model(self, context, model_path, model_type, attach_bone, sex):
+        p = context.active_object.pz_human_props
         
-        instance_str = ' (' + str(prop.rig_instance) + ')'
-
-        textures_dir = ''
-        tex_path = mesh_prop.texture_path
-        # Construct the filepath to the 'textures' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            textures_dir = global_prop.pz_directory + 'media\\textures\\'
-            tex_path = tex_path.replace('\\', '\\\\')
-        elif sys.platform == 'linux':
-            textures_dir = global_prop.pz_directory + 'projectzomboid/media/textures/'
-            tex_path = tex_path.replace('\\', '/')
+        instance_str = ' (' + str(p.rig_instance) + ')'
         
-        # Construct the name of the target file
-        target = textures_dir + tex_path + ".png"
-        target = bpy.path.resolve_ncase(target)
-        
-        old_mat = bpy.data.materials.get('MAT-PropMaterial' + str(prop.prop_mesh_slot_active_index) + instance_str)
-        if old_mat:
-            bpy.data.materials.remove(old_mat, do_unlink=True)
-        
-        if Path(target).is_file():
-            mat = bpy.data.materials.new(name='MAT-PropMaterial' + str(prop.prop_mesh_slot_active_index) + instance_str)
-            nodes = mat.node_tree.nodes
-            links = mat.node_tree.links
-            
-            # Get the texture node, or create it if it does not exist
-            tex_node = nodes.new(type='ShaderNodeTexImage')
-            tex_node.name = "NDE-TexSlot"
-            tex_node.select = True
-            
-            # Get the color tint node, or create it if it does not exist
-            tint_node = nodes.new(type='ShaderNodeMix')
-            tint_node.name = "NDE-TexTint"
-            tint_node.select = True
-            
-            # Create a frame node and group all these nodes inside of it
-            frame_node = nodes.get("NDE-GroupFrame")
-            if frame_node is None:
-                frame_node = nodes.new(type='NodeFrame')
-                frame_node.name = "NDE-GroupFrame"
-                frame_node.label = str(target)
-            
-            for node in nodes:
-                if node.select and node != frame_node:
-                    node.parent = frame_node
-            
-            # Get the emission shader node
-            emission_node = nodes.new(type='ShaderNodeEmission')
-            emission_node.name = "NDE-EmissionShader"
-            
-            # Get the PBR shader node
-            pbr_node = nodes.new(type='ShaderNodeBsdfPrincipled')
-            pbr_node.name = "NDE-PBRShader"
-            
-            # Get the mix shader node
-            mix_shader_node = nodes.new(type='ShaderNodeMixShader')
-            mix_shader_node.name = "NDE-MixShader"
-            
-            output_node = nodes.get("Material Output")
-            
-            #------------------#
-            
-            ### Set the texture node properties ###
-            tex_node.image = bpy.data.images.load(str(target))
-            
-            # Interpolation Driver 
-            path = 'nodes["NDE-TexSlot"].interpolation'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.texture_interpolation_index"
-            
-            ### Set the color tint node properties ###
-            c = mesh_prop.tint_color
-            
-            tint_node.data_type = 'RGBA'
-            tint_node.blend_type = 'MULTIPLY'
-            
-            # Factor Driver
-            path = 'nodes["NDE-TexTint"].inputs[0].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_prop_mesh_slots[" + str(prop.prop_mesh_slot_active_index) + "].tintable"
-            
-            # Color Drivers
-            
-            for i in range(3):
-                path = 'nodes["NDE-TexTint"].inputs[7].default_value'
-                fcurve = mat.node_tree.driver_add(path, i)
-                driver = fcurve.driver
-                driver.type = 'AVERAGE'
-                
-                var = driver.variables.new()
-                target = var.targets[0]
-                target.id = context.active_object
-                target.data_path = "pz_human_prop_mesh_slots[" + str(prop.prop_mesh_slot_active_index) + "].tint_color[" + str(i) + "]"
-            
-            ### Set the mix shader node properties ###
-            
-            # Factor Driver
-            path = 'nodes["NDE-MixShader"].inputs[0].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.shading_type_index"
-            
-            ### Set the emission node properties ###
-            
-            # Strength Driver
-            path = 'nodes["NDE-EmissionShader"].inputs[1].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.emission_strength"
-            
-            ### Set the PBR node properties ###
-            
-            # Roughness Driver
-            path = 'nodes["NDE-PBRShader"].inputs[2].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.roughness"
-            
-            # Metallic Driver
-            path = 'nodes["NDE-PBRShader"].inputs[1].default_value'
-            fcurve = mat.node_tree.driver_add(path)
-            driver = fcurve.driver
-            driver.type = 'AVERAGE'
-            
-            var = driver.variables.new()
-            target = var.targets[0]
-            target.id = context.active_object
-            target.data_path = "pz_human_props.metallic"
-            
-            #------------------#
-            
-            # Connect the color from the texture node to the 1st color in the tint node
-            links.new(tex_node.outputs['Color'], tint_node.inputs['A'])
-            
-            # Connect the output from the tint node to the shader nodes
-            links.new(tint_node.outputs['Result'], emission_node.inputs['Color'])
-            links.new(tint_node.outputs['Result'], pbr_node.inputs['Base Color'])
-            
-            # Connect the outputs from the tint node to the mix shader nodes
-            links.new(emission_node.outputs['Emission'], mix_shader_node.inputs[1])
-            links.new(pbr_node.outputs['BSDF'], mix_shader_node.inputs[2])
-            
-            # Connect the output from the emission node to the material output
-            links.new(mix_shader_node.outputs['Shader'], output_node.inputs['Surface'])
-            
-            #------------------#
-            
-            tex_node.location = (0.0, 0.0)
-            
-            tint_node.location = (200.0, 0.0)
-            
-            emission_node.location = (400.0, 0.0)
-            
-            output_node.location = (600.0, 0.0)
-            
-            #------------------#
-            
-            return({'FINISHED'})
-        else:
-            self.report({'ERROR'}, "Could not find a texture file named " + target)
-            return({'CANCELLED'})
-        
-    
-        
-    #-------------------------------------------------------------#
-    # Import Male Model
-    
-    def import_male_model(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        dir_list = context.scene.pz_human_mod_directory_slots
-        mesh_prop_list = context.active_object.pz_human_prop_mesh_slots
-        mesh_prop = mesh_prop_list[prop.prop_mesh_slot_active_index]
-        
-        instance_str = ' (' + str(prop.rig_instance) + ')'
-
-        models_dir = ''
-        model_path = mesh_prop.male_model_path
-        
-        # Construct the filepath to the 'models_X/Skinned' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            models_dir = global_prop.pz_directory
-            model_path = model_path.replace('\\', '\\\\')
-        elif sys.platform == 'linux':
-            models_dir = global_prop.pz_directory + 'projectzomboid/'
-            model_path = model_path.replace('\\', '/')
-        
-        # Construct the name of the target file
-        target = models_dir + model_path
-
-        match mesh_prop.model_type:
-            case 'X':
-                target = target + '.x'
-            case 'FBX':
-                target = target + '.fbx'
-            case 'GLB':
-                target = target + '.glb'
-        
-        target = bpy.path.resolve_ncase(target)
-        
-        if Path(target).is_file():
-                
-            # Store the current context (current mode, selected objects, and active object) to restore later when operation is finished
-            prev_mode = context.mode
-            if context.active_object is not None:
-                prev_active_object = context.active_object
-            prev_selected_objects = context.selected_objects
-            
-            bpy.ops.object.mode_set(mode='OBJECT')
-            
-            bpy.ops.object.mode_set(mode='OBJECT')
-            
-            objs_before = set(bpy.context.scene.objects)
-            
-            match mesh_prop.model_type:
-                case 'X':
-                    if 'bl_ext.blender_org.io_directx_x' not in bpy.context.preferences.addons.keys():
-                        self.report({"ERROR"}, "The .x importer is not enabled or installed")
-                        return({'CANCELLED'})
-                    
-                    bpy.ops.import_scene.directx_x(
-                        filepath = str(target),
-                        import_textures = False,
-                        import_materials = False,
-                        import_armature = False
-                    )
-                    
-                case 'FBX':
-                    bpy.ops.import_scene.fbx(
-                        filepath = str(target),
-                        global_scale = 100.0
-                    )
-                case 'GLB':
-                    pass
-            
-            objs_after = set(bpy.context.scene.objects)
-            
-            imported_objects = list(objs_after - objs_before)
-            
-            male_collection = bpy.data.collections.get('GEO-PZ_Human_Male_Props' + instance_str)
-            
-            for obj in imported_objects:                
-                if obj.type == 'ARMATURE':
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                elif obj.type == 'EMPTY':
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                elif obj.type == 'MESH':
-                    
-                    old_obj = bpy.data.objects.get('OBJ-MalePropMesh' + str(prop.prop_mesh_slot_active_index))
-                    if old_obj:
-                        bpy.data.objects.remove(old_obj, do_unlink=True)
-                    
-                    #-------------------------
-                    
-                    obj.name = 'OBJ-MalePropMesh' + str(prop.prop_mesh_slot_active_index)
-                    
-                    for collection in obj.users_collection[:]:
-                        collection.objects.unlink(obj)
-                    
-                    if obj.name not in male_collection.objects:
-                        male_collection.objects.link(obj)
-                    
-                    #-------------------------
-                    
-                    bip01 = bpy.data.objects.get('Bip01')
-                    bone = bip01.pose.bones.get(mesh_prop.attach_bone)
-                    
-                    obj.parent = bip01
-                    obj.parent_type = 'BONE'
-                    obj.parent_bone = bone.name
-                    
-                    obj.matrix_parent_inverse = bone.matrix.inverted()
-                    
-                    bone_world_matrix = bip01.matrix_world @ bone.matrix
-                    obj.matrix_world = bone_world_matrix
-                    
-                    match mesh_prop.model_type:
-                        case 'X':
-                            obj.rotation_euler[0] += math.pi
-                            obj.scale *= 100
-                            
-                            # Wrist items are imported upside down and have off rotations, for some reason
-                            if bone.name == 'Bip01_L_Forearm':
-                                obj.scale[2] *= -1
-                                obj.rotation_euler[1] += math.radians(3)
-                            if bone.name == 'Bip01_R_Forearm':
-                                obj.scale[2] *= -1
-                                obj.rotation_euler[1] -= math.radians(3)
-                        case 'FBX':
-                            obj.rotation_euler[0] = -math.pi / 2
-                        case 'GLB':
-                            pass
-                        
-                    #-------------------------
-                    
-                    obj.modifiers.clear()
-                    
-                    obj.active_material = bpy.data.materials.get('MAT-PropMaterial' + str(prop.prop_mesh_slot_active_index))
-                    
-                    obj["sex"] = 0
-                    obj.hide_viewport = obj['sex'] != prop.model_sex_index
-                    obj.hide_render = obj['sex'] != prop.model_sex_index
-                    
-                        
-            # Deselect all objects
-            bpy.ops.object.select_all(action='DESELECT')
-            
-            for obj in prev_selected_objects:
-                obj.select_set(True)
-            if prev_active_object is not None:
-                context.view_layer.objects.active = prev_active_object
-                
-            # Restore the context that was before the operation was called
-            bpy.ops.object.mode_set(mode=prev_mode)
-            return({'FINISHED'})
-        else:
-            self.report({'ERROR'}, "Could not find a model file at the path: " + target)
-            return({'CANCELLED'})
-    
-    #-------------------------------------------------------------#
-    # Import Female Model
-    
-    def import_female_model(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        dir_list = context.scene.pz_human_mod_directory_slots
-        mesh_prop_list = context.active_object.pz_human_prop_mesh_slots
-        mesh_prop = mesh_prop_list[prop.prop_mesh_slot_active_index]
-        
-        instance_str = ' (' + str(prop.rig_instance) + ')'
-
-        models_dir = ''
-        model_path = mesh_prop.female_model_path
-        
-        # Construct the filepath to the 'models_X/Skinned' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            models_dir = global_prop.pz_directory
-            model_path = model_path.replace('\\', '\\\\')
-        elif sys.platform == 'linux':
-            models_dir = global_prop.pz_directory + 'projectzomboid/'
-            model_path = model_path.replace('\\', '/')
-        
-        # Construct the name of the target file
-        target = models_dir + model_path
-
-        match mesh_prop.model_type:
-            case 'X':
-                target = target + '.x'
-            case 'FBX':
-                target = target + '.fbx'
-            case 'GLB':
-                target = target + '.glb'
-        
-        target = bpy.path.resolve_ncase(target)
-        
-        if Path(target).is_file():
+        if Path(model_path).is_file():
                 
             # Store the current context (current mode, selected objects, and active object) to restore later when operation is finished
             prev_mode = context.mode
@@ -2803,32 +2359,38 @@ class PZ_ImportPropMesh(Operator):
             
             objs_before = set(bpy.context.scene.objects)
             
-            match mesh_prop.model_type:
-                case 'X':
-                    if 'bl_ext.blender_org.io_directx_x' not in bpy.context.preferences.addons.keys():
+            match model_type:
+                case '.x':
+                    if not directx_import_available():
                         self.report({"ERROR"}, "The .x importer is not enabled or installed")
                         return({'CANCELLED'})
                     
                     bpy.ops.import_scene.directx_x(
-                        filepath = str(target),
+                        filepath = model_path,
                         import_textures = False,
                         import_materials = False,
-                        import_armature = False
+                        import_armature = False,
+                        import_animation = False,
+                        use_import_collection = False
                     )
                     
-                case 'FBX':
+                case '.fbx':
                     bpy.ops.import_scene.fbx(
-                        filepath = str(target),
+                        filepath = model_path,
                         global_scale = 100.0
                     )
-                case 'GLB':
-                    pass
+                case '.glb':
+                    bpy.ops.import_scene.gltf(
+                        filepath = model_path,
+                        disable_bone_shape = True
+                    )
             
             objs_after = set(bpy.context.scene.objects)
             
             imported_objects = list(objs_after - objs_before)
             
-            female_collection = bpy.data.collections.get('GEO-PZ_Human_Female_Props' + instance_str)
+            sex_collection_name = 'GEO-PZ_Human_Male_Props' if sex == 'MALE' else 'GEO-PZ_Human_Female_Props'
+            prop_collection = bpy.data.collections.get(sex_collection_name + instance_str)
             
             for obj in imported_objects:                
                 if obj.type == 'ARMATURE':
@@ -2837,22 +2399,23 @@ class PZ_ImportPropMesh(Operator):
                     bpy.data.objects.remove(obj, do_unlink=True)
                 elif obj.type == 'MESH':
                     
-                    old_obj = bpy.data.objects.get('OBJ-FemalePropMesh' + str(prop.prop_mesh_slot_active_index))
+                    sex_name = 'OBJ-MalePropMesh' if sex == 'MALE' else 'OBJ-FemalePropMesh'
+                    obj_name = sex_name + str(p.prop_mesh_slot_active_index) + instance_str
+
+                    old_obj = bpy.data.objects.get(obj_name)
                     if old_obj:
                         bpy.data.objects.remove(old_obj, do_unlink=True)
                     
-                    obj.name = 'OBJ-FemalePropMesh' + str(prop.prop_mesh_slot_active_index)
+                    obj.name = obj_name
                     
                     for collection in obj.users_collection[:]:
                         collection.objects.unlink(obj)
                     
-                    if obj.name not in female_collection.objects:
-                        female_collection.objects.link(obj)
+                    if obj.name not in prop_collection.objects:
+                        prop_collection.objects.link(obj)
                     
-                    #-------------------------
-                    
-                    bip01 = bpy.data.objects.get('Bip01')
-                    bone = bip01.pose.bones.get(mesh_prop.attach_bone)
+                    bip01 = prev_active_object
+                    bone = bip01.pose.bones.get(attach_bone)
                     
                     obj.parent = bip01
                     obj.parent_type = 'BONE'
@@ -2862,55 +2425,77 @@ class PZ_ImportPropMesh(Operator):
                     
                     bone_world_matrix = bip01.matrix_world @ bone.matrix
                     obj.matrix_world = bone_world_matrix
-                    
-                    match mesh_prop.model_type:
-                        case 'X':
+
+                    match model_type:
+                        case '.x':
                             obj.rotation_euler[0] += math.pi
                             obj.scale *= 100
                             
                             # Wrist items are imported upside down and have off rotations, for some reason
-                            if bone.name == 'Bip01_L_Forearm':
-                                obj.scale[2] *= -1
-                                obj.rotation_euler[1] -= math.radians(3)
-                            if bone.name == 'Bip01_R_Forearm':
-                                obj.scale[2] *= -1
-                                obj.rotation_euler[1] += math.radians(3)
-                        case 'FBX':
-                            obj.rotation_euler[0] = -math.pi / 2
-                        case 'GLB':
-                            pass
-                        
-                    #-------------------------
+                            if sex == 'MALE':
+                                if bone.name == 'Bip01_L_Forearm':
+                                    obj.scale[2] *= -1
+                                    obj.rotation_euler[1] += math.radians(3)
+                                if bone.name == 'Bip01_R_Forearm':
+                                    obj.scale[2] *= -1
+                                    obj.rotation_euler[1] -= math.radians(3)
+                            elif sex == 'FEMALE':
+                                if bone.name == 'Bip01_L_Forearm':
+                                    obj.scale[2] *= -1
+                                    obj.rotation_euler[1] -= math.radians(3)
+                                if bone.name == 'Bip01_R_Forearm':
+                                    obj.scale[2] *= -1
+                                    obj.rotation_euler[1] += math.radians(3)
+                        case '.fbx':
+                            matrix_world = obj.matrix_world.copy()
+                            obj.parent = None
+                            obj.matrix_world = matrix_world
+                            obj.data.materials.clear()
+                            obj.scale[0] = 1.0
+                            obj.scale[1] = 1.0
+                            obj.scale[2] = 1.0
+                            #obj.rotation_euler[0] = -math.pi / 2
+                        case '.glb':
+                            matrix_world = obj.matrix_world.copy()
+                            obj.parent = None
+                            obj.matrix_world = matrix_world
+                            obj.scale[0] = 1.0
+                            obj.scale[1] = 1.0
+                            obj.scale[2] = 1.0
                     
                     obj.modifiers.clear()
                     
-                    obj.active_material = bpy.data.materials.get('MAT-PropMaterial' + str(prop.prop_mesh_slot_active_index))
+                    obj.active_material = bpy.data.materials.get('MAT-PropMaterial' + str(p.prop_mesh_slot_active_index) + instance_str)
                     
-                    obj["sex"] = 1
-                    obj.hide_viewport = obj['sex'] != prop.model_sex_index
-                    obj.hide_render = obj['sex'] != prop.model_sex_index
+                    obj["sex"] = 0 if sex == 'MALE' else 1
+                    obj.hide_viewport = obj['sex'] != p.model_sex_index
+                    obj.hide_render = obj['sex'] != p.model_sex_index
+
+                    # Deselect all objects
+                    bpy.ops.object.select_all(action='DESELECT')
                     
+                    for obj in prev_selected_objects:
+                        obj.select_set(True)
+                    if prev_active_object is not None:
+                        context.view_layer.objects.active = prev_active_object
                         
-            # Deselect all objects
-            bpy.ops.object.select_all(action='DESELECT')
-            
-            for obj in prev_selected_objects:
-                obj.select_set(True)
-            if prev_active_object is not None:
-                context.view_layer.objects.active = prev_active_object
-                
-            # Restore the context that was before the operation was called
-            bpy.ops.object.mode_set(mode=prev_mode)
-            return({'FINISHED'})
-        else:
-            self.report({'ERROR'}, "Could not find a model file at the path: " + target)
-            return({'CANCELLED'})
-        
+                    # Restore the context that was before the operation was called
+                    bpy.ops.object.mode_set(mode=prev_mode)
+                    return({'FINISHED'})
+                else:
+                    self.report({'ERROR'}, "Could not find a model file at the path: " + model_path)
+                    return({'CANCELLED'})
+
     def execute(self, context):
-        self.create_prop_material(context)
-        self.import_male_model(context)
-        self.import_female_model(context)
-        
+        p = context.active_object.pz_human_props
+        m_list = context.active_object.pz_human_prop_mesh_slots
+        m = m_list[p.prop_mesh_slot_active_index]
+
+        create_model_material(context, m.texture_path, 'PROP')
+
+        self.import_prop_model(context, m.male_model_path, m.model_type, m.attach_bone, 'MALE')
+        self.import_prop_model(context, m.female_model_path, m.model_type, m.attach_bone, 'FEMALE')
+
         bpy.ops.zomboid.check_hat_category()
             
         return({'FINISHED'})
@@ -2928,8 +2513,8 @@ class PZ_ImportHairMesh(Operator):
     )
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
         hair_styles = context.scene.pz_human_hair_style_slots
         beard_styles = context.scene.pz_human_beard_styles
         
@@ -2937,51 +2522,33 @@ class PZ_ImportHairMesh(Operator):
         match self.hair_type:
             case 'M':
                 for hair in hair_styles:
-                    if hair.name == prop.current_male_hair_style and hair.sex == 'MALE':
+                    if hair.name == p.current_male_hair_style and hair.sex == 'MALE':
                         hair_style = hair
             case 'F':
                 for hair in hair_styles:
-                    if hair.name == prop.current_female_hair_style and hair.sex == 'FEMALE':
+                    if hair.name == p.current_female_hair_style and hair.sex == 'FEMALE':
                         hair_style = hair
             case 'B':
                 for beard in beard_styles:
-                    if beard.name == prop.current_beard_style:
+                    if beard.name == p.current_beard_style:
                         hair_style = beard
         
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        instance_str = ' (' + str(p.rig_instance) + ')'
 
-        models_dir = ''
         model_path = hair_style.model_path
+        models_dir = Path('media') / 'models_X'
         
-        # Construct the filepath to the 'models_X/Skinned' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            models_dir = global_prop.pz_directory + '\\media\\models_X\\'
-            model_path = model_path.replace('\\', '\\\\')
-        elif sys.platform == 'linux':
-            models_dir = global_prop.pz_directory + 'projectzomboid/media/models_X/'
-            model_path = model_path.replace('\\', '/')
-        
-        # Construct the name of the target file
-        target= models_dir + model_path
-    
-        target_name = os.path.basename(target)
-        directory = os.path.dirname(target)
-        directory = bpy.path.resolve_ncase(directory)
-        
-        if target_name == 'None':
-           bpy.ops.zomboid.remove_hair_mesh(hair_type=self.hair_type)
-           return ({'FINISHED'})
+        filepath = None 
+        extension = None
 
-        extension = ''
-        filepath = ''
-        for file in os.listdir(directory):
-            name, ext = os.path.splitext(file)
-            if name.lower() == target_name.lower():
-                filepath = os.path.join(directory, file)
-                extension = ext
-                break
-
+        if Path(model_path).name != 'None':
+            filepath, extension = get_zomboid_asset(context, model_path)
+        else:
+            bpy.ops.zomboid.remove_hair_mesh(hair_type=self.hair_type)
+            return ({'FINISHED'})
+        if filepath is None:
+            return ({'CANCELLED'})
+        
         col = None
         prev_obj = None
         match self.hair_type:
@@ -3011,7 +2578,7 @@ class PZ_ImportHairMesh(Operator):
         
         match extension:
             case '.x' | '.X':
-                if 'bl_ext.blender_org.io_directx_x' not in bpy.context.preferences.addons.keys():
+                if not directx_import_available():
                     self.report({"ERROR"}, "The .x importer is not enabled or installed")
                     return({'CANCELLED'})
                 
@@ -3019,26 +2586,31 @@ class PZ_ImportHairMesh(Operator):
                         filepath = str(filepath),
                         import_textures = False,
                         import_materials = False,
-                        import_armature = False
+                        import_armature = False,
+                        import_animation = False,
+                        use_import_collection = False
                     )
                 
             case '.fbx':
                 bpy.ops.import_scene.fbx(
-                    filepath = filepath,
+                    filepath = str(filepath),
                     global_scale = 100.0
                 )
             case '.glb':
-                pass
+                bpy.ops.import_scene.gltf(
+                    filepath = str(filepath),
+                    disable_bone_shape = True
+                )
             
         objs_after = set(bpy.context.scene.objects)
         
         imported_objects = list(objs_after - objs_before)
 
-        for obj in imported_objects:                
+        objs_to_remove = []  
+        for obj in imported_objects:        
             if obj.type == 'ARMATURE' or obj.type == 'EMPTY':
-                bpy.data.objects.remove(obj, do_unlink=True)
+                objs_to_remove.append(obj)
             elif obj.type == 'MESH':
-                
                 match self.hair_type:
                     case 'M':
                         obj.name = 'OBJ-MaleHair' + instance_str
@@ -3050,22 +2622,32 @@ class PZ_ImportHairMesh(Operator):
                         obj.name = 'OBJ-Beard' + instance_str
                         obj["sex"] = 0
                     
-                obj.hide_viewport = obj['sex'] != prop.model_sex_index
-                obj.hide_render = obj['sex'] != prop.model_sex_index
+                obj.hide_viewport = obj['sex'] != p.model_sex_index
+                obj.hide_render = obj['sex'] != p.model_sex_index
                 match extension:
                     case '.x' | '.X':
+                        obj.parent = None
                         obj.rotation_euler[2] += math.pi
                         obj.scale[0] = -1
                         obj.location[1] = -.001
-                        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
                     case '.fbx':
-                        bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
-                        obj.rotation_euler[0] = -math.pi / 2
+                        matrix_world = obj.matrix_world.copy()
+                        obj.parent = None
+                        obj.matrix_world = matrix_world
+                        obj.data.materials.clear()
+                        obj.scale[0] = 1.0
+                        obj.scale[1] = 1.0
+                        obj.scale[2] = 1.0
                     case '.glb':
-                        pass
-                
-                if self.hair_type == 'M' or self.hair_type == 'F':
-                    prop.hair_texture_type = hair_style.texture_type
+                        matrix_world = obj.matrix_world.copy()
+                        obj.parent = None
+                        obj.matrix_world = matrix_world
+                        obj.scale[0] = 1.0
+                        obj.scale[1] = 1.0
+                        obj.scale[2] = 1.0
+
+                # if self.hair_type == 'M' or self.hair_type == 'F':
+                #     p.hair_texture_type = hair_style.texture_type
                 
                 for collection in obj.users_collection[:]:
                     collection.objects.unlink(obj)
@@ -3076,7 +2658,7 @@ class PZ_ImportHairMesh(Operator):
                 obj.modifiers.clear()
                 
                 arm_mod = obj.modifiers.new(name="Armature", type='ARMATURE')
-                arm_mod.object = bpy.data.objects.get('Bip01')
+                arm_mod.object = prev_active_object
                 
                 ### Hair Material and Drivers ###
                 obj.active_material = bpy.data.materials.get('MAT-Hair')
@@ -3094,7 +2676,7 @@ class PZ_ImportHairMesh(Operator):
                 var = driver.variables.new()
                 target = var.targets[0]
                 
-                target.id = context.active_object
+                target.id = prev_active_object
                 target.data_path = "pz_human_props.hair_texture_type_index"
                 
                 # Hair Color Driver
@@ -3109,11 +2691,14 @@ class PZ_ImportHairMesh(Operator):
                     var = driver.variables.new()
                     target = var.targets[0]
                     
-                    target.id = context.active_object
+                    target.id = prev_active_object
                     target.data_path = "pz_human_props.hair_color[" + str(i) + "]"
-                
-            #    obj.parent = bpy.data.objects.get('Bip01')
-                    
+
+                # Parent to the Rig    
+                obj.parent = bpy.data.objects.get('Bip01')
+            
+        for obj in objs_to_remove:
+            bpy.data.objects.remove(obj, do_unlink=True)
                 
         # Deselect all objects
         bpy.ops.object.select_all(action='DESELECT')
@@ -3144,12 +2729,12 @@ class PZ_RemoveClothingMesh(Operator):
     # Remove Clothing Material
     
     def remove_clothing_material(self, context):
-        prop = context.active_object.pz_human_props
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
+        p = context.active_object.pz_human_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
         
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        instance_str = ' (' + str(p.rig_instance) + ')'
 
-        index = prop.clothing_mesh_slot_active_index
+        index = p.clothing_mesh_slot_active_index
         
         old_mat = bpy.data.materials.get('MAT-ClothingMaterial' + str(index) + instance_str)
         if old_mat:
@@ -3160,7 +2745,7 @@ class PZ_RemoveClothingMesh(Operator):
             
             bpy.data.materials.remove(old_mat, do_unlink=True)
             
-        for i in range(index, len(mesh_prop_list)):
+        for i in range(index, len(m_list)):
             index_mat = bpy.data.materials.get('MAT-ClothingMaterial' + str(i) + instance_str)
             if index_mat:
                 index_mat.name = 'MAT-ClothingMaterial' + str(i - 1) + instance_str
@@ -3180,18 +2765,18 @@ class PZ_RemoveClothingMesh(Operator):
     # Remove Male Clothing Object
     
     def remove_male_clothing_mesh(self, context):
-        prop = context.active_object.pz_human_props
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
+        p = context.active_object.pz_human_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
         
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        instance_str = ' (' + str(p.rig_instance) + ')'
 
-        index = prop.clothing_mesh_slot_active_index
+        index = p.clothing_mesh_slot_active_index
         
         old_obj = bpy.data.objects.get('OBJ-MaleClothingMesh' + str(index) + instance_str)
         if old_obj:
             bpy.data.objects.remove(old_obj, do_unlink=True)
             
-        for i in range(index, len(mesh_prop_list)):
+        for i in range(index, len(m_list)):
             index_obj = bpy.data.objects.get('OBJ-MaleClothingMesh' + str(i) + instance_str)
             if index_obj:
                 index_obj.name = 'OBJ-MaleClothingMesh' + str(i - 1) + instance_str
@@ -3202,56 +2787,52 @@ class PZ_RemoveClothingMesh(Operator):
     # Remove Female Clothing Object
     
     def remove_female_clothing_mesh(self, context):
-        prop = context.active_object.pz_human_props
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
+        p = context.active_object.pz_human_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
         
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        instance_str = ' (' + str(p.rig_instance) + ')'
 
-        index = prop.clothing_mesh_slot_active_index
+        index = p.clothing_mesh_slot_active_index
         
         old_obj = bpy.data.objects.get('OBJ-FemaleClothingMesh' + str(index) + instance_str)
         if old_obj:
             bpy.data.objects.remove(old_obj, do_unlink=True)
             
-        for i in range(index, len(mesh_prop_list)):
+        for i in range(index, len(m_list)):
             index_obj = bpy.data.objects.get('OBJ-FemaleClothingMesh' + str(i) + instance_str)
             if index_obj:
                 index_obj.name = 'OBJ-FemaleClothingMesh' + str(i - 1) + instance_str
         
         return ({'FINISHED'})
     
-    #-------------------------------------------------------------#
-    # Check Masks
-    
+
     def check_masks(self, context):
-        prop = context.active_object.pz_human_props
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
-        mesh_prop = mesh_prop_list[prop.clothing_mesh_slot_active_index]
+        p = context.active_object.pz_human_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
+        m = m_list[p.clothing_mesh_slot_active_index]
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
-        for i in range(len(prop.mask_array)):
+        for i in range(len(p.mask_array)):
             test = False
-            for j in range(len(mesh_prop_list)):
-                if mesh_prop_list[j].name != mesh_prop.name and mesh_prop_list[j].mask_array[i] == True:
+            for j in range(len(m_list)):
+                if m_list[j].name != m.name and m_list[j].mask_array[i] == True:
                     test = True
                     break
-            prop.mask_array[i] = test
-            prop.mask_array[i] = prop.mask_array[i]
+            p.mask_array[i] = test
+            p.mask_array[i] = p.mask_array[i]
         
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
         
         bpy.ops.zomboid.create_mask_texture()
         
         return({'FINISHED'})
-    
-    #-------------------------------------------------------------#
-    # Execute
-    
+
     def execute(self, context):
-        self.remove_clothing_material(context)
+        remove_model_material(context, 'CLOTHING')
         self.remove_male_clothing_mesh(context)
         self.remove_female_clothing_mesh(context)
+
         self.check_masks(context)
         
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
@@ -3266,96 +2847,35 @@ class PZ_RemovePropMesh(Operator):
     bl_idname = "zomboid.remove_prop_mesh"
     bl_label = "Remove Prop Mesh"
     
-    #-------------------------------------------------------------#
-    # Remove Prop Material
-    
-    def remove_prop_material(self, context):
-        prop = context.active_object.pz_human_props
-        prop_prop_list = context.active_object.pz_human_prop_mesh_slots
+    def remove_prop_mesh(self, context, sex):
+        p = context.active_object.pz_human_props
+        a_list = context.active_object.pz_human_prop_mesh_slots
         
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        instance_str = ' (' + str(p.rig_instance) + ')'
 
-        index = prop.prop_mesh_slot_active_index
+        index = p.prop_mesh_slot_active_index
         
-        old_mat = bpy.data.materials.get('MAT-PropMaterial' + str(index) + instance_str)
-        if old_mat:
-            
-            drivers = old_mat.node_tree.animation_data.drivers
-            for i in range(len(drivers) - 1, -1, -1):
-                drivers.remove(drivers[i]) 
-            
-            bpy.data.materials.remove(old_mat, do_unlink=True)
-            
-        for i in range(index, len(prop_prop_list)):
-            index_mat = bpy.data.materials.get('MAT-PropMaterial' + str(i) + instance_str)
-            if index_mat:
-                index_mat.name = 'MAT-PropMaterial' + str(i - 1) + instance_str
-                
-                for fcurve in index_mat.node_tree.animation_data.drivers:
-                    driver = fcurve.driver
-                    target = driver.variables[0].targets[0]
-                    
-                    old_path = "pz_human_prop_mesh_slots[" + str(i) + "]"
-                    new_path = "pz_human_prop_mesh_slots[" + str(i - 1) + "]"
-                    
-                    target.data_path = target.data_path.replace(old_path, new_path)
-            
-        return ({'FINISHED'})
-    
-    #-------------------------------------------------------------#
-    # Remove Male Prop Object
-    
-    def remove_male_prop_mesh(self, context):
-        prop = context.active_object.pz_human_props
-        prop_prop_list = context.active_object.pz_human_prop_mesh_slots
-        
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        obj_name = 'OBJ-MalePropMesh' if sex == 'MALE' else 'OBJ-FemalePropMesh'
+        orig_obj_name = obj_name + str(index) + instance_str
 
-        index = prop.prop_mesh_slot_active_index
-        
-        old_obj = bpy.data.objects.get('OBJ-MalePropMesh' + str(index) + instance_str)
+        old_obj = bpy.data.objects.get(orig_obj_name)
         if old_obj:
             bpy.data.objects.remove(old_obj, do_unlink=True)
             
-        for i in range(index, len(prop_prop_list)):
-            index_obj = bpy.data.objects.get('OBJ-MalePropMesh' + str(i) + instance_str)
+        for i in range(index, len(a_list)):
+            index_obj = bpy.data.objects.get(obj_name + str(i) + instance_str)
             if index_obj:
-                index_obj.name = 'OBJ-MalePropMesh' + str(i - 1) + instance_str
-        
-        return ({'FINISHED'})
-    
-    #-------------------------------------------------------------#
-    # Remove Female Prop Object
-    
-    def remove_female_prop_mesh(self, context):
-        prop = context.active_object.pz_human_props
-        prop_prop_list = context.active_object.pz_human_prop_mesh_slots
-        
-        instance_str = ' (' + str(prop.rig_instance) + ')'
-
-        index = prop.prop_mesh_slot_active_index
-        
-        old_obj = bpy.data.objects.get('OBJ-FemalePropMesh' + str(index) + instance_str)
-        if old_obj:
-            bpy.data.objects.remove(old_obj, do_unlink=True)
-            
-        for i in range(index, len(prop_prop_list)):
-            index_obj = bpy.data.objects.get('OBJ-FemalePropMesh' + str(i) + instance_str)
-            if index_obj:
-                index_obj.name = 'OBJ-FemalePropMesh' + str(i - 1) + instance_str
+                index_obj.name = obj_name + str(i - 1) + instance_str
         
         return ({'FINISHED'})
 
-    #-------------------------------------------------------------#
-    # Execute
-    
     def execute(self, context):
-        self.remove_prop_material(context)
-        self.remove_male_prop_mesh(context)
-        self.remove_female_prop_mesh(context)
-        
-        bpy.ops.zomboid.check_hat_category(count_self=False)
-        
+        remove_model_material(context, 'PROP')
+
+        self.remove_prop_mesh(context, 'MALE')
+        self.remove_prop_mesh(context, 'FEMALE')
+
+        bpy.ops.zomboid.check_hat_category(count_self=False)       
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
         
         return ({'FINISHED'})
@@ -3373,9 +2893,9 @@ class PZ_RemoveHairMesh(Operator):
     )
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        instance_str = ' (' + str(p.rig_instance) + ')'
 
         match self.hair_type:
             case 'M':
@@ -3418,18 +2938,18 @@ class PZ_HairRandomizer(Operator):
     )
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         match self.hair_type:
             case 'M':
                 rnd = randint(0, len(context.scene.pz_human_male_hair_styles) - 1)
-                prop.selected_male_hair_style = context.scene.pz_human_male_hair_styles[rnd].name
+                p.selected_male_hair_style = context.scene.pz_human_male_hair_styles[rnd].name
             case 'F':
                 rnd = randint(0, len(context.scene.pz_human_female_hair_styles) - 1)
-                prop.selected_female_hair_style = context.scene.pz_human_female_hair_styles[rnd].name
+                p.selected_female_hair_style = context.scene.pz_human_female_hair_styles[rnd].name
             case 'B':
                 rnd = randint(0, len(context.scene.pz_human_beard_styles) - 1)
-                prop.selected_beard_style = context.scene.pz_human_beard_styles[rnd].name
+                p.selected_beard_style = context.scene.pz_human_beard_styles[rnd].name
         
         return({'FINISHED'})
 
@@ -3442,9 +2962,9 @@ class PZ_HairColorRandomizer(Operator):
     bl_label = "Randomize Hair Color"
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         color = (1.0, 1.0, 1.0)
-        if prop.natural_hair_color:
+        if p.natural_hair_color:
             hair_color_array = [
             (0.658, 0.408, 0.060), # Mustard Yellow
             (0.397, 0.265, 0.082), # Coffee
@@ -3473,9 +2993,9 @@ class PZ_HairColorRandomizer(Operator):
         else:
             color = (random(), random(), random())
         
-        prop.hair_color[0] = color[0]
-        prop.hair_color[1] = color[1]
-        prop.hair_color[2] = color[2]
+        p.hair_color[0] = color[0]
+        p.hair_color[1] = color[1]
+        p.hair_color[2] = color[2]
         
         return({'FINISHED'})
 
@@ -3489,7 +3009,7 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
     bl_description = "Randomize the values of all the body intensity options based on a set intensity"
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         injury_props = ["upper_torso_injury", "lower_torso_injury", "left_hand_injury",
                         "right_hand_injury", "left_forearm_injury", "right_forearm_injury",
@@ -3498,16 +3018,16 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
                         "right_thigh_injury", "left_shin_injury", "right_shin_injury",
                         "left_foot_injury", "right_foot_injury"]
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
         for injury in injury_props:
-            setattr(prop, injury, 'NONE')
+            setattr(p, injury, 'NONE')
         
         options = ['SCRATCH', 'LACERATION', 'BITE']
-        chances = [prop.random_scratch_chance, prop.random_laceration_chance, prop.random_bite_chance]
+        chances = [p.random_scratch_chance, p.random_laceration_chance, p.random_bite_chance]
         
         injury_num = 0
-        match prop.random_injury_intensity:
+        match p.random_injury_intensity:
             case 'MINOR':
                 injury_num = randint(1, 2)
             case 'MODERATE':
@@ -3524,8 +3044,8 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
         for i in range(1, injury_num):
             selected_injury = injury_props[randint(0, len(injury_props) - 1)]
             final_injury = ''
-            if randint(1, 100) <= prop.random_bandage_chance or selected_injury is prop.head_injury:
-                if randint(1,100) <= prop.random_bloody_bandage_chance:
+            if randint(1, 100) <= p.random_bandage_chance or selected_injury is p.head_injury:
+                if randint(1,100) <= p.random_bloody_bandage_chance:
                     final_injury = 'BANDAGEBLOODY'
                 else:
                     final_injury = 'BANDAGE'
@@ -3535,13 +3055,13 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
             if selected_injury == 'head_injury' and selected_injury not in ('NONE', 'BANDAGE', 'BANDAGEBLOODY'):
                 continue
             
-            setattr(prop, selected_injury, final_injury)
+            setattr(p, selected_injury, final_injury)
             
             injury_props.remove(selected_injury)
         
         bpy.ops.zomboid.create_body_injury_texture()
         
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
         
         return ({'FINISHED'})
 
@@ -3552,10 +3072,12 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
 def filter_zombie_injuries(self, context):
             items = []
             items.append(('NONE', 'None', ''))
-            for item in context.scene.pz_human_clothing_item_slots:
-                if 'ZedDmg' in item.name:
-                    entry = (item.name, item.name, '')
-                    items.append(entry)
+            for index, injury in enumerate(context.scene.pz_human_zombie_injuries):
+                items.append((injury.name, injury.name, ''))
+            # for item in context.scene.pz_human_clothing_item_slots:
+            #     if 'ZedDmg' in item.name:
+            #         entry = (item.name, item.name, '')
+            #         items.append(entry)
             return items
 
 class PZ_HumanRig_RandomizeZombieInjuries(Operator):
@@ -3564,18 +3086,18 @@ class PZ_HumanRig_RandomizeZombieInjuries(Operator):
     bl_description = "Add a set or random amount of random zombie specific injuries"
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
         injury_choices = filter_zombie_injuries(self, context)
 
         zombie_injuries = context.active_object.pz_human_zombie_injuries
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
         zombie_injuries.clear()
         
         injury_num = 0
-        match prop.random_zombie_injury_intensity:
+        match p.random_zombie_injury_intensity:
             case 'INTACT':
                 injury_num = randint(1, 3)
             case 'DAMAGED':
@@ -3598,13 +3120,13 @@ class PZ_HumanRig_RandomizeZombieInjuries(Operator):
 
             new_injury = zombie_injuries.add()
             new_injury.name = selected_injury[0]
-            new_injury.texture_path = context.scene.pz_human_clothing_item_slots.get(selected_injury[0]).texture_choices[0].texture_path
+            new_injury.texture_path = context.scene.pz_human_zombie_injuries.get(selected_injury[0]).texture_path
 
             injury_choices.remove(selected_injury)
         
         bpy.ops.zomboid.create_body_injury_texture()
         
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
         
         return ({'FINISHED'})
 
@@ -3618,7 +3140,7 @@ class PZ_HumanRig_RandomizeBodyBloodiness(Operator):
     bl_description = "Randomize the values of all the body bloodiness options based on a set intensity"
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         blood_props = ["upper_torso_bloodiness", "lower_torso_bloodiness", "left_hand_bloodiness",
                         "right_hand_bloodiness", "left_forearm_bloodiness", "right_forearm_bloodiness",
@@ -3627,28 +3149,26 @@ class PZ_HumanRig_RandomizeBodyBloodiness(Operator):
                         "right_thigh_bloodiness", "left_shin_bloodiness", "right_shin_bloodiness",
                         "left_foot_bloodiness", "right_foot_bloodiness", "back_bloodiness"]
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
         for blood in blood_props:
-            setattr(prop, blood, 0)
+            setattr(p, blood, 0)
             bloodiness = 0
-            match prop.random_bloodiness_intensity:
+            match p.random_bloodiness_intensity:
                 case 'SOME':
                     bloodiness = uniform(0.0, 1.5)
                 case 'MODERATE':
-                    bloodiness = uniform(1.0, 2.5)
+                    bloodiness = uniform(0.0, 2.5)
                 case 'LOTS':
-                    bloodiness = uniform(2.0, 3.5)
+                    bloodiness = uniform(0.0, 3.5)
                 case 'DRENCHED':
-                    bloodiness = uniform(3.0, 5.0)
-                case 'RANDOM':
                     bloodiness = uniform(0.0, 5.0)
 
-            setattr(prop, blood, bloodiness)
+            setattr(p, blood, bloodiness)
         
         bpy.ops.zomboid.create_body_bloodiness_texture()
         
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
         
         return ({'FINISHED'})
 
@@ -3662,7 +3182,7 @@ class PZ_HumanRig_RandomizeBodyDirtiness(Operator):
     bl_description = "Randomize the values of all the body dirtiness options based on a set intensity"
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         dirt_props = ["upper_torso_dirtiness", "lower_torso_dirtiness", "left_hand_dirtiness",
                         "right_hand_dirtiness", "left_forearm_dirtiness", "right_forearm_dirtiness",
@@ -3671,28 +3191,26 @@ class PZ_HumanRig_RandomizeBodyDirtiness(Operator):
                         "right_thigh_dirtiness", "left_shin_dirtiness", "right_shin_dirtiness",
                         "left_foot_dirtiness", "right_foot_dirtiness", "back_dirtiness"]
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
         for dirt in dirt_props:
-            setattr(prop, dirt, 0)
+            setattr(p, dirt, 0)
             dirtiness = 0
-            match prop.random_dirtiness_intensity:
+            match p.random_dirtiness_intensity:
                 case 'SOME':
                     dirtiness = uniform(0.0, 0.5)
                 case 'MODERATE':
-                    dirtiness = uniform(0.4, 0.8)
+                    dirtiness = uniform(0.0, 0.8)
                 case 'LOTS':
-                    dirtiness = uniform(0.70, 1.2)
+                    dirtiness = uniform(0.0, 1.2)
                 case 'DISGUSTING':
-                    dirtiness = uniform(1.1, 2.0)
-                case 'RANDOM':
                     dirtiness = uniform(0.0, 2.0)
 
-            setattr(prop, dirt, dirtiness)
+            setattr(p, dirt, dirtiness)
         
         bpy.ops.zomboid.create_body_dirtiness_texture()
         
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
         
         return ({'FINISHED'})
 
@@ -3710,7 +3228,7 @@ class PZ_HumanRig_RemoveBodyBloodiness(Operator):
     bl_description = "Sets all bloodiness on the body to zero"
 
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
         blood_props = ["upper_torso_bloodiness", "lower_torso_bloodiness", "left_hand_bloodiness",
                         "right_hand_bloodiness", "left_forearm_bloodiness", "right_forearm_bloodiness",
@@ -3719,14 +3237,14 @@ class PZ_HumanRig_RemoveBodyBloodiness(Operator):
                         "right_thigh_bloodiness", "left_shin_bloodiness", "right_shin_bloodiness",
                         "left_foot_bloodiness", "right_foot_bloodiness", "back_bloodiness"]
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
         for blood in blood_props:
-            setattr(prop, blood, 0)
+            setattr(p, blood, 0)
         
         bpy.ops.zomboid.create_body_bloodiness_texture()
 
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
 
         return ({'FINISHED'})
 
@@ -3740,7 +3258,7 @@ class PZ_HumanRig_RemoveBodyDirtiness(Operator):
     bl_description = "Sets all dirtiness on the body to zero"
 
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
         dirt_props = ["upper_torso_dirtiness", "lower_torso_dirtiness", "left_hand_dirtiness",
                         "right_hand_dirtiness", "left_forearm_dirtiness", "right_forearm_dirtiness",
@@ -3749,14 +3267,14 @@ class PZ_HumanRig_RemoveBodyDirtiness(Operator):
                         "right_thigh_dirtiness", "left_shin_dirtiness", "right_shin_dirtiness",
                         "left_foot_dirtiness", "right_foot_dirtiness", "back_dirtiness"]
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
         for dirt in dirt_props:
-            setattr(prop, dirt, 0)
+            setattr(p, dirt, 0)
         
         bpy.ops.zomboid.create_body_dirtiness_texture()
 
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
 
         return ({'FINISHED'})
 
@@ -3770,7 +3288,7 @@ class PZ_HumanRig_RemoveAllBodyInjuries(Operator):
     bl_description = "Removes all body injuries"
 
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
         injury_props = ["upper_torso_injury", "lower_torso_injury", "left_hand_injury",
                         "right_hand_injury", "left_forearm_injury", "right_forearm_injury",
@@ -3779,14 +3297,14 @@ class PZ_HumanRig_RemoveAllBodyInjuries(Operator):
                         "right_thigh_injury", "left_shin_injury", "right_shin_injury",
                         "left_foot_injury", "right_foot_injury"]
         
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
         for injury in injury_props:
-            setattr(prop, injury, 'NONE')
+            setattr(p, injury, 'NONE')
         
         bpy.ops.zomboid.create_body_injury_texture()
 
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
 
         return ({'FINISHED'})
 
@@ -3800,15 +3318,15 @@ class PZ_HumanRig_RemoveAllZombieInjuries(Operator):
     bl_description = "Removes all zombie injuries"
 
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
-        prop.halt_texture_updates = True
+        p.halt_texture_updates = True
         
         context.active_object.pz_human_zombie_injuries.clear()        
         
         bpy.ops.zomboid.create_body_injury_texture()
 
-        prop.halt_texture_updates = False
+        p.halt_texture_updates = False
 
         return ({'FINISHED'})
 
@@ -3845,12 +3363,12 @@ class PZ_HumanRig_GetAllModDirectories(Operator):
     bl_description = "Automatically grabs all installed mods and populates the directories folder for you. It does this by traversing upwards twice from the Project Zomboid directory into \'steamapps\', then goes into the workshop/common/108600 folder where your mods are installed"
     
     def execute(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
         dirs = context.scene.pz_human_mod_directory_slots
 
         dirs.clear()
 
-        pz_dir = Path(global_prop.pz_directory)
+        pz_dir = Path(g.pz_directory)
         steamapps_dir = pz_dir.parent.parent
         mods_dir = steamapps_dir / 'workshop' / 'content' / '108600'
         
@@ -3947,60 +3465,40 @@ class PZ_HumanRig_ParseClothingXMLs(Operator):
                         item.guid = m.text
 
                     # Models
-                    m = root.find('m_MaleModel')
-                    if m is not None and m.text is not None:
-                        path = m.text
-                        start = path.find(':') + 1
-                        end = path.find('.')
-                        if end == -1:
-                            path = path[start:]
+                    def get_model(xml_id):
+                        m = root.find(xml_id)
+                        if m is not None and m.text is not None:
+                            path = m.text
+                            start = path.find(':') + 1
+                            end = path.find('.')
+                            if end == -1:
+                                path = path[start:]
+                            else:
+                                path = path[start:end]
+                            if 'media\\models_X' not in path:
+                                path = str(Path('media') / 'models_X' / Path(path))
+                            x, y = get_zomboid_asset(context, path)
+                            if y is not None:
+                                return (str(x), y, False)
+                            else:
+                                return ('None', 'N/A', True)
                         else:
-                            path = path[start:end]
-                        if 'media\\models_X' not in path:
-                            path = str(Path('media') / 'models_X' / Path(path))
-                        item.male_model_path = path
-                    else:
-                        item.male_model_path = 'None'
+                            return ('None', 'N/A', True)
 
-                    m = root.find('m_FemaleModel') 
-                    if m is not None and m.text is not None:
-                        path = m.text
-                        start = path.find(':') + 1
-                        end = path.find('.')
-                        if end == -1:
-                            path = path[start:]
-                        else:
-                            path = path[start:end]
-                        if 'media\\models_X' not in path:
-                            path = str(Path('media') / 'models_X' / Path(path))
-                        item.female_model_path = path
-                    else:
-                        item.female_model_path = 'None'
-
-                    if item.male_model_path != 'None':
-                        match os.path.splitext(item.male_model_path)[1]:
-                            case ".x" | ".X":
-                                item.model_type = 'X'
-                            case ".fbx":
-                                item.model_type = 'FBX'
-                            case ".glb":
-                                item.model_type = 'GLB'
-                            case _:
-                                item.model_type = 'X'
-                        item.is_body_texture = False
-                    else:
-                        item.model_type = 'NONE'
-                        item.is_body_texture = True
+                    item.male_model_path, item.model_type, item.is_body_texture = get_model('m_MaleModel')
+                    item.female_model_path, item.model_type, item.is_body_texture = get_model('m_FemaleModel')
 
                     # Textures
                     base_texture = root.find('m_BaseTextures')
                     textures = root.findall('textureChoices')
                     if base_texture is not None:
                         tex = item.texture_choices.add()
-                        tex.texture_path = base_texture.text
-                        for t in textures:
-                            tex = item.texture_choices.add()
-                            tex.texture_path = t.text
+                        x = get_zomboid_asset(context, base_texture.text)
+                        tex.texture_path = str(x[0])
+                    for t in textures:
+                        tex = item.texture_choices.add()
+                        x = get_zomboid_asset(context, t.text)
+                        tex.texture_path = str(x[0])
                     
                     # Tintable
                     m = root.find('m_AllowRandomTint')
@@ -4038,14 +3536,20 @@ class PZ_HumanRig_ParseClothingXMLs(Operator):
                                 item.hat_category = 1
                             case 'Group02':
                                 item.hat_category = 2
+                            case 'Group03':
+                                item.hat_category = 3
                             case 'Group04':
                                 item.hat_category = 4
                             case 'Group05':
                                 item.hat_category = 5
-                            case 'nohair': 
+                            case 'Group06':
                                 item.hat_category = 6
-                            case 'nohairnobeard':
+                            case 'Group07':
                                 item.hat_category = 7
+                            case 'nohair': 
+                                item.hat_category = 8
+                            case 'nohairnobeard':
+                                item.hat_category = 9
                     else:
                         item.hat_category = -1
 
@@ -4062,39 +3566,10 @@ class PZ_HumanRig_ParseClothingXMLs(Operator):
                     continue
 
     def execute(self, context):
-        global_prop = context.scene.pz_human_global_props
         clothing_items = context.scene.pz_human_clothing_item_slots
-        
-        global_prop.clothing_item_slot_active_index = 0
-        clothing_items.clear()
-        
-        # Get the vanilla clothing item XMLs folder and parse it
-        xmls_dir = ''
-        
-        # Construct the filepath to the 'textures' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            xmls_dir = global_prop.pz_directory + '\\media\\clothing\\clothingItems'
-        elif sys.platform == 'linux':
-            xmls_dir = global_prop.pz_directory + '/projectzomboid/media/clothing/clothingItems'
-        
-        xmls_dir = Path(xmls_dir)
-        
-        self.parse_folder(context, xmls_dir, clothing_items, 'Project Zomboid')
-        
-        for mod in context.scene.pz_human_mod_directory_slots:
-            # Find the 'clothing' folder
-            first_path = (Path(mod.mod_dir) / 'media' / 'clothing' / 'clothingItems')
-            second_path = (Path(mod.mod_dir).parent / 'common' / 'media' / 'clothing' / 'clothingItems')
-            first_path = bpy.path.resolve_ncase(str(first_path))
-            second_path = bpy.path.resolve_ncase(str(second_path))
-            first_path = Path(first_path)
-            second_path = Path(second_path)
-            if first_path.is_dir():
-                self.parse_folder(context, first_path, clothing_items, mod.name)
-            elif second_path.is_dir():
-                self.parse_folder(context, second_path, clothing_items, mod.name)
-        
+        for folder in get_zomboid_asset_folders(context, 'clothingItems'):
+            self.parse_folder(context, folder[0], clothing_items, folder[1])
+
         self.report({'INFO'}, "Parsed " + str(self.item_count) + " Clothing Item XMLs")
         return ({'FINISHED'})
 
@@ -4110,7 +3585,7 @@ class PZ_HumanRig_ParseOutfitXMLs(Operator):
     outfit_count = 0
 
     def parse_xml(self, context, dir, outfits, origin):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
 
         # Begin parsing the XML contents of the file
         tree = ET.parse(dir)
@@ -4237,29 +3712,31 @@ class PZ_HumanRig_ParseOutfitXMLs(Operator):
             self.outfit_count = self.outfit_count + 1
 
     def execute(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
         outfits = context.scene.pz_human_outfit_slots
         
-        global_prop.outfit_slot_active_index = 0
+        g.outfit_slot_active_index = 0
         outfits.clear()
         
-        xml_dir = ''
-        
-        # Construct the filepath to the 'textures' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
+        xml_dir = None
+
         if sys.platform == 'win32':
-            xml_dir = global_prop.pz_directory + '\\media\\clothing\\clothing.xml'
-        elif sys.platform == 'linux':
-            xml_dir = global_prop.pz_directory + '/projectzomboid/media/clothing/clothing.xml'
-        
-        xml_dir = Path(xml_dir)
+            xml_dir = Path(g.pz_directory) / 'media' / 'clothing' / 'clothing.xml'
+        elif sys.platform.startswith('linux'):
+            xml_dir = Path(g.pz_directory) / 'projectzomboid'/ 'media' / 'clothing' / 'clothing.xml'
+        elif sys.platform.startswith('darwin'):
+            xml_dir = Path(g.pz_directory) / 'Project Zomboid.app' / 'Contents' / 'Java' / 'media' / 'clothing' / 'clothing.xml'
         
         self.parse_xml(context, xml_dir, outfits, 'Project Zomboid')
         
         for mod in context.scene.pz_human_mod_directory_slots:
             # Find the 'clothing.xml' file
-            first_path = (Path(mod.mod_dir) / 'media' / 'clothing' / 'clothing.xml').resolve()
-            second_path = (Path(mod.mod_dir).parent / 'common' / 'media' / 'clothing' / 'clothing.xml').resolve()
+            first_path = (Path(mod.mod_dir) / 'media' / 'clothing' / 'clothing.xml')
+            second_path = (Path(mod.mod_dir).parent / 'common' / 'media' / 'clothing' / 'clothing.xml')
+            first_path = bpy.path.resolve_ncase(str(first_path))
+            second_path = bpy.path.resolve_ncase(str(second_path))
+            first_path = Path(first_path)
+            second_path = Path(second_path)
             if first_path.is_file():
                 self.parse_xml(context, first_path, outfits, mod.name)
             elif second_path.is_file():
@@ -4277,54 +3754,37 @@ class PZ_HumanRig_ParseHairStyleXMLs(Operator):
     bl_label = "Parse Hair Style XMLs"
     bl_description = "Parse all the hair style xmls to get the data needed to import into Blender"
     
-    def execute(self, context):
-        global_prop = context.scene.pz_human_global_props
-        hair_styles = context.scene.pz_human_hair_style_slots
-        male_styles = context.scene.pz_human_male_hair_styles
-        female_styles = context.scene.pz_human_female_hair_styles
-        beard_styles = context.scene.pz_human_beard_styles
-        
-        global_prop.hair_style_slot_active_index = 0
-        hair_styles.clear()
-        male_styles.clear()
-        female_styles.clear()
-        beard_styles.clear()
-        
-        hair_dir = ''
-        
-        # Construct the filepath to the 'textures' folder in the PZ directory
-        # Linux has an additional 'projectzomboid' subfolder
-        if sys.platform == 'win32':
-            hair_dir = global_prop.pz_directory + '\\media\\hairStyles\\hairStyles.xml'
-        elif sys.platform == 'linux':
-            hair_dir = global_prop.pz_directory + '/projectzomboid/media/hairStyles/hairStyles.xml'
-        
-        hair_dir = Path(hair_dir)
-        
-        beard_dir = ''
-        
-        if sys.platform == 'win32':
-            beard_dir = global_prop.pz_directory + '\\media\\hairStyles\\beardStyles.xml'
-        elif sys.platform == 'linux':
-            beard_dir = global_prop.pz_directory + '/projectzomboid/media/hairStyles/beardStyles.xml'
-        
-        beard_dir = Path(beard_dir)
-        
-        # Begin parsing the XML contents of the hair file
-        tree = ET.parse(hair_dir)
+    hair_count = 0
+    beard_count = 0
+
+    def parse_hair_xml(self, context, dir, hair_styles, male_styles, female_styles, origin):
+        g = context.scene.pz_human_global_props
+
+        tree = ET.parse(dir)
         root = tree.getroot()
         
         male_hair_styles = root.findall('male')
         female_hair_styles = root.findall('female')
         
-        hair_count = 0
         for hair in male_hair_styles:
-            bpy.ops.zomboid.add_hair_style_slot()
-            item = context.scene.pz_human_hair_style_slots[global_prop.hair_style_slot_active_index]
+            m = hair.find('name')
+            if m is not None and m.text is not None:
+                overwrite_index = hair_styles.find(m.text)
+                if overwrite_index != -1:
+                    if hair_styles.get(m.text).sex == 'MALE':
+                        hair_styles.remove(overwrite_index)
+                        male_styles.remove(male_styles.find(m.text))
+
+            item = hair_styles.add()
             
             item.name = hair.find('name').text
             item.sex = 'MALE'
-            item.level = int(hair.find('level').text)
+
+            m = hair.find('level')
+            if m is not None and m.text is not None:
+                item.level = int(hair.find('level').text)
+            else:
+                item.level = 0
     
             match hair.find('texture').text:
                 case 'F_Hair_White':
@@ -4342,19 +3802,28 @@ class PZ_HumanRig_ParseHairStyleXMLs(Operator):
                 item.model_path = 'None'
             
             for hat_group in hair.findall('alternate'):
-                group = item.hat_styles.add()
+                x = -1
                 match hat_group.get('category'):
                     case 'default':
-                        group.hat_group = 0
+                        x = 0
                     case 'Group01':
-                        group.hat_group = 1
+                        x = 1
                     case 'Group02':
-                        group.hat_group = 2
+                        x = 2
+                    case 'Group03':
+                        x = 3
                     case 'Group04':
-                        group.hat_group = 4
+                        x = 4
                     case 'Group05':
-                        group.hat_group = 5
-                group.style_name = hat_group.get('style')
+                        x = 5
+                    case 'Group06':
+                        x = 6
+                    case 'Group07':
+                        x = 7
+                if x != -1:
+                    group = item.hat_styles.add()
+                    group.hat_group = x
+                    group.style_name = hat_group.get('style')
             
             no_choose = hair.find('noChoose')
             
@@ -4364,15 +3833,29 @@ class PZ_HumanRig_ParseHairStyleXMLs(Operator):
                 new = male_styles.add()
                 new.name = item.name
             
-            hair_count = hair_count + 1
+            item.origin = origin
+
+            self.hair_count = self.hair_count + 1
             
         for hair in female_hair_styles:
-            bpy.ops.zomboid.add_hair_style_slot()
-            item = context.scene.pz_human_hair_style_slots[global_prop.hair_style_slot_active_index]
+            m = hair.find('name')
+            if m is not None and m.text is not None:
+                overwrite_index = hair_styles.find(m.text)
+                if overwrite_index != -1:
+                    if hair_styles.get(m.text).sex == 'FEMALE':
+                        hair_styles.remove(overwrite_index)
+                        female_styles.remove(female_styles.find(m.text))
+
+            item = hair_styles.add()
             
             item.name = hair.find('name').text
             item.sex = 'FEMALE'
-            item.level = int(hair.find('level').text)
+
+            m = hair.find('level')
+            if m is not None and m.text is not None:
+                item.level = int(hair.find('level').text)
+            else:
+                item.level = 0
             
             match hair.find('texture').text:
                 case 'F_Hair_White':
@@ -4390,19 +3873,28 @@ class PZ_HumanRig_ParseHairStyleXMLs(Operator):
                 item.model_path = 'None'
             
             for hat_group in hair.findall('alternate'):
-                group = item.hat_styles.add()
+                x = -1
                 match hat_group.get('category'):
                     case 'default':
-                        group.hat_group = 0
+                        x = 0
                     case 'Group01':
-                        group.hat_group = 1
+                        x = 1
                     case 'Group02':
-                        group.hat_group = 2
+                        x = 2
+                    case 'Group03':
+                        x = 3
                     case 'Group04':
-                        group.hat_group = 4
+                        x = 4
                     case 'Group05':
-                        group.hat_group = 5
-                group.style_name = hat_group.get('style')
+                        x = 5
+                    case 'Group06':
+                        x = 6
+                    case 'Group07':
+                        x = 7
+                if x != -1:
+                    group = item.hat_styles.add()
+                    group.hat_group = x
+                    group.style_name = hat_group.get('style')
             
             no_choose = hair.find('noChoose')
             
@@ -4412,34 +3904,106 @@ class PZ_HumanRig_ParseHairStyleXMLs(Operator):
                 new = female_styles.add()
                 new.name = item.name
             
-            hair_count = hair_count + 1
-        
-        # Begin parsing the XML contents of the beard file
-        tree = ET.parse(beard_dir)
+            item.origin = origin
+
+            self.hair_count = self.hair_count + 1
+
+    def parse_beard_xml(self, context, dir, beard_styles, origin):
+        g = context.scene.pz_human_global_props
+
+        tree = ET.parse(dir)
         root = tree.getroot()
         
         beard_styles = root.findall('style')
         
-        # Add a 'clean' option
-        bpy.ops.zomboid.add_beard_style_slot()
-        item = context.scene.pz_human_beard_styles[global_prop.beard_style_slot_active_index]
+        for beard in beard_styles:
+            bpy.ops.zomboid.add_beard_style_slot()
+            item = context.scene.pz_human_beard_styles[g.beard_style_slot_active_index]
+            
+            item.name = beard.find('name').text
+
+
+            m = beard.find('level')
+            if m is not None and m.text is not None:
+                item.level = int(beard.find('level').text)
+            else:
+                item.level = 0
+
+
+            item.model_path = beard.find('model').text
+            
+            self.beard_count = self.beard_count + 1
+
+    def execute(self, context):
+        g = context.scene.pz_human_global_props
+        hair_styles = context.scene.pz_human_hair_style_slots
+        male_styles = context.scene.pz_human_male_hair_styles
+        female_styles = context.scene.pz_human_female_hair_styles
+        beard_styles = context.scene.pz_human_beard_styles
         
+        g.hair_style_slot_active_index = 0
+        hair_styles.clear()
+        male_styles.clear()
+        female_styles.clear()
+        beard_styles.clear()
+        
+        hair_dir = None
+        
+        if sys.platform == 'win32':
+            hair_dir = Path(g.pz_directory) / 'media' / 'hairStyles' / 'hairStyles.xml'
+        elif sys.platform.startswith('linux'):
+            hair_dir = Path(g.pz_directory) / 'projectzomboid' / 'media' / 'hairStyles' / 'hairStyles.xml'
+        elif sys.platform.startswith('darwin'):
+            hair_dir = Path(g.pz_directory) / 'Project Zomboid.app' / 'Contents' / 'Java' / 'media' / 'hairStyles' / 'hairStyles.xml'
+        
+        self.parse_hair_xml(context, hair_dir, hair_styles, male_styles, female_styles, 'Project Zomboid')
+
+        for mod in context.scene.pz_human_mod_directory_slots:
+            # Find the 'hairStyles' xml
+            first_path = (Path(mod.mod_dir) / 'media' / 'hairStyles' / 'hairStyles.xml')
+            second_path = (Path(mod.mod_dir).parent / 'common' / 'media' / 'hairStyles' / 'hairStyles.xml')
+            first_path = bpy.path.resolve_ncase(str(first_path))
+            second_path = bpy.path.resolve_ncase(str(second_path))
+            first_path = Path(first_path)
+            second_path = Path(second_path)
+            if first_path.is_file():
+                self.parse_hair_xml(context, first_path, hair_styles, male_styles, female_styles, mod.name)
+            if second_path.is_file():
+                self.parse_hair_xml(context, second_path, hair_styles, male_styles, female_styles, mod.name)
+
+        #-------------------------------
+
+        beard_dir = None
+        
+        if sys.platform == 'win32':
+            beard_dir = Path(g.pz_directory) / 'media' / 'hairStyles' / 'beardStyles.xml'
+        elif sys.platform.startswith('linux'):
+            beard_dir = Path(g.pz_directory) / 'projectzomboid' / 'media' / 'hairStyles' / 'beardStyles.xml'
+        elif sys.platform.startswith('darwin'):
+            beard_dir = Path(g.pz_directory) / 'Project Zomboid.app' / 'Contents' / 'Java' / 'media' / 'hairStyles' / 'beardStyles.xml'
+        
+        # Add a 'clean' option
+        item = beard_styles.add()
         item.name = 'None'
         item.model_path = 'None'
         item.level = 0
+
+        self.parse_beard_xml(context, beard_dir, beard_styles, 'Project Zomboid')
         
-        beard_count = 0
-        for beard in beard_styles:
-            bpy.ops.zomboid.add_beard_style_slot()
-            item = context.scene.pz_human_beard_styles[global_prop.beard_style_slot_active_index]
-            
-            item.name = beard.find('name').text
-            item.level = int(beard.find('level').text)
-            item.model_path = beard.find('model').text
-            
-            beard_count = beard_count + 1
-            
-        self.report({'INFO'}, "Parsed " + str(hair_count) + " Hair Styles & " + str(beard_count) + " Beard Styles")
+        for mod in context.scene.pz_human_mod_directory_slots:
+            # Find the 'beardStyles' xml
+            first_path = (Path(mod.mod_dir) / 'media' / 'hairStyles' / 'beardStyles.xml')
+            second_path = (Path(mod.mod_dir).parent / 'common' / 'media' / 'hairStyles' / 'beardStyles.xml')
+            first_path = bpy.path.resolve_ncase(str(first_path))
+            second_path = bpy.path.resolve_ncase(str(second_path))
+            first_path = Path(first_path)
+            second_path = Path(second_path)
+            if first_path.is_file():
+                self.parse_beard_xml(context, first_path, beard_styles, mod.name)
+            if second_path.is_file():
+                self.parse_beard_xml(context, second_path, beard_styles, mod.name)
+
+        self.report({'INFO'}, "Parsed " + str(self.hair_count) + " Hair Styles & " + str(self.beard_count) + " Beard Styles")
         return ({'FINISHED'})
 
 # ============================================================================================
@@ -4452,9 +4016,9 @@ class PZ_HumanRig_ParseDecalXMLs(Operator):
     bl_description = "Parse all the clothing xmls to get the data needed to import into Blender"
     
     def parse_decals(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
         
-        global_prop.decal_slot_active_index = 0
+        g.decal_slot_active_index = 0
         
         decals = context.scene.pz_human_decals
         decals.clear()
@@ -4464,9 +4028,9 @@ class PZ_HumanRig_ParseDecalXMLs(Operator):
         # Construct the filepath to the 'textures' folder in the PZ directory
         # Linux has an additional 'projectzomboid' subfolder
         if sys.platform == 'win32':
-            xmls_dir = global_prop.pz_directory + '\\media\\clothing\\clothingDecals'
+            xmls_dir = g.pz_directory + '\\media\\clothing\\clothingDecals'
         elif sys.platform == 'linux':
-            xmls_dir = global_prop.pz_directory + '/projectzomboid/media/clothing/clothingDecals'
+            xmls_dir = g.pz_directory + '/projectzomboid/media/clothing/clothingDecals'
         
         xmls_dir = Path(xmls_dir)
         
@@ -4493,10 +4057,10 @@ class PZ_HumanRig_ParseDecalXMLs(Operator):
         return ({'FINISHED'}) 
     
     def parse_decal_groups(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
         current_groups = context.scene.pz_human_decal_groups
         
-        global_prop.decal_group_slot_active_index = 0
+        g.decal_group_slot_active_index = 0
         current_groups.clear()
         
         xmls_dir = ''
@@ -4504,9 +4068,9 @@ class PZ_HumanRig_ParseDecalXMLs(Operator):
         # Construct the filepath to the 'textures' folder in the PZ directory
         # Linux has an additional 'projectzomboid' subfolder
         if sys.platform == 'win32':
-            xml_dir = global_prop.pz_directory + 'media\\clothing\\clothingDecals.xml'
+            xml_dir = g.pz_directory + 'media\\clothing\\clothingDecals.xml'
         elif sys.platform == 'linux':
-            xml_dir = global_prop.pz_directory + 'projectzomboid/media/clothing/clothingDecals.xml'
+            xml_dir = g.pz_directory + 'projectzomboid/media/clothing/clothingDecals.xml'
         
         decal_count = 0
         
@@ -4542,21 +4106,21 @@ class PZ_HumanRig_ParseBodyLocationLua(Operator):
     bl_description = "Parse the BodyLocations.lua file to get all the available body locations and their interactions with other body locations"
 
     def parse_body_locations_lua(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
         body_locations = context.scene.pz_human_body_locations
         
         body_locations.clear()
         
-        global_prop.body_location_active_index = 0
+        g.body_location_active_index = 0
         
         file_dir = ''
         
         # Construct the filepath to the 'BodyLocations.lua' file in the PZ directory
         # Linux has an additional 'projectzomboid' subfolder
         if sys.platform == 'win32':
-            file_dir = global_prop.pz_directory + 'media\\lua\\shared\\NPCs\\BodyLocations.lua'
+            file_dir = g.pz_directory + 'media\\lua\\shared\\NPCs\\BodyLocations.lua'
         elif sys.platform == 'linux':
-            file_dir = global_prop.pz_directory + 'projectzomboid/media/lua/shared/NPCs/BodyLocations.lua'
+            file_dir = g.pz_directory + 'projectzomboid/media/lua/shared/NPCs/BodyLocations.lua'
             
         with open(file_dir, 'r', encoding='utf-8') as file:
             for line in file:
@@ -4598,7 +4162,7 @@ class PZ_HumanRig_ParseBodyLocationLua(Operator):
         return ({'FINISHED'}) 
     
     def parse_clothing_txt(self, context):
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
         body_locations = context.scene.pz_human_body_locations
         clothing_items = context.scene.pz_human_clothing_item_slots
         
@@ -4607,9 +4171,9 @@ class PZ_HumanRig_ParseBodyLocationLua(Operator):
         # Construct the filepath to the 'BodyLocations.lua' file in the PZ directory
         # Linux has an additional 'projectzomboid' subfolder
         if sys.platform == 'win32':
-            file_dir = global_prop.pz_directory + 'media\\scripts\\generated\\items\\clothing.txt'
+            file_dir = g.pz_directory + 'media\\scripts\\generated\\items\\clothing.txt'
         elif sys.platform == 'linux':
-            file_dir = global_prop.pz_directory + 'projectzomboid/media/scripts/generated/items/clothing.txt'
+            file_dir = g.pz_directory + 'projectzomboid/media/scripts/generated/items/clothing.txt'
         
         in_main_portion = False
         in_item_block = False
@@ -4670,6 +4234,73 @@ class PZ_HumanRig_ParseBodyLocationLua(Operator):
         return ({'FINISHED'}) 
 
 # ============================================================================================
+# PARSE INJURIES
+# ============================================================================================
+
+class PZ_HumanRig_ParseInjuries(Operator):
+    bl_idname = "zomboid.parse_injuries"
+    bl_label = "Parse Injuries"
+    bl_description = "Parse all the injury textures so Blender can pull them later"
+
+    body_parts = ['chest', 'abdomen', 'left_hand', 'right_hand', 'lower_left_arm',
+                  'lower_right_arm', 'upper_left_arm', 'upper_right_arm', 'head',
+                  'neck', 'groin', 'left_thigh', 'right_thigh', 
+                  'left_calf', 'right_calf', 'left_foot', 'right_foot']
+
+    body_part_pattern = r"(?:" + "|".join(re.escape(part) for part in body_parts) + r")"
+    body_part_regex = re.compile(body_part_pattern)
+
+    injury_types = ['scratches', 'lacerations', 'bites', 'bandages']
+
+    injury_type_pattern = r"(?:" + "|".join(re.escape(injury) for injury in injury_types) + r")"
+    injury_type_regex = re.compile(injury_type_pattern)
+
+    def execute(self, context):
+        body_injuries = context.scene.pz_human_body_injuries
+        zombie_injuries = context.scene.pz_human_zombie_injuries
+
+        body_injuries.clear()
+        zombie_injuries.clear()
+
+        for folder, mod_name in get_zomboid_asset_folders(context, 'BodyDmg'):
+            for file in folder.iterdir():
+                if file.is_file() and file.suffix == '.png':
+                    if 'M_ZedDmg' in file.name:
+                        injury = zombie_injuries.add()
+                        injury.name = file.name
+                        injury.texture_path = str(file)
+                        continue
+                injury = body_injuries.add()
+
+                injury.sex = 'FEMALE' if 'FemaleBody' in file.name else 'MALE'
+
+                body_part = self.body_part_regex.search(file.name)
+                if body_part is not None:
+                    injury.body_part = body_part.group()
+
+                damage_type = self.injury_type_regex.search(file.name)
+                if damage_type is not None:
+                    match damage_type.group():
+                        case 'scratches':
+                            injury.damage_type = 'SCRATCH'
+                        case 'lacerations':
+                            injury.damage_type = 'LACERATION'
+                        case 'bites':
+                            injury.damage_type = 'BITE'
+                        case 'bandages':
+                            if '_blood' in file.name:
+                                injury.damage_type = 'BANDAGEBLOODY'
+                            else:
+                                injury.damage_type = 'BANDAGE'
+                injury.texture_path = str(file)
+
+        return ({'FINISHED'})
+
+# ============================================================================================
+# PARSE MASKS
+# ============================================================================================
+
+# ============================================================================================
 # PARSE ALL ASSETS
 # ============================================================================================
 
@@ -4684,6 +4315,7 @@ class PZ_HumanRig_ParseAllXMLs(Operator):
         bpy.ops.zomboid.parse_outfit_xmls()
         bpy.ops.zomboid.parse_hair_style_xmls()
         bpy.ops.zomboid.parse_decal_xmls()
+        bpy.ops.zomboid.parse_injuries()
         
         return ({'FINISHED'}) 
 
@@ -4734,14 +4366,14 @@ class PZ_HumanRig_ApplyOutfit(Operator):
     random_pants = False
     
     def select_guids(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
         
-        outfit_name = prop.selected_outfit.split()[0]
+        outfit_name = p.selected_outfit.split()[0]
         outfit_sex = ''
-        if '(Male)' in prop.selected_outfit:
+        if '(Male)' in p.selected_outfit:
             outfit_sex = 'MALE'
-        elif '(Female)' in prop.selected_outfit:
+        elif '(Female)' in p.selected_outfit:
             outfit_sex = 'FEMALE'
         
         for outfit in context.scene.pz_human_outfit_slots:
@@ -4756,45 +4388,45 @@ class PZ_HumanRig_ApplyOutfit(Operator):
                 self.random_pants = outfit.random_pants
                 return ({'FINISHED'})
         
-        return ({'ERROR'})
+        return ({'CANCELLED'})
     
     def add_clothing_items(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
-        body_texture_prop_list = context.active_object.pz_human_body_texture_slots
-        prop_prop_list = context.active_object.pz_human_prop_mesh_slots
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
+        t_list = context.active_object.pz_human_body_texture_slots
+        a_list = context.active_object.pz_human_prop_mesh_slots
         
         # Select the model sex
-        if '(Male)' in prop.selected_outfit:
-            prop.model_sex = 'MALE'
+        if '(Male)' in p.selected_outfit:
+            p.model_sex = 'MALE'
             
-            if prop.random_hair_style:
+            if p.random_hair_style:
                 bpy.ops.zomboid.randomize_hair_mesh(hair_type='M')
-            if randint(1, 100) <= prop.random_beard_chance:
+            if randint(1, 100) <= p.random_beard_chance:
                 bpy.ops.zomboid.randomize_hair_mesh(hair_type='B')
             else:
-                prop.beard_style = 'None'
-        elif '(Female)' in prop.selected_outfit:
-            prop.model_sex = 'FEMALE'
+                p.beard_style = 'None'
+        elif '(Female)' in p.selected_outfit:
+            p.model_sex = 'FEMALE'
             
-            if prop.random_hair_style:
+            if p.random_hair_style:
                 bpy.ops.zomboid.randomize_hair_mesh(hair_type='F')
             
         # Select random body textures, if enabled
-        if prop.random_skin_color:
-            prop.skin_color = randint(0, 4)
-        if prop.random_zombie:
-            prop.zombification = randint(1, 3)
+        if p.random_skin_color:
+            p.skin_color = randint(0, 4)
+        if p.random_zombie:
+            p.zombification = randint(1, 3)
         else:
-            prop.zombification = 0
+            p.zombification = 0
         
         # Select random hair color, if enabled
-        if prop.random_hair_color:
+        if p.random_hair_color:
             bpy.ops.zomboid.randomize_hair_color()
         
         # Randomize injuries, if enabled
-        if prop.randomize_injuries:
+        if p.randomize_injuries:
             bpy.ops.zomboid.randomize_body_injuries()
             bpy.ops.zomboid.randomize_zombie_injuries()
             bpy.ops.zomboid.randomize_body_bloodiness()
@@ -4861,12 +4493,12 @@ class PZ_HumanRig_ApplyRandomOutfit(Operator):
     bl_description = "Applies a random outfit from all XMLs with the same paramaters and probabilities as in game"
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
         outfits = context.scene.pz_human_outfit_slots
         
         rnd = randint(0, len(outfits)-1)
-        prop.selected_outfit = outfits[rnd].search_name
+        p.selected_outfit = outfits[rnd].search_name
         
         bpy.ops.zomboid.apply_outfit()
         
@@ -4887,11 +4519,11 @@ class PZ_HumanRig_AddClothingItem(Operator):
     )
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
-        global_prop = context.scene.pz_human_global_props
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
-        body_texture_prop_list = context.active_object.pz_human_body_texture_slots
-        prop_prop_list = context.active_object.pz_human_prop_mesh_slots
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
+        t_list = context.active_object.pz_human_body_texture_slots
+        a_list = context.active_object.pz_human_prop_mesh_slots
         
         item = None
         for clothing_item in context.scene.pz_human_clothing_item_slots:
@@ -4903,40 +4535,42 @@ class PZ_HumanRig_AddClothingItem(Operator):
             # Body Texture
             if item.is_body_texture:
                 bpy.ops.zomboid.add_body_texture_slot()
-                tex_prop = body_texture_prop_list[prop.body_texture_slot_active_index]
+                t = t_list[p.body_texture_slot_active_index]
                 
                 rnd = randint(0, len(item.texture_choices) - 1)
-                tex_prop.name = item.name
-                tex_prop.decal_group = item.decal_group
-                tex_prop.texture_path = item.texture_choices[rnd].texture_path
+                t.name = item.name
+                t.decal_group = item.decal_group
+                t.texture_path = item.texture_choices[rnd].texture_path
             
             # Clothing Mesh
-            elif item.static == False and item.attach_bone == 'None':
+            elif item.static == False or (item.static == True and item.attach_bone == 'None'):
                 bpy.ops.zomboid.add_clothing_mesh_slot()
-                mesh_prop = mesh_prop_list[prop.clothing_mesh_slot_active_index]
+                m = m_list[p.clothing_mesh_slot_active_index]
                 
-                mesh_prop.male_model_path = item.male_model_path
-                mesh_prop.female_model_path = item.female_model_path
+                m.male_model_path = item.male_model_path
+                m.female_model_path = item.female_model_path
+                m.model_type = item.model_type
                 
                 rnd = randint(0, len(item.texture_choices) - 1)
-                mesh_prop.texture_path = item.texture_choices[rnd].texture_path
-                mesh_prop.name = item.name
+                m.texture_path = item.texture_choices[rnd].texture_path
+                m.name = item.name
                 
                 for i in range(len(item.mask_array)):
                     if item.mask_array[i] == True:
-                        mesh_prop.mask_array[i] = True
+                        m.mask_array[i] = True
                 
-                mesh_prop.hat_category = item.hat_category
+                m.hat_category = item.hat_category
                 
                 bpy.ops.zomboid.import_clothing_mesh()
             
             # Prop Mesh
             else:
                 bpy.ops.zomboid.add_prop_mesh_slot()
-                prop_prop = prop_prop_list[prop.prop_mesh_slot_active_index]
+                prop_prop = a_list[p.prop_mesh_slot_active_index]
                 
                 prop_prop.male_model_path = item.male_model_path
                 prop_prop.female_model_path = item.female_model_path
+                prop_prop.model_type = item.model_type
                 
                 rnd = randint(0, len(item.texture_choices) - 1)
                 prop_prop.texture_path = item.texture_choices[rnd].texture_path
@@ -4953,7 +4587,7 @@ class PZ_HumanRig_AddClothingItem(Operator):
             
             return ({'FINISHED'})
         else:
-            return ({'ERROR'})
+            return ({'CANCELLED'})
     
 # ============================================================================================
 # REMOVE ALL CLOTHING ITEMS
@@ -4965,28 +4599,28 @@ class PZ_HumanRig_RemoveAllClothingItems(Operator):
     bl_description = "Removes all clothing items from the model"
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
-        mesh_prop_list = context.active_object.pz_human_clothing_mesh_slots
-        body_texture_prop_list = context.active_object.pz_human_body_texture_slots
-        prop_prop_list = context.active_object.pz_human_prop_mesh_slots
+        p = context.active_object.pz_human_props
+        m_list = context.active_object.pz_human_clothing_mesh_slots
+        t_list = context.active_object.pz_human_body_texture_slots
+        a_list = context.active_object.pz_human_prop_mesh_slots
         
         # Remove all existing clothing meshes
-        prop.clothing_mesh_slot_active_index = len(mesh_prop_list) - 1
-        for i in range(len(mesh_prop_list)):
+        p.clothing_mesh_slot_active_index = len(m_list) - 1
+        for i in range(len(m_list)):
             bpy.ops.zomboid.remove_clothing_mesh_slot()
-        prop.clothing_mesh_slot_active_index = -1
+        p.clothing_mesh_slot_active_index = -1
             
         # Remove all existing body textures
-        prop.body_texture_slot_active_index = len(body_texture_prop_list) - 1
-        for i in range(len(body_texture_prop_list)):
+        p.body_texture_slot_active_index = len(t_list) - 1
+        for i in range(len(t_list)):
             bpy.ops.zomboid.remove_body_texture_slot()
-        prop.body_texture_slot_active_index = -1
+        p.body_texture_slot_active_index = -1
             
-        # Remove all existing prop meshes
-        prop.prop_mesh_slot_active_index = len(prop_prop_list) - 1
-        for i in range(len(prop_prop_list)):
+        # Remove all existing p meshes
+        p.prop_mesh_slot_active_index = len(a_list) - 1
+        for i in range(len(a_list)):
             bpy.ops.zomboid.remove_prop_mesh_slot()
-        prop.prop_mesh_slot_active_index = -1
+        p.prop_mesh_slot_active_index = -1
         
         return ({'FINISHED'})
 
@@ -5003,91 +4637,91 @@ class PZ_CheckHatCategory(Operator):
     )
     
     def execute(self, context):
-        prop = context.active_object.pz_human_props
-        prop_prop_list = context.active_object.pz_human_prop_mesh_slots
+        p = context.active_object.pz_human_props
+        a_list = context.active_object.pz_human_prop_mesh_slots
         clothing_prop_list = context.active_object.pz_human_clothing_mesh_slots
         
         # If there are no props or clothing meshes, set the hair style to the selected one
-        if prop.prop_mesh_slot_active_index == -1 and prop.clothing_mesh_slot_active_index == -1:
-            if prop.current_male_hair_style != prop.selected_male_hair_style:
-                prop.current_male_hair_style = prop.selected_male_hair_style
+        if p.prop_mesh_slot_active_index == -1 and p.clothing_mesh_slot_active_index == -1:
+            if p.current_male_hair_style != p.selected_male_hair_style:
+                p.current_male_hair_style = p.selected_male_hair_style
                 bpy.ops.zomboid.import_hair_mesh(hair_type='M')
-            if prop.current_female_hair_style != prop.selected_female_hair_style:
-                prop.current_female_hair_style = prop.selected_female_hair_style
+            if p.current_female_hair_style != p.selected_female_hair_style:
+                p.current_female_hair_style = p.selected_female_hair_style
                 bpy.ops.zomboid.import_hair_mesh(hair_type='F')
-            if prop.current_beard_style != prop.selected_beard_style:
-                prop.current_beard_style = prop.selected_beard_style
+            if p.current_beard_style != p.selected_beard_style:
+                p.current_beard_style = p.selected_beard_style
                 bpy.ops.zomboid.import_hair_mesh(hair_type='B')
-            prop.current_hat_category = -1
+            p.current_hat_category = -1
             
             return ({'FINISHED'})
         
         test = False
-        if prop.prop_mesh_slot_active_index != -1:
-            prop_prop = prop_prop_list[prop.prop_mesh_slot_active_index]
+        if p.prop_mesh_slot_active_index != -1:
+            prop_prop = a_list[p.prop_mesh_slot_active_index]
     
-            for i in range(len(prop_prop_list)):
-                if prop_prop_list[i].hat_category != -1: # Found a prop mesh that has a hat category
-                    if (prop_prop_list[i].name == prop_prop.name and not self.count_self):
+            for i in range(len(a_list)):
+                if a_list[i].hat_category != -1: # Found a p mesh that has a hat category
+                    if (a_list[i].name == prop_prop.name and not self.count_self):
                         continue
                     test = True
-                    if prop_prop_list[i].hat_category > prop.current_hat_category:
-                        prop.current_hat_category = prop_prop_list[i].hat_category
+                    if a_list[i].hat_category > p.current_hat_category:
+                        p.current_hat_category = a_list[i].hat_category
         
-        if prop.clothing_mesh_slot_active_index != -1:
-            clothing_prop = clothing_prop_list[prop.clothing_mesh_slot_active_index]
+        if p.clothing_mesh_slot_active_index != -1:
+            clothing_prop = clothing_prop_list[p.clothing_mesh_slot_active_index]
         
             for i in range(len(clothing_prop_list)):
-                if clothing_prop_list[i].hat_category != -1: # Found a prop mesh that has a hat category
+                if clothing_prop_list[i].hat_category != -1: # Found a p mesh that has a hat category
                     if (clothing_prop_list[i].name == clothing_prop.name and not self.count_self):
                         continue
                     test = True
-                    if clothing_prop_list[i].hat_category > prop.current_hat_category:
-                        prop.current_hat_category = clothing_prop_list[i].hat_category
+                    if clothing_prop_list[i].hat_category > p.current_hat_category:
+                        p.current_hat_category = clothing_prop_list[i].hat_category
         
         if test:
-            if prop.current_hat_category >= 6:
-                prop.current_male_hair_style = 'Bald'
-                prop.current_female_hair_style = 'Bald'
+            if p.current_hat_category >= 8:
+                p.current_male_hair_style = 'Bald'
+                p.current_female_hair_style = 'Bald'
                 bpy.ops.zomboid.import_hair_mesh(hair_type='M')
                 bpy.ops.zomboid.import_hair_mesh(hair_type='F')
-                if prop.current_hat_category == 7:
-                    prop.current_beard_style = 'None'
+                if p.current_hat_category == 9:
+                    p.current_beard_style = 'None'
                     bpy.ops.zomboid.import_hair_mesh(hair_type='B')
                 else:
-                    prop.current_breard_style = prop.selected_beard_style
+                    p.current_breard_style = p.selected_beard_style
                     bpy.ops.zomboid.import_hair_mesh(hair_type='B')
             else:
-                prop.current_breard_style = prop.selected_beard_style
+                p.current_breard_style = p.selected_beard_style
                 bpy.ops.zomboid.import_hair_mesh(hair_type='B')
                 
                 for hair in context.scene.pz_human_hair_style_slots:
-                    if hair.name == prop.selected_male_hair_style and hair.sex == 'MALE':
+                    if hair.name == p.selected_male_hair_style and hair.sex == 'MALE':
                         for hat_style in hair.hat_styles:
-                            if hat_style.hat_group == prop.current_hat_category:
-                                if prop.current_male_hair_style != hat_style.style_name:
-                                    prop.current_male_hair_style = hat_style.style_name
+                            if hat_style.hat_group == p.current_hat_category:
+                                if p.current_male_hair_style != hat_style.style_name:
+                                    p.current_male_hair_style = hat_style.style_name
                                     bpy.ops.zomboid.import_hair_mesh(hair_type='M')
                                 break
                             
-                    if hair.name == prop.selected_female_hair_style and hair.sex == 'FEMALE':
+                    if hair.name == p.selected_female_hair_style and hair.sex == 'FEMALE':
                         for hat_style in hair.hat_styles:
-                            if hat_style.hat_group == prop.current_hat_category:
-                                if prop.current_female_hair_style != hat_style.style_name:
-                                    prop.current_female_hair_style = hat_style.style_name
+                            if hat_style.hat_group == p.current_hat_category:
+                                if p.current_female_hair_style != hat_style.style_name:
+                                    p.current_female_hair_style = hat_style.style_name
                                     bpy.ops.zomboid.import_hair_mesh(hair_type='F')
                                 break
         else:
-            if prop.current_male_hair_style != prop.selected_male_hair_style:
-                prop.current_male_hair_style = prop.selected_male_hair_style
+            if p.current_male_hair_style != p.selected_male_hair_style:
+                p.current_male_hair_style = p.selected_male_hair_style
                 bpy.ops.zomboid.import_hair_mesh(hair_type='M')
-            if prop.current_female_hair_style != prop.selected_female_hair_style:
-                prop.current_female_hair_style = prop.selected_female_hair_style
+            if p.current_female_hair_style != p.selected_female_hair_style:
+                p.current_female_hair_style = p.selected_female_hair_style
                 bpy.ops.zomboid.import_hair_mesh(hair_type='F')
-            if prop.current_beard_style != prop.selected_beard_style:
-                prop.current_beard_style = prop.selected_beard_style
+            if p.current_beard_style != p.selected_beard_style:
+                p.current_beard_style = p.selected_beard_style
                 bpy.ops.zomboid.import_hair_mesh(hair_type='B')
-            prop.current_hat_category = -1
+            p.current_hat_category = -1
         
         
         return ({'FINISHED'})
@@ -5107,9 +4741,9 @@ class PZ_HumanRig_DuplicateRig(Operator):
         return ({'FINISHED'})
 
     def execute(self, context):
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
 
-        self.recursively_duplicate_collection(context, prop.rig_collection, context.collection)
+        self.recursively_duplicate_collection(context, p.rig_collection, context.collection)
 
 
 
@@ -5138,9 +4772,10 @@ class PZ_HumanRig_Export(Operator):
 # ------------------------------------------------------------------------#
 #  Main Function
 
-    def export_anim(self, action):        
-        context = bpy.context
-        
+    def export_anim(self, context, action):        
+        # Get reference to the rig's properties
+        p = context.active_object.pz_human_props
+
         # Force set the animation to export at 30 FPS, which is what Project Zomboid evaluates animations at
         context.scene.render.fps = 30
         
@@ -5150,13 +4785,20 @@ class PZ_HumanRig_Export(Operator):
         prev_selected_objects = context.selected_objects
         
         # Get references to the objects that will be exported
-        dummy01 = bpy.data.objects.get('Dummy01')
-        bip01 = bpy.data.objects.get('Bip01')
-        mesh = bpy.data.objects.get('GEO-MaleBody')
-        translation_data = bpy.data.objects.get('Translation_Data')
-        
-        # Get reference to the rig's properties
-        prop = context.active_object.pz_human_props
+        dummy01 = p.dummy01_empty
+        bip01 = prev_active_object
+        mesh = p.male_body_object
+        translation_data = p.translation_data_empty
+
+        # Rename the objects to their PZ names and store their Blender names to restore later
+        prev_dummy01_name = dummy01.name
+        dummy01.name = 'Dummy01'
+
+        prev_bip01_name = bip01.name
+        bip01.name = 'Bip01'
+
+        prev_translation_data_name = translation_data.name
+        translation_data.name = 'Translation_Data'
         
         # Set the mode to Object Mode and deselect all objects
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -5187,7 +4829,7 @@ class PZ_HumanRig_Export(Operator):
         
         # Call the Blender gltf exporter with specific settings tailored for our setup and Project Zomboid
         bpy.ops.export_scene.gltf( 
-            filepath= prop.file_output_path + '/' + action.name +'.glb',
+            filepath= p.file_output_path + '/' + action.name +'.glb',
             use_selection=True,
             export_hierarchy_flatten_objs=True,
             export_bake_animation=True,
@@ -5209,6 +4851,11 @@ class PZ_HumanRig_Export(Operator):
         # Deselect all objects
         bpy.ops.object.select_all(action='DESELECT')
         
+        # Restore Object Names
+        dummy01.name = prev_dummy01_name
+        bip01.name = prev_bip01_name
+        translation_data.name = prev_translation_data_name
+
         # Restore the context that was before the operation was called
         bpy.ops.object.mode_set(mode=prev_mode)
         
@@ -5224,16 +4871,16 @@ class PZ_HumanRig_Export(Operator):
     def execute(self, context): 
         
         # Get reference to the rig's properties
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
-        if len(prop.file_output_path) > 0: 
-            if prop.batch_export:         
+        if len(p.file_output_path) > 0: 
+            if p.batch_export:         
                 for action in bpy.data.actions:
-                    if prop.action_filter in action.name:
-                        self.export_anim(action)
+                    if p.action_filter in action.name:
+                        self.export_anim(context, action)
             else:
                 if bpy.data.objects.get('Bip01').animation_data.action is not None:
-                    self.export_anim(bpy.data.objects.get('Bip01').animation_data.action)
+                    self.export_anim(context, bpy.data.objects.get('Bip01').animation_data.action)
                 else:
                     print("Bip01 has no active action selected.")
         else:
@@ -5814,8 +5461,8 @@ class PZ_HumanRigProperties(PropertyGroup):
         bpy.ops.zomboid.create_body_injury_texture()
     
     def update_body_visibility(self, context):
-        prop = context.active_object.pz_human_props
-        instance_str = ' (' + str(prop.rig_instance) + ')'
+        p = context.active_object.pz_human_props
+        instance_str = ' (' + str(p.rig_instance) + ')'
 
         col = bpy.data.collections.get('GEO-PZ_Human_Bodies' + instance_str)
         if col:
@@ -5857,8 +5504,8 @@ class PZ_HumanRigProperties(PropertyGroup):
 #  Masking
     
     def update_mask_array(self, context):
-        prop = context.active_object.pz_human_props
-        if not prop.halt_texture_updates:
+        p = context.active_object.pz_human_props
+        if not p.halt_texture_updates:
             bpy.ops.zomboid.create_mask_texture()
     
     mask_array : BoolVectorProperty(
@@ -5875,8 +5522,8 @@ class PZ_HumanRigProperties(PropertyGroup):
 #  Body Injuries
     
     def update_body_injury(self, context):
-        prop = context.active_object.pz_human_props
-        if not prop.halt_texture_updates:
+        p = context.active_object.pz_human_props
+        if not p.halt_texture_updates:
             bpy.ops.zomboid.create_body_injury_texture()
 
     upper_torso_injury : EnumProperty( # 0
@@ -6119,8 +5766,8 @@ class PZ_HumanRigProperties(PropertyGroup):
 #  Bloodiness
 
     def update_bloodiness_texture(self, context):
-        prop = context.active_object.pz_human_props
-        if not prop.halt_texture_updates:
+        p = context.active_object.pz_human_props
+        if not p.halt_texture_updates:
             bpy.ops.zomboid.create_body_bloodiness_texture()
 
     upper_torso_bloodiness : FloatProperty( 
@@ -6272,8 +5919,8 @@ class PZ_HumanRigProperties(PropertyGroup):
 #  Dirtiness
 
     def update_dirtiness_texture(self, context):
-        prop = context.active_object.pz_human_props
-        if not prop.halt_texture_updates:
+        p = context.active_object.pz_human_props
+        if not p.halt_texture_updates:
             bpy.ops.zomboid.create_body_dirtiness_texture()
 
     upper_torso_dirtiness : FloatProperty( 
@@ -6659,12 +6306,10 @@ class PZ_HumanRigProperties(PropertyGroup):
         name='Random Bloodiness Intensity',
         description='How much blood should appear on the body',
         items= [
-            ('NONE', "None", "No bloodiness", 0),
-            ('SOME', "Some", "A bit of bloodiness", 1),
-            ('MODERATE', "Moderate", "Quite a bit of bloodiness", 2),
-            ('LOTS', "Lots", "A lot of bloodiness", 3),
-            ('DRENCHED', "Drenched", "Absolutely soaked in blood", 4),
-            ('RANDOM', "Random", "Random amount of blood for each body part", 5)
+            ('SOME', "Some", "A bit of bloodiness", 0),
+            ('MODERATE', "Moderate", "Quite a bit of bloodiness", 1),
+            ('LOTS', "Lots", "A lot of bloodiness", 2),
+            ('DRENCHED', "Drenched", "Absolutely soaked in blood", 3)
         ],
         default='MODERATE'
     )
@@ -6672,12 +6317,10 @@ class PZ_HumanRigProperties(PropertyGroup):
         name='Random Dirtiness Intensity',
         description='How much dirt should appear on the body',
         items= [
-            ('NONE', "None", "No dirt", 0),
-            ('SOME', "Some", "A bit of dirt", 1),
-            ('MODERATE', "Moderate", "Quite a bit of dirt", 2),
-            ('LOTS', "Lots", "A lot of dirt", 3),
-            ('DISGUSTING', "Disgusting", "Absolutely covered in dirt", 4),
-            ('RANDOM', "Random", "Random amount of dirt for each body part", 5)
+            ('SOME', "Some", "A bit of dirt", 0),
+            ('MODERATE', "Moderate", "Quite a bit of dirt", 1),
+            ('LOTS', "Lots", "A lot of dirt", 2),
+            ('DISGUSTING', "Disgusting", "Absolutely covered in dirt", 3)
         ],
         default='MODERATE'
     )
@@ -6951,12 +6594,12 @@ class PZ_HumanRigProperties(PropertyGroup):
     toggle_left_prop_controls : BoolProperty(
         name="Prop.L",
         default=True,
-        description="Show the left prop controls"
+        description="Show the left p controls"
     )
     toggle_right_prop_controls : BoolProperty(
         name="Prop.R",
         default=True,
-        description="Show the right prop controls"
+        description="Show the right p controls"
     )
     toggle_backpack_controls : BoolProperty(
         name="Backpack",
@@ -7163,6 +6806,7 @@ class PZ_HumanRig_SceneRigsPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Item"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
@@ -7181,6 +6825,7 @@ class PZ_HumanRig_MainPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Item"
+    bl_options = {'DEFAULT_CLOSED'}
     
     @classmethod
     def poll(cls, context):
@@ -7191,31 +6836,31 @@ class PZ_HumanRig_MainPanel(Panel):
     
     def draw(self, context):
         layout = self.layout
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
-        layout.label(text='Rig Instance: ' + str(prop.rig_instance))
-        layout.prop(prop, 'debug_toggle')
+     #   layout.label(text='Rig Instance: ' + str(p.rig_instance))
+        layout.prop(p, 'debug_toggle')
 
-        layout.operator('zomboid.duplicate_rig')
+     #   layout.operator('zomboid.duplicate_rig')
         
-        if prop.debug_toggle:
-            layout.prop(prop, 'rig_collection')
-            layout.prop(prop, 'male_body_object')
-            layout.prop(prop, 'translation_data_empty')
-            layout.prop(prop, 'dummy01_empty')
+        if p.debug_toggle:
+            layout.prop(p, 'rig_collection')
+            layout.prop(p, 'male_body_object')
+            layout.prop(p, 'translation_data_empty')
+            layout.prop(p, 'dummy01_empty')
             
             layout.separator()
 
-            layout.prop(prop, 'body_mat')
-            layout.prop(prop, 'mask_data')
-            layout.prop(prop, 'injury_tex')
+            layout.prop(p, 'body_mat')
+            layout.prop(p, 'mask_data')
+            layout.prop(p, 'injury_tex')
 
             layout.separator()
             
-            layout.prop(prop, 'current_male_hair_style')
-            layout.prop(prop, 'current_beard_style')
-            layout.prop(prop, 'current_female_hair_style')
-            layout.prop(prop, 'current_hat_category')
+            layout.prop(p, 'current_male_hair_style')
+            layout.prop(p, 'current_beard_style')
+            layout.prop(p, 'current_female_hair_style')
+            layout.prop(p, 'current_hat_category')
 
 # ============================================================================================
 # CONSTRAINTS PANEL
@@ -7227,10 +6872,11 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_parent_id = "VIEW3D_PT_pz_human_rig_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         main_column = layout.column()
         
@@ -7242,10 +6888,10 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             column = box.column()
             column.use_property_split = True
             
-            column.prop(prop, "head_lookpoint")
-            column.prop(prop, "lookpoint_parent")
-            if prop.lookpoint_parent_index == 4:
-                column.prop(prop, "lookpoint_parent_object")
+            column.prop(p, "head_lookpoint")
+            column.prop(p, "lookpoint_parent")
+            if p.lookpoint_parent_index == 4:
+                column.prop(p, "lookpoint_parent_object")
         
         main_column.separator(factor=2.0, type='LINE')
         
@@ -7263,9 +6909,9 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             sub_box = left_column.box()
             
             sub_box.label(text="Left Arm")
-            sub_box.prop(prop, "arm_ik_l", text='IK')
-            sub_box.prop(prop, "left_arm_ik_control_parent", text='Control Parent')
-            sub_box.prop(prop, "left_arm_ik_pole_parent", text='Pole Parent')
+            sub_box.prop(p, "arm_ik_l", text='IK')
+            sub_box.prop(p, "left_arm_ik_control_parent", text='Control Parent')
+            sub_box.prop(p, "left_arm_ik_pole_parent", text='Pole Parent')
             sub_box.separator(factor=0.5)
             
             left_column.separator()
@@ -7273,9 +6919,9 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             sub_box = left_column.box()
             
             sub_box.label(text="Left Leg")
-            sub_box.prop(prop, "leg_ik_l", text='IK')
-            sub_box.prop(prop, "left_leg_ik_control_parent", text='Control Parent')
-            sub_box.prop(prop, "left_leg_ik_pole_parent", text='Pole Parent')
+            sub_box.prop(p, "leg_ik_l", text='IK')
+            sub_box.prop(p, "left_leg_ik_control_parent", text='Control Parent')
+            sub_box.prop(p, "left_leg_ik_pole_parent", text='Pole Parent')
             sub_box.separator(factor=0.5)
 
             right_column = main_row.column()
@@ -7284,9 +6930,9 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             sub_box = right_column.box()
             
             sub_box.label(text="Right Arm")
-            sub_box.prop(prop, "arm_ik_r", text='IK')
-            sub_box.prop(prop, "right_arm_ik_control_parent", text='Control Parent')
-            sub_box.prop(prop, "right_arm_ik_pole_parent", text='Pole Parent')
+            sub_box.prop(p, "arm_ik_r", text='IK')
+            sub_box.prop(p, "right_arm_ik_control_parent", text='Control Parent')
+            sub_box.prop(p, "right_arm_ik_pole_parent", text='Pole Parent')
             sub_box.separator(factor=0.5)
             
             right_column.separator()
@@ -7294,15 +6940,15 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             sub_box = right_column.box()
             
             sub_box.label(text="Right Leg")
-            sub_box.prop(prop, "leg_ik_r", text='IK')
-            sub_box.prop(prop, "right_leg_ik_control_parent", text='Control Parent')
-            sub_box.prop(prop, "right_leg_ik_pole_parent", text='Pole Parent')
+            sub_box.prop(p, "leg_ik_r", text='IK')
+            sub_box.prop(p, "right_leg_ik_control_parent", text='Control Parent')
+            sub_box.prop(p, "right_leg_ik_pole_parent", text='Pole Parent')
             sub_box.separator(factor=0.5)
             
             box.separator()
             column = box.column()
-            column.prop(prop, 'all_ik_control_parent')
-            column.prop(prop, 'all_ik_pole_parent')
+            column.prop(p, 'all_ik_control_parent')
+            column.prop(p, 'all_ik_pole_parent')
         
         main_column.separator(factor=2.0, type='LINE')
         
@@ -7316,27 +6962,27 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             
             left_column = row.column()
             left_column.use_property_split = True
-            left_column.prop(prop, 'left_prop_parent')
-            if prop.left_prop_parent_index == 3:
-                left_column.prop(prop, 'left_prop_parent_object')
+            left_column.prop(p, 'left_prop_parent')
+            if p.left_prop_parent_index == 3:
+                left_column.prop(p, 'left_prop_parent_object')
             
             right_column = row.column()
             right_column.use_property_split = True
-            right_column.prop(prop, 'right_prop_parent')
-            if prop.right_prop_parent_index == 3:
-                right_column.prop(prop, 'right_prop_parent_object')
+            right_column.prop(p, 'right_prop_parent')
+            if p.right_prop_parent_index == 3:
+                right_column.prop(p, 'right_prop_parent_object')
             
             column.separator(factor=2.0, type='LINE')
             
             row = column.row()
             row.use_property_split = True
-            row.prop(prop, 'backpack_parent')
+            row.prop(p, 'backpack_parent')
             
             column.separator(factor=2.0, type='LINE')
             
             row = column.row()
             row.use_property_split = True
-            row.prop(prop, 'dress_parent')
+            row.prop(p, 'dress_parent')
         
         main_column.separator(factor=2.0, type='LINE')
         
@@ -7348,9 +6994,9 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             column = box.column()
             row = column.row()
             
-            row.prop(prop, 'auto_wrist_twist')
-            if prop.auto_wrist_twist:
-                row.prop(prop, 'wrist_twist_amount')
+            row.prop(p, 'auto_wrist_twist')
+            if p.auto_wrist_twist:
+                row.prop(p, 'wrist_twist_amount')
             
 # ============================================================================================
 # CONTROLS PANEL
@@ -7362,100 +7008,101 @@ class PZ_HumanRig_ControlsPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_parent_id = "VIEW3D_PT_pz_human_rig_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         column = layout.column()
         
         row = column.row()
         
-        row.prop(prop, "widgets_size")
-        row.prop(prop, "auto_hide_controls")
+        row.prop(p, "widgets_size")
+        row.prop(p, "auto_hide_controls")
         
         column.separator(factor=2.5, type="LINE")
         
         row = column.row()
-        row.prop(prop, "toggle_root_controls", toggle=True)
+        row.prop(p, "toggle_root_controls", toggle=True)
         
         row = column.row()
-        row.prop(prop, "toggle_translation_data_controls", toggle=True)
+        row.prop(p, "toggle_translation_data_controls", toggle=True)
         
         column.separator()
         
         row = column.row()
-        row.prop(prop, "toggle_left_hand_controls", toggle=True)
-        row.prop(prop, "toggle_right_hand_controls", toggle=True)
+        row.prop(p, "toggle_left_hand_controls", toggle=True)
+        row.prop(p, "toggle_right_hand_controls", toggle=True)
         
         row = column.row()
-        row.prop(prop, "toggle_left_finger_controls", toggle=True)
-        row.prop(prop, "toggle_right_finger_controls", toggle=True)
+        row.prop(p, "toggle_left_finger_controls", toggle=True)
+        row.prop(p, "toggle_right_finger_controls", toggle=True)
         
         column.separator()
         
         row = column.row()
-        row.prop(prop, "toggle_left_prop_controls", toggle=True)
-        row.prop(prop, "toggle_right_prop_controls", toggle=True)
+        row.prop(p, "toggle_left_prop_controls", toggle=True)
+        row.prop(p, "toggle_right_prop_controls", toggle=True)
         
         row = column.row()
-        row.prop(prop, "toggle_backpack_controls", toggle=True)
+        row.prop(p, "toggle_backpack_controls", toggle=True)
         
         row = column.row()
-        row.prop(prop, "toggle_dress_controls", toggle=True)
+        row.prop(p, "toggle_dress_controls", toggle=True)
         
         column.separator()
         
         row = column.row()
-        row.prop(prop, "toggle_left_foot_controls", toggle=True)
-        row.prop(prop, "toggle_right_foot_controls", toggle=True)
+        row.prop(p, "toggle_left_foot_controls", toggle=True)
+        row.prop(p, "toggle_right_foot_controls", toggle=True)
         
         column.separator()
         
         row = column.row()
-        row.prop(prop, "toggle_left_shoulder_controls", toggle=True)
-        row.prop(prop, "toggle_right_shoulder_controls", toggle=True)
+        row.prop(p, "toggle_left_shoulder_controls", toggle=True)
+        row.prop(p, "toggle_right_shoulder_controls", toggle=True)
         
         column.separator()
         
         row = column.row()
-        row.prop(prop, "toggle_pelvis_controls", toggle=True)
-        row.prop(prop, "toggle_spine_controls", toggle=True)
-        row.prop(prop, "toggle_chest_controls", toggle=True)
+        row.prop(p, "toggle_pelvis_controls", toggle=True)
+        row.prop(p, "toggle_spine_controls", toggle=True)
+        row.prop(p, "toggle_chest_controls", toggle=True)
         
-        if not prop.auto_hide_controls:
+        if not p.auto_hide_controls:
             
             column.separator()
             
             # Head Control Toggles
             row = column.row()
-            row.prop(prop, "toggle_head_controls", toggle=True)
+            row.prop(p, "toggle_head_controls", toggle=True)
             row = column.row()
-            row.prop(prop, "toggle_look_point_controls", toggle=True)
+            row.prop(p, "toggle_look_point_controls", toggle=True)
             
             column.separator()
             
             # FK Arm Control Toggles
             row = column.row()
-            row.prop(prop, "toggle_left_arm_fk_controls", toggle=True)
-            row.prop(prop, "toggle_right_arm_fk_controls", toggle=True)
+            row.prop(p, "toggle_left_arm_fk_controls", toggle=True)
+            row.prop(p, "toggle_right_arm_fk_controls", toggle=True)
             
             # FK Leg Control Toggles
             row = column.row()
-            row.prop(prop, "toggle_left_leg_fk_controls", toggle=True)
-            row.prop(prop, "toggle_right_leg_fk_controls", toggle=True)
+            row.prop(p, "toggle_left_leg_fk_controls", toggle=True)
+            row.prop(p, "toggle_right_leg_fk_controls", toggle=True)
             
             column.separator()
             
             # IK Arm Control Toggles
             row = column.row()
-            row.prop(prop, "toggle_left_arm_ik_controls", toggle=True)
-            row.prop(prop, "toggle_right_arm_ik_controls", toggle=True)
+            row.prop(p, "toggle_left_arm_ik_controls", toggle=True)
+            row.prop(p, "toggle_right_arm_ik_controls", toggle=True)
             
             # IK Leg Control Toggles
             row = column.row()
-            row.prop(prop, "toggle_left_leg_ik_controls", toggle=True)
-            row.prop(prop, "toggle_right_leg_ik_controls", toggle=True)
+            row.prop(p, "toggle_left_leg_ik_controls", toggle=True)
+            row.prop(p, "toggle_right_leg_ik_controls", toggle=True)
 
 # ============================================================================================
 # MODEL PANEL
@@ -7500,10 +7147,11 @@ class PZ_HumanRig_ModelPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_parent_id = "VIEW3D_PT_pz_human_rig_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         main_column = layout.column()
         
@@ -7511,12 +7159,12 @@ class PZ_HumanRig_ModelPanel(Panel):
         
         row = column.row()
         row.scale_y = 1.5
-        row.prop(prop, "model_sex", expand=True)
+        row.prop(p, "model_sex", expand=True)
         
         column.separator(factor=2)
         
         row = column.row()
-        row.prop_search(prop, 'selected_clothing_item', context.scene, 'pz_human_clothing_item_slots')
+        row.prop_search(p, 'selected_clothing_item', context.scene, 'pz_human_clothing_item_slots')
         
         row = column.row()
         row.operator('zomboid.remove_all_clothing_items')
@@ -7526,9 +7174,9 @@ class PZ_HumanRig_ModelPanel(Panel):
         subpanel, panel_area = column.panel("body_model_subpanel", default_closed=False)
         subpanel.label(text='Body')
         
-        subpanel.prop(prop, "show_body")
+        subpanel.prop(p, "show_body")
         
-        if prop.show_body and panel_area:
+        if p.show_body and panel_area:
             box = panel_area.box()
             column = box.column()
         
@@ -7536,11 +7184,11 @@ class PZ_HumanRig_ModelPanel(Panel):
             column.separator(factor=0.5)    
             
             row = column.row()
-            row.prop(prop, "use_skeleton")
-            if not prop.use_skeleton:
-                row.prop(prop, "show_dress")
+            row.prop(p, "use_skeleton")
+            if not p.use_skeleton:
+                row.prop(p, "show_dress")
             
-            if not prop.use_skeleton:
+            if not p.use_skeleton:
             
                 column.separator(factor=3, type='LINE')    
                 column.label(text="Body Masks")
@@ -7550,15 +7198,15 @@ class PZ_HumanRig_ModelPanel(Panel):
                 
                 row = subcolumn.row(align=True)
                 for index in range(6):
-                    row.prop(prop, "mask_array", text=str(index), index=index, toggle=True)
+                    row.prop(p, "mask_array", text=str(index), index=index, toggle=True)
                 
                 row = subcolumn.row(align=True)
                 for index in range(6, 12):
-                    row.prop(prop, "mask_array", text=str(index), index=index, toggle=True)
+                    row.prop(p, "mask_array", text=str(index), index=index, toggle=True)
                     
                 row = subcolumn.row(align=True)
                 for index in range(12, 17):
-                    row.prop(prop, "mask_array", text=str(index), index=index, toggle=True)    
+                    row.prop(p, "mask_array", text=str(index), index=index, toggle=True)    
                 
                 subcolumn.separator()
                 
@@ -7573,33 +7221,33 @@ class PZ_HumanRig_ModelPanel(Panel):
                 
                 if body_injury_panel_area:
                     sub_col = body_injury_panel_area.column()
-                    sub_col.prop(prop, 'upper_torso_injury')
-                    sub_col.prop(prop, 'lower_torso_injury')
-                    sub_col.prop(prop, 'left_hand_injury')
-                    sub_col.prop(prop, 'right_hand_injury')
-                    sub_col.prop(prop, 'left_forearm_injury')
-                    sub_col.prop(prop, 'right_forearm_injury')
-                    sub_col.prop(prop, 'left_upperarm_injury')
-                    sub_col.prop(prop, 'right_upperarm_injury')
-                    sub_col.prop(prop, 'head_injury')
-                    sub_col.prop(prop, 'neck_injury')
-                    sub_col.prop(prop, 'groin_injury')
-                    sub_col.prop(prop, 'left_thigh_injury')
-                    sub_col.prop(prop, 'right_thigh_injury')
-                    sub_col.prop(prop, 'left_shin_injury')
-                    sub_col.prop(prop, 'right_shin_injury')
-                    sub_col.prop(prop, 'left_foot_injury')
-                    sub_col.prop(prop, 'right_foot_injury')
+                    sub_col.prop(p, 'upper_torso_injury')
+                    sub_col.prop(p, 'lower_torso_injury')
+                    sub_col.prop(p, 'left_hand_injury')
+                    sub_col.prop(p, 'right_hand_injury')
+                    sub_col.prop(p, 'left_forearm_injury')
+                    sub_col.prop(p, 'right_forearm_injury')
+                    sub_col.prop(p, 'left_upperarm_injury')
+                    sub_col.prop(p, 'right_upperarm_injury')
+                    sub_col.prop(p, 'head_injury')
+                    sub_col.prop(p, 'neck_injury')
+                    sub_col.prop(p, 'groin_injury')
+                    sub_col.prop(p, 'left_thigh_injury')
+                    sub_col.prop(p, 'right_thigh_injury')
+                    sub_col.prop(p, 'left_shin_injury')
+                    sub_col.prop(p, 'right_shin_injury')
+                    sub_col.prop(p, 'left_foot_injury')
+                    sub_col.prop(p, 'right_foot_injury')
 
                     sub_box = sub_col.box()
                     
-                    sub_box.prop(prop, 'random_scratch_chance')
-                    sub_box.prop(prop, 'random_laceration_chance')
-                    sub_box.prop(prop, 'random_bite_chance')
-                    sub_box.prop(prop, 'random_bandage_chance')
-                    sub_box.prop(prop, 'random_bloody_bandage_chance')
+                    sub_box.prop(p, 'random_scratch_chance')
+                    sub_box.prop(p, 'random_laceration_chance')
+                    sub_box.prop(p, 'random_bite_chance')
+                    sub_box.prop(p, 'random_bandage_chance')
+                    sub_box.prop(p, 'random_bloody_bandage_chance')
                     row = sub_box.row()
-                    row.prop(prop, 'random_injury_intensity')
+                    row.prop(p, 'random_injury_intensity')
                     row.operator('zomboid.randomize_body_injuries')
 
                     sub_col.operator('zomboid.remove_all_body_injuries')
@@ -7610,12 +7258,12 @@ class PZ_HumanRig_ModelPanel(Panel):
                 
                 if zombie_injury_panel_area:
                     sub_col = zombie_injury_panel_area.column()
-                    sub_col.prop(prop, 'selected_zombie_injury')
+                    sub_col.prop(p, 'selected_zombie_injury')
                     sub_col.template_list("PZ_UL_ZombieInjuryList", "pz_zombie_injury_list", context.object, "pz_human_zombie_injuries", context.object.pz_human_props, "zombie_injury_active_index")
-                    if prop.zombie_injury_active_index != -1:
+                    if p.zombie_injury_active_index != -1:
                         sub_col.operator('zomboid.remove_zombie_injury')
                     row = sub_col.row()
-                    row.prop(prop, 'random_zombie_injury_intensity')
+                    row.prop(p, 'random_zombie_injury_intensity')
                     row.operator('zomboid.randomize_zombie_injuries')
                     sub_col.operator('zomboid.remove_all_zombie_injuries')
 
@@ -7624,26 +7272,26 @@ class PZ_HumanRig_ModelPanel(Panel):
                 
                 if bloodiness_panel_area:
                     sub_col = bloodiness_panel_area.column()
-                    sub_col.prop(prop, 'upper_torso_bloodiness')
-                    sub_col.prop(prop, 'lower_torso_bloodiness')
-                    sub_col.prop(prop, 'left_hand_bloodiness')
-                    sub_col.prop(prop, 'right_hand_bloodiness')
-                    sub_col.prop(prop, 'left_forearm_bloodiness')
-                    sub_col.prop(prop, 'right_forearm_bloodiness')
-                    sub_col.prop(prop, 'left_upperarm_bloodiness')
-                    sub_col.prop(prop, 'right_upperarm_bloodiness')
-                    sub_col.prop(prop, 'head_bloodiness')
-                    sub_col.prop(prop, 'neck_bloodiness')
-                    sub_col.prop(prop, 'groin_bloodiness')
-                    sub_col.prop(prop, 'left_thigh_bloodiness')
-                    sub_col.prop(prop, 'right_thigh_bloodiness')
-                    sub_col.prop(prop, 'left_shin_bloodiness')
-                    sub_col.prop(prop, 'right_shin_bloodiness')
-                    sub_col.prop(prop, 'left_foot_bloodiness')
-                    sub_col.prop(prop, 'right_foot_bloodiness')
-                    sub_col.prop(prop, 'back_bloodiness')
+                    sub_col.prop(p, 'upper_torso_bloodiness')
+                    sub_col.prop(p, 'lower_torso_bloodiness')
+                    sub_col.prop(p, 'left_hand_bloodiness')
+                    sub_col.prop(p, 'right_hand_bloodiness')
+                    sub_col.prop(p, 'left_forearm_bloodiness')
+                    sub_col.prop(p, 'right_forearm_bloodiness')
+                    sub_col.prop(p, 'left_upperarm_bloodiness')
+                    sub_col.prop(p, 'right_upperarm_bloodiness')
+                    sub_col.prop(p, 'head_bloodiness')
+                    sub_col.prop(p, 'neck_bloodiness')
+                    sub_col.prop(p, 'groin_bloodiness')
+                    sub_col.prop(p, 'left_thigh_bloodiness')
+                    sub_col.prop(p, 'right_thigh_bloodiness')
+                    sub_col.prop(p, 'left_shin_bloodiness')
+                    sub_col.prop(p, 'right_shin_bloodiness')
+                    sub_col.prop(p, 'left_foot_bloodiness')
+                    sub_col.prop(p, 'right_foot_bloodiness')
+                    sub_col.prop(p, 'back_bloodiness')
                     row = sub_col.row()
-                    row.prop(prop, 'random_bloodiness_intensity')
+                    row.prop(p, 'random_bloodiness_intensity')
                     row.operator('zomboid.randomize_body_bloodiness')
                     sub_col.operator('zomboid.remove_body_bloodiness')
                 
@@ -7652,26 +7300,26 @@ class PZ_HumanRig_ModelPanel(Panel):
                 
                 if dirtiness_panel_area:
                     sub_col = dirtiness_panel_area.column()
-                    sub_col.prop(prop, 'upper_torso_dirtiness')
-                    sub_col.prop(prop, 'lower_torso_dirtiness')
-                    sub_col.prop(prop, 'left_hand_dirtiness')
-                    sub_col.prop(prop, 'right_hand_dirtiness')
-                    sub_col.prop(prop, 'left_forearm_dirtiness')
-                    sub_col.prop(prop, 'right_forearm_dirtiness')
-                    sub_col.prop(prop, 'left_upperarm_dirtiness')
-                    sub_col.prop(prop, 'right_upperarm_dirtiness')
-                    sub_col.prop(prop, 'head_dirtiness')
-                    sub_col.prop(prop, 'neck_dirtiness')
-                    sub_col.prop(prop, 'groin_dirtiness')
-                    sub_col.prop(prop, 'left_thigh_dirtiness')
-                    sub_col.prop(prop, 'right_thigh_dirtiness')
-                    sub_col.prop(prop, 'left_shin_dirtiness')
-                    sub_col.prop(prop, 'right_shin_dirtiness')
-                    sub_col.prop(prop, 'left_foot_dirtiness')
-                    sub_col.prop(prop, 'right_foot_dirtiness')
-                    sub_col.prop(prop, 'back_dirtiness')
+                    sub_col.prop(p, 'upper_torso_dirtiness')
+                    sub_col.prop(p, 'lower_torso_dirtiness')
+                    sub_col.prop(p, 'left_hand_dirtiness')
+                    sub_col.prop(p, 'right_hand_dirtiness')
+                    sub_col.prop(p, 'left_forearm_dirtiness')
+                    sub_col.prop(p, 'right_forearm_dirtiness')
+                    sub_col.prop(p, 'left_upperarm_dirtiness')
+                    sub_col.prop(p, 'right_upperarm_dirtiness')
+                    sub_col.prop(p, 'head_dirtiness')
+                    sub_col.prop(p, 'neck_dirtiness')
+                    sub_col.prop(p, 'groin_dirtiness')
+                    sub_col.prop(p, 'left_thigh_dirtiness')
+                    sub_col.prop(p, 'right_thigh_dirtiness')
+                    sub_col.prop(p, 'left_shin_dirtiness')
+                    sub_col.prop(p, 'right_shin_dirtiness')
+                    sub_col.prop(p, 'left_foot_dirtiness')
+                    sub_col.prop(p, 'right_foot_dirtiness')
+                    sub_col.prop(p, 'back_dirtiness')
                     row = sub_col.row()
-                    row.prop(prop, 'random_dirtiness_intensity')
+                    row.prop(p, 'random_dirtiness_intensity')
                     row.operator('zomboid.randomize_body_dirtiness')
                     sub_col.operator('zomboid.remove_body_dirtiness')
 
@@ -7685,14 +7333,14 @@ class PZ_HumanRig_ModelPanel(Panel):
             column = box.column()
             row = column.row()
         
-            if not prop.use_skeleton:
-                row.prop(prop, "use_skin_textures")
+            if not p.use_skeleton:
+                row.prop(p, "use_skin_textures")
             
                 row = column.row()
                 
-                if prop.use_skin_textures:
-                    row.prop(prop, "skin_color")
-                    row.prop(prop, "zombification")
+                if p.use_skin_textures:
+                    row.prop(p, "skin_color")
+                    row.prop(p, "zombification")
                 
                 column.separator(factor=2)
                 
@@ -7706,7 +7354,7 @@ class PZ_HumanRig_ModelPanel(Panel):
                 
                 side_column = row.column(align=True)
                 
-                if prop.body_texture_slot_active_index != -1:
+                if p.body_texture_slot_active_index != -1:
                     side_column.operator("zomboid.remove_body_texture_slot", text="", icon="REMOVE")
                     
                     column.separator()
@@ -7718,32 +7366,32 @@ class PZ_HumanRig_ModelPanel(Panel):
                 column.separator(factor=1.5)
                 row = column.row()
         
-                if prop.body_texture_slot_active_index != -1:
+                if p.body_texture_slot_active_index != -1:
                     row.label(text="Current Slot Properties")
-                    tex_prop = context.active_object.pz_human_body_texture_slots[prop.body_texture_slot_active_index]
+                    t = context.active_object.pz_human_body_texture_slots[p.body_texture_slot_active_index]
                     
                     box = column.box()
                     column = box.column()
                     
                     row = column.row()
-                    row.prop(tex_prop, "tintable")
-                    if tex_prop.tintable:
-                        row.prop(tex_prop, "tint_color")
+                    row.prop(t, "tintable")
+                    if t.tintable:
+                        row.prop(t, "tint_color")
                     
                     row = column.row()
-                    row.prop(tex_prop, "opacity")
+                    row.prop(t, "opacity")
                     
             else:
-                row.prop(prop, "skeleton_type")
+                row.prop(p, "skeleton_type")
         
         main_column.separator(factor=1.5, type='LINE')
         
         subpanel, panel_area = main_column.panel("clothing_model_subpanel", default_closed=True)
         subpanel.label(text='Clothes')
         
-        subpanel.prop(prop, "show_clothing")
+        subpanel.prop(p, "show_clothing")
         
-        if panel_area and prop.show_clothing:
+        if panel_area and p.show_clothing:
             box = panel_area.box()
             column = box.column()
             
@@ -7758,32 +7406,32 @@ class PZ_HumanRig_ModelPanel(Panel):
             
             side_column = row.column(align=True)
             
-            if prop.clothing_mesh_slot_active_index != -1:
+            if p.clothing_mesh_slot_active_index != -1:
                 side_column.operator("zomboid.remove_clothing_mesh_slot", text="", icon="REMOVE")
             
             column.separator(factor=1.5)
             row = column.row()
             
-            if prop.clothing_mesh_slot_active_index != -1:
+            if p.clothing_mesh_slot_active_index != -1:
                 row.label(text="Current Slot Properties")
-                mesh_prop = context.active_object.pz_human_clothing_mesh_slots[prop.clothing_mesh_slot_active_index]
+                m = context.active_object.pz_human_clothing_mesh_slots[p.clothing_mesh_slot_active_index]
                 
                 box = column.box()
                 column = box.column()
                 
                 row = column.row()
-                row.prop(mesh_prop, "tintable")
-                if mesh_prop.tintable:
-                    row.prop(mesh_prop, "tint_color")
+                row.prop(m, "tintable")
+                if m.tintable:
+                    row.prop(m, "tint_color")
         
         main_column.separator(factor=1.5, type='LINE')
         
         subpanel, panel_area = main_column.panel("prop_model_subpanel", default_closed=True)
         subpanel.label(text='Props')
         
-        subpanel.prop(prop, "show_props")
+        subpanel.prop(p, "show_props")
         
-        if panel_area and prop.show_hair:
+        if panel_area and p.show_hair:
             box = panel_area.box()
             column = box.column()
             
@@ -7798,56 +7446,56 @@ class PZ_HumanRig_ModelPanel(Panel):
             
             side_column = row.column(align=True)
             
-            if prop.prop_mesh_slot_active_index != -1:
+            if p.prop_mesh_slot_active_index != -1:
                 side_column.operator("zomboid.remove_prop_mesh_slot", text="", icon="REMOVE")
             
             column.separator(factor=1.5)
             row = column.row()
             
-            if prop.prop_mesh_slot_active_index != -1:
+            if p.prop_mesh_slot_active_index != -1:
                 row.label(text="Current Slot Properties")
-                mesh_prop = context.active_object.pz_human_prop_mesh_slots[prop.prop_mesh_slot_active_index]
+                m = context.active_object.pz_human_prop_mesh_slots[p.prop_mesh_slot_active_index]
                 
                 box = column.box()
                 column = box.column()
                 
                 row = column.row()
-                row.prop(mesh_prop, "tintable")
-                if mesh_prop.tintable:
-                    row.prop(mesh_prop, "tint_color")
+                row.prop(m, "tintable")
+                if m.tintable:
+                    row.prop(m, "tint_color")
         
         main_column.separator(factor=1.5, type='LINE')
         
         subpanel, panel_area = main_column.panel("hair_model_subpanel", default_closed=True)
         subpanel.label(text='Hair')
         
-        subpanel.prop(prop, "show_hair")
+        subpanel.prop(p, "show_hair")
         
-        if panel_area and prop.show_hair:
+        if panel_area and p.show_hair:
             box = panel_area.box()
             column = box.column()
             
             row = column.row()
             
-            row.prop(prop, 'hair_color')
+            row.prop(p, 'hair_color')
             row.operator('zomboid.randomize_hair_color', text='', icon='FILE_REFRESH')
-            row.prop(prop, 'hair_texture_type')
+            row.prop(p, 'hair_texture_type')
             
             column.separator(factor=1.5, type='LINE')
             
             row = column.row(align=True)
             
-            if prop.model_sex_index == 0:
-                row.prop_search(prop, 'selected_male_hair_style', context.scene, 'pz_human_male_hair_styles')
+            if p.model_sex_index == 0:
+                row.prop_search(p, 'selected_male_hair_style', context.scene, 'pz_human_male_hair_styles')
                 row.operator('zomboid.randomize_hair_mesh', text='', icon='FILE_REFRESH').hair_type = 'M'
                 
                 column.separator()
                 
                 row = column.row(align=True)
-                row.prop_search(prop, 'selected_beard_style', context.scene, 'pz_human_beard_styles')
+                row.prop_search(p, 'selected_beard_style', context.scene, 'pz_human_beard_styles')
                 row.operator('zomboid.randomize_hair_mesh', text='', icon='FILE_REFRESH').hair_type = 'B'
             else:
-                row.prop_search(prop, 'selected_female_hair_style', context.scene, 'pz_human_female_hair_styles')
+                row.prop_search(p, 'selected_female_hair_style', context.scene, 'pz_human_female_hair_styles')
                 row.operator('zomboid.randomize_hair_mesh', text='', icon='FILE_REFRESH').hair_type = 'F'
         
         main_column.separator(factor=1.5)
@@ -7862,50 +7510,50 @@ class PZ_HumanRig_ModelPanel(Panel):
             column = box.column()
             row = column.row()
             
-            row.prop_search(prop, 'selected_outfit', context.scene, 'pz_human_outfit_slots', item_search_property='search_name')
+            row.prop_search(p, 'selected_outfit', context.scene, 'pz_human_outfit_slots', item_search_property='search_name')
             
             row = column.row()
             
-            row.prop(prop, 'random_zombie')
-            row.prop(prop, 'random_skin_color')
+            row.prop(p, 'random_zombie')
+            row.prop(p, 'random_skin_color')
             
             row = column.row()
             
-            row.prop(prop, 'random_hair_style')
-            row.prop(prop, 'random_hair_color')
+            row.prop(p, 'random_hair_style')
+            row.prop(p, 'random_hair_color')
             
             row = column.row()
             
-            row.prop(prop, 'natural_hair_color')
+            row.prop(p, 'natural_hair_color')
             
             row = column.row()
             
-            row.prop(prop, 'random_beard_chance', slider=True)
+            row.prop(p, 'random_beard_chance', slider=True)
             
             row = column.row()
-            row.prop(prop, 'randomize_injuries')
+            row.prop(p, 'randomize_injuries')
             
-            if prop.randomize_injuries:
+            if p.randomize_injuries:
                 box=column.box()
                 
-                box.prop(prop, 'random_bloodiness_intensity')
-                box.prop(prop, 'random_dirtiness_intensity')
+                box.prop(p, 'random_bloodiness_intensity')
+                box.prop(p, 'random_dirtiness_intensity')
                 
                 box.separator()
                 
-                box.prop(prop, 'random_injury_intensity')
-                box.prop(prop, 'random_zombie_injury_intensity')
+                box.prop(p, 'random_injury_intensity')
+                box.prop(p, 'random_zombie_injury_intensity')
 
                 box.separator()
 
-                box.prop(prop, 'random_scratch_chance')
-                box.prop(prop, 'random_laceration_chance')
-                box.prop(prop, 'random_bite_chance')
+                box.prop(p, 'random_scratch_chance')
+                box.prop(p, 'random_laceration_chance')
+                box.prop(p, 'random_bite_chance')
 
                 box.separator()
                 
-                box.prop(prop, 'random_bandage_chance')
-                box.prop(prop, 'random_bloody_bandage_chance')
+                box.prop(p, 'random_bandage_chance')
+                box.prop(p, 'random_bloody_bandage_chance')
             
             row = column.row()
             row.scale_y = 2.0
@@ -7927,12 +7575,12 @@ class PZ_HumanRig_ModelPanel(Panel):
 #            column = box.column()
 #            
 #            row = column.row()
-#            row.prop(prop, "use_outline")
-#            if prop.use_outline:
+#            row.prop(p, "use_outline")
+#            if p.use_outline:
 #                column.separator()
 #                row = column.row()
-#                row.prop(prop, "outline_size")
-#                row.prop(prop, "outline_color")
+#                row.prop(p, "outline_size")
+#                row.prop(p, "outline_color")
 
 # ============================================================================================
 # SHADING PANEL
@@ -7944,30 +7592,31 @@ class PZ_HumanRig_ShadingPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_parent_id = "VIEW3D_PT_pz_human_rig_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         column = layout.column()
         row = column.row()
         row.scale_y = 1.5
-        row.prop(prop, "shading_type", expand=True)
+        row.prop(p, "shading_type", expand=True)
         
         column.separator()
         
         row = column.row()
 
-        match prop.shading_type_index:
+        match p.shading_type_index:
             case 0:
-                row.prop(prop, 'emission_strength')
+                row.prop(p, 'emission_strength')
             case 1:
-                row.prop(prop, 'roughness')
-                row.prop(prop, 'metallic')
+                row.prop(p, 'roughness')
+                row.prop(p, 'metallic')
             case 2:
-                row.prop_search(prop, 'custom_shading_group_name', bpy.data, 'node_groups')
+                row.prop_search(p, 'custom_shading_group_name', bpy.data, 'node_groups')
 
-                selected_group = bpy.data.node_groups.get(prop.custom_shading_group_name)
+                selected_group = bpy.data.node_groups.get(p.custom_shading_group_name)
 
                 if selected_group.bl_idname != 'ShaderNodeTree':
                     column.label(text='Selected group is not a Shader Node group')
@@ -8001,7 +7650,7 @@ class PZ_HumanRig_ShadingPanel(Panel):
         column.separator()
         
         row = column.row()
-        row.prop(prop, 'texture_interpolation')
+        row.prop(p, 'texture_interpolation')
             
 # ============================================================================================
 # EXPORT PANEL
@@ -8013,22 +7662,23 @@ class PZ_HumanRig_ExportPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_parent_id = "VIEW3D_PT_pz_human_rig_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
-        prop = context.active_object.pz_human_props
+        p = context.active_object.pz_human_props
         
         column = layout.column()
         
         row = column.row()
-        row.prop(prop, "file_output_path")
+        row.prop(p, "file_output_path")
         
         row = column.row()
         row.alignment = 'LEFT'
-        row.prop(prop, "batch_export")
+        row.prop(p, "batch_export")
         
-        if prop.batch_export:
-            row.prop(prop, "action_filter")
+        if p.batch_export:
+            row.prop(p, "action_filter")
         
         row = column.row()
         row.operator("zomboid.export_glb_button")
@@ -8058,6 +7708,7 @@ class PZ_HumanRig_GlobalPanel(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "scene"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
@@ -8077,14 +7728,15 @@ class PZ_HumanRig_DirectoriesPanel(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_parent_id = "PROPERTIES_PT_pz_human_rig_global_panel"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
         
         column = layout.column()
         
-        column.prop(global_prop, "pz_directory")
+        column.prop(g, "pz_directory")
       
         column.separator()
                 
@@ -8104,10 +7756,10 @@ class PZ_HumanRig_DirectoriesPanel(Panel):
 
         side_column.operator("zomboid.add_mod_directory_slot", text="", icon="ADD")
         
-        if global_prop.mod_directory_slot_active_index != -1:
+        if g.mod_directory_slot_active_index != -1:
             side_column.operator("zomboid.remove_mod_directory_slot", text="", icon="REMOVE")
             
-            dir_prop = context.scene.pz_human_mod_directory_slots[global_prop.mod_directory_slot_active_index]
+            dir_prop = context.scene.pz_human_mod_directory_slots[g.mod_directory_slot_active_index]
 
             box = column.box()
             
@@ -8160,10 +7812,11 @@ class PZ_HumanRig_AssetsPanel(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_parent_id = "PROPERTIES_PT_pz_human_rig_global_panel"
+    bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self, context):
         layout = self.layout
-        global_prop = context.scene.pz_human_global_props
+        g = context.scene.pz_human_global_props
         
         main_column = layout.column()
         
@@ -8188,9 +7841,9 @@ class PZ_HumanRig_AssetsPanel(Panel):
             
             row = column.row()
             
-            if global_prop.clothing_item_slot_active_index != -1:
+            if g.clothing_item_slot_active_index != -1:
                 row.label(text="Clothing Item Properties")
-                item_prop = context.scene.pz_human_clothing_item_slots[global_prop.clothing_item_slot_active_index]
+                item_prop = context.scene.pz_human_clothing_item_slots[g.clothing_item_slot_active_index]
                 
                 box = column.box()
                 split = box.split()
@@ -8256,9 +7909,9 @@ class PZ_HumanRig_AssetsPanel(Panel):
             
             row = column.row()
             
-            if global_prop.outfit_slot_active_index != -1:
+            if g.outfit_slot_active_index != -1:
                 row.label(text="Outfit Properties")
-                item_prop = context.scene.pz_human_outfit_slots[global_prop.outfit_slot_active_index]
+                item_prop = context.scene.pz_human_outfit_slots[g.outfit_slot_active_index]
                 
                 box = column.box()
                 split = box.split()
@@ -8294,9 +7947,9 @@ class PZ_HumanRig_AssetsPanel(Panel):
             
             row = column.row()
             
-            if global_prop.hair_style_slot_active_index != -1:
+            if g.hair_style_slot_active_index != -1:
                 row.label(text="Hair Properties")
-                item_prop = context.scene.pz_human_hair_style_slots[global_prop.hair_style_slot_active_index]
+                item_prop = context.scene.pz_human_hair_style_slots[g.hair_style_slot_active_index]
                 
                 box = column.box()
                 split = box.split()
@@ -8305,6 +7958,7 @@ class PZ_HumanRig_AssetsPanel(Panel):
                 sub_column.label(text='Model Path:        ' + item_prop.model_path)
                 sub_column.label(text='Texture Type:      ' + item_prop.texture_type)
                 sub_column.label(text='Hair Level:           ' + str(item_prop.level))
+                sub_column.label(text="Origin:                  " + str(item_prop.origin))
                 
                 column.separator()
                 column.label(text="Alternate Hat Styles")
@@ -8335,9 +7989,9 @@ class PZ_HumanRig_AssetsPanel(Panel):
             
             row = column.row()
             
-            if global_prop.beard_style_slot_active_index != -1:
+            if g.beard_style_slot_active_index != -1:
                 row.label(text="Beard Properties")
-                item_prop = context.scene.pz_human_beard_styles[global_prop.beard_style_slot_active_index]
+                item_prop = context.scene.pz_human_beard_styles[g.beard_style_slot_active_index]
                 
                 box = column.box()
                 split = box.split()
@@ -8367,9 +8021,9 @@ class PZ_HumanRig_AssetsPanel(Panel):
             
             row=column.row()
             
-            if global_prop.decal_slot_active_index != -1:
+            if g.decal_slot_active_index != -1:
                 row.label(text="Decal Properties")
-                item_prop = context.scene.pz_human_decals[global_prop.decal_slot_active_index]
+                item_prop = context.scene.pz_human_decals[g.decal_slot_active_index]
                 
                 box = column.box()
                 split = box.split()
@@ -8396,9 +8050,9 @@ class PZ_HumanRig_AssetsPanel(Panel):
             
             row=column.row()
             
-            if global_prop.body_location_active_index != -1:
+            if g.body_location_active_index != -1:
                 row.label(text="Body Location Properties")
-                item_prop = context.scene.pz_human_body_locations[global_prop.body_location_active_index]
+                item_prop = context.scene.pz_human_body_locations[g.body_location_active_index]
                 
                 box = column.box()
                 split = box.split()
@@ -8446,7 +8100,7 @@ There are a lot of classes, so it's a bit of a mess. Note that order matters.
 '''
 
 object_classes = [PZ_BodyLocationRef, PZ_BodyLocationProperties, PZ_BodyLocation,
-                  PZ_ShirtDecal, PZ_ShirtDecalGroup, PZ_ZombieInjury,
+                  PZ_ShirtDecal, PZ_ShirtDecalGroup, PZ_ZombieInjury, PZ_BodyInjury,
                   PZ_BodyTextureSlot, PZ_ClothingMeshSlot, PZ_PropMeshSlot,
                   PZ_ClothingItemTextureChoices, PZ_ClothingItemSlot,
                   PZ_OutfitItemChoices, PZ_OutfitItem, PZ_OutfitSlot,
@@ -8473,7 +8127,7 @@ operator_classes = [PZ_ConstructBodyTexture, PZ_HumanRig_CreateBodyInjuryTexture
                     PZ_HumanRig_RemoveAllBodyInjuries, PZ_HumanRig_RemoveAllZombieInjuries,
                     PZ_HumanRig_RemoveAllBodyDamage, PZ_HumanRig_GetAllModDirectories, PZ_HumanRig_RemoveAllModDirectories,
                     PZ_HumanRig_ParseClothingXMLs, PZ_HumanRig_ParseOutfitXMLs,
-                    PZ_HumanRig_ParseHairStyleXMLs, PZ_HumanRig_ParseDecalXMLs,
+                    PZ_HumanRig_ParseHairStyleXMLs, PZ_HumanRig_ParseDecalXMLs, PZ_HumanRig_ParseInjuries,
                     PZ_HumanRig_ParseBodyLocationLua, PZ_HumanRig_ParseAllXMLs,PZ_HumanRig_ClearAllXMLs,
                     PZ_HumanRig_ApplyOutfit, PZ_HumanRig_ApplyRandomOutfit, PZ_HumanRig_AddClothingItem,
                     PZ_HumanRig_RemoveAllClothingItems, PZ_CheckHatCategory, PZ_HumanRig_Export,
@@ -8516,31 +8170,31 @@ def initialize_rigs():
                     break
             if not exists:
                 # Initialize the major data objects on the rig
-                prop = obj.pz_human_props
+                p = obj.pz_human_props
 
                 new_rig = rigs.add()
                 new_rig.obj = obj
 
-                prop.rig_instance = len(rigs) - 1
+                p.rig_instance = len(rigs) - 1
 
-                instance_str = ' (' + str(prop.rig_instance) + ')'
-                prop.rig_collection = bpy.data.collections.get('CH-PZ_Human' + instance_str)
-                prop.male_body_object = bpy.data.objects.get('OBJ-MaleBody' + instance_str)
-                prop.translation_data_empty = bpy.data.objects.get('OBJ-TranslationData' + instance_str)
-                prop.dummy01_empty = bpy.data.objects.get('OBJ-Dummy01' + instance_str)
+                instance_str = ' (' + str(p.rig_instance) + ')'
+                p.rig_collection = bpy.data.collections.get('CH-PZ_Human' + instance_str)
+                p.male_body_object = bpy.data.objects.get('OBJ-MaleBody' + instance_str)
+                p.translation_data_empty = bpy.data.objects.get('OBJ-TranslationData' + instance_str)
+                p.dummy01_empty = bpy.data.objects.get('OBJ-Dummy01' + instance_str)
 
                 # TODO: Create new material and mask data if it does not exist
 
-                prop.mask_data = bpy.data.images.get('MASK-MaskData' + instance_str)
-                prop.injury_tex = bpy.data.images.get('TEX-BodyInjuries' + instance_str)
-                prop.body_mat = bpy.data.materials.get('MAT-HumanBody' + instance_str)
+                p.mask_data = bpy.data.images.get('MASK-MaskData' + instance_str)
+                p.injury_tex = bpy.data.images.get('TEX-BodyInjuries' + instance_str)
+                p.body_mat = bpy.data.materials.get('MAT-HumanBody' + instance_str)
 
                 new_rig.name = 'PZ Human Rig ' + str(obj.pz_human_props.rig_instance)
 
     for rig in rigs:
-        prop = rig.obj.pz_human_props
+        p = rig.obj.pz_human_props
 
-        mask = prop.mask_data
+        mask = p.mask_data
         rig_obj = rig.obj
 
         # Force a reload of the generated textures
@@ -8584,6 +8238,8 @@ def register():
     Scene.pz_human_decal_groups = CollectionProperty(type=PZ_ShirtDecalGroup)
     Scene.pz_human_decals = CollectionProperty(type=PZ_ShirtDecal)
     Scene.pz_human_body_locations = CollectionProperty(type=PZ_BodyLocation)
+    Scene.pz_human_body_injuries = CollectionProperty(type=PZ_BodyInjury)
+    Scene.pz_human_zombie_injuries = CollectionProperty(type=PZ_ZombieInjury)
 
     #-------------------------------------------
 
@@ -8635,6 +8291,8 @@ def unregister():
     del Scene.pz_human_decal_groups
     del Scene.pz_human_decals
     del Scene.pz_human_body_locations
+    del Scene.pz_human_body_injuries
+    del Scene.pz_human_zombie_injuries
 
 if __name__ == "__main__":
     register()
