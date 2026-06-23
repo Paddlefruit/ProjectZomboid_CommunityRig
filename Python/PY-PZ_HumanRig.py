@@ -72,9 +72,11 @@ import numpy as np
 
 from bpy.types import PropertyGroup, Collection, Object, Operator, Panel, UIList, Scene, Image, Material # type: ignore
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, FloatVectorProperty, CollectionProperty, PointerProperty, BoolVectorProperty # type: ignore
+from bpy_extras import anim_utils # type: ignore
 
 from random import randint, choices, random, uniform
 from pathlib import Path
+from mathutils import Vector, Matrix # type: ignore
 
 # endregion
 
@@ -104,7 +106,7 @@ class PZ_BodyLocationRef(PropertyGroup):
     pass
 
 class PZ_BodyLocationProperties(PropertyGroup):
-    hide_locations : CollectionProperty(type=PZ_BodyLocationRef)             # pyright: ignore[reportInvalidTypeForm] # This body location will be hidden any of the body locations in this collection are occupied
+    hide_locations : CollectionProperty(type=PZ_BodyLocationRef)             # This body location will be hidden any of the body locations in this collection are occupied
     alt_locations : CollectionProperty(type=PZ_BodyLocationRef)              # This body location will use an alternate model if any of the body locations in this collection are occupied
     exclusive_locations : CollectionProperty(type=PZ_BodyLocationRef)        # This body location cannot be equipped if any of the body locations in this collection are occupied (No effect in Blender)
 
@@ -133,12 +135,8 @@ class PZ_ShirtDecalGroup(PropertyGroup):
 # ============================================================================================
 
 class PZ_BodyTextureSlot(PropertyGroup):
-    
-    def update_item_name(self, context):
-        bpy.ops.zomboid.construct_body_texture()
-    
     name : StringProperty(default="New Body Texture")
-    texture_path : StringProperty(name="Texture Path", update=update_item_name)
+    texture_path : StringProperty(name="Texture Path")
     tintable : BoolProperty(name="Tintable", default=False)
     tint_color : FloatVectorProperty(name="Tint Color", subtype='COLOR', default=(1.0, 1.0, 1.0), max=1.0, min=0.0)
     opacity : FloatProperty(name="Opacity", default=1.0, min=0.0, max=1.0, subtype='FACTOR')
@@ -176,20 +174,11 @@ class PZ_ClothingMeshSlot(PropertyGroup):
     def update_model_render(self, context):
         update_clothing_sex_render(self, context)
     
-    name : StringProperty(
-        default="New Clothing Model"
-    )
-    male_model_path : StringProperty(
-        name="Male Model Path"
-    )
-    female_model_path : StringProperty(
-        name="Female Model Path"
-    )
-    model_type : StringProperty(
-    )
-    texture_path : StringProperty(
-        name="Texture Path"
-    )
+    name : StringProperty()
+    male_model_path : StringProperty()
+    female_model_path : StringProperty()
+    model_type : StringProperty()
+    texture_path : StringProperty()
     tintable : BoolProperty(
         name="Tintable", 
         default=False
@@ -235,26 +224,11 @@ class PZ_PropMeshSlot(PropertyGroup):
     def update_model_render(self, context):
         update_prop_sex_render(self, context)
     
-    name : StringProperty(
-        default="New Prop Model"
-    )
-    male_model_path : StringProperty(
-        name="Male Model Path"
-    )
-    female_model_path : StringProperty(
-        name="Female Model Path"
-    )
-    model_type : StringProperty(
-        # name="Model Type",
-        # items=[
-        #     ('X', "X", "Model type is .x", 0),
-        #     ('FBX', "FBX", "Model type is .fbx", 1),
-        #     ('GLB', "GLB", "Model type is .glb", 2)
-        # ]
-    )
-    texture_path : StringProperty(
-        name="Texture Path"
-    )
+    name : StringProperty()
+    male_model_path : StringProperty()
+    female_model_path : StringProperty()
+    model_type : StringProperty()
+    texture_path : StringProperty()
     tintable : BoolProperty(
         name="Tintable", 
         default=False
@@ -289,18 +263,10 @@ class PZ_ClothingItemTextureChoices(PropertyGroup):
 
 class PZ_ClothingItemSlot(PropertyGroup):
     name : StringProperty()
-    guid : StringProperty(
-        name="GUID"
-    )
+    guid : StringProperty()
     is_body_texture : BoolProperty()
-    male_model_path : StringProperty(
-        name="Male Model Path", 
-        subtype='FILE_PATH', 
-    )
-    female_model_path : StringProperty(
-        name="Female Model Path", 
-        subtype='FILE_PATH', 
-    )
+    male_model_path : StringProperty()
+    female_model_path : StringProperty()
     model_type : StringProperty()
     texture_choices : CollectionProperty(type=PZ_ClothingItemTextureChoices)
     tintable : BoolProperty(
@@ -372,6 +338,16 @@ class PZ_HairStyleSlot(PropertyGroup):
     origin : StringProperty()
 
 # ============================================================================================
+# IMPORTED ANIMATION
+# ============================================================================================
+
+class PZ_ImportedAnimation(PropertyGroup):
+    file_type : StringProperty()
+    anim_path : StringProperty()
+    origin : StringProperty()
+    character_type : StringProperty()
+
+# ============================================================================================
 # MOD DIRECTORY SLOT
 # ============================================================================================
 
@@ -383,9 +359,6 @@ class PZ_ModDirectorySlot(PropertyGroup):
         default = 'Unknown Author'
     )
     mod_dir : StringProperty(
-        subtype='DIR_PATH'
-    )
-    common_dir : StringProperty(
         subtype='DIR_PATH'
     )
     latest_pz_version : FloatProperty(
@@ -422,7 +395,7 @@ def directx_import_available():
 # GET ZOMBOID ASSET
 # ============================================================================================
 
-@functools.lru_cache(maxsize=128)
+@functools.lru_cache(maxsize=256)
 def get_zomboid_asset_folders(context, parent_path):
     g = context.scene.pz_human_global_props
     mods = context.scene.pz_human_mod_directory_slots
@@ -534,7 +507,7 @@ def create_model_material(context, texture_path, category):
             
             # Create the custom shader node
             custom_shader_group = nodes.new(type='ShaderNodeGroup')
-            mix_shader_node.name = "NDE-CustomShader"
+            custom_shader_group.name = "NDE-CustomShader"
 
             # Create the custom shader mix node
             mix_custom_shader_node = nodes.new(type='ShaderNodeMixShader')
@@ -938,6 +911,116 @@ def update_hair_sex_render(self, context):
 #=================================================================================================================================================
 
 # region Operators
+
+# region Snapping Operators
+
+class PZ_SnapFKToIK(Operator):
+    bl_idname = "zomboid.snap_fk_to_ik"
+    bl_label = "Snap FK to IK"
+
+    first_fk_bone : StringProperty()
+    second_fk_bone : StringProperty()
+    first_ik_bone : StringProperty()
+    second_ik_bone : StringProperty()
+    extremity_bone : StringProperty()
+
+    ik_fk_prop : StringProperty()
+
+    def execute(self, context):
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
+
+        bones = context.active_object.pose.bones
+
+        first_fk_bone = bones.get(self.first_fk_bone)
+        second_fk_bone = bones.get(self.second_fk_bone)
+        first_ik_bone = bones.get(self.first_ik_bone)
+        second_ik_bone = bones.get(self.second_ik_bone)
+        extremity_bone = bones.get(self.extremity_bone)
+
+        if first_fk_bone and second_fk_bone and first_ik_bone and second_ik_bone and extremity_bone:
+
+            extremity_matrix = extremity_bone.matrix.copy()
+            print(extremity_bone.matrix.copy())
+
+            context.view_layer.update()
+            first_fk_bone.matrix = first_ik_bone.matrix.copy()
+            context.view_layer.update()
+
+            second_fk_bone.matrix = second_ik_bone.matrix.copy()
+            context.view_layer.update()
+
+            if g.snapping_affects_extremeties:
+                print(extremity_bone.matrix.copy())
+                extremity_bone.rotation_quaternion = extremity_matrix.to_quaternion()
+                print(extremity_bone.matrix.copy())
+                context.view_layer.update()
+
+            if g.auto_switch_kinematics:
+                setattr(p, self.ik_fk_prop, 0.0)
+                context.active_object.update_tag()
+                context.view_layer.update()
+
+            return ({'FINISHED'})
+        
+        print('Could not find all bones')
+        return ({'CANCELLED'})
+
+class PZ_SnapIKToFK(Operator):
+    bl_idname = "zomboid.snap_ik_to_fk"
+    bl_label = "Snap IK to FK"
+
+    fk_bone : StringProperty()
+    snap_helper : StringProperty()
+    ik_control_bone : StringProperty()
+    ik_pole_bone : StringProperty()
+    extremity_bone : StringProperty()
+
+    ik_fk_prop : StringProperty()
+
+    def execute(self, context):
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
+
+        bones = context.active_object.pose.bones
+
+        fk_bone = bones.get(self.fk_bone)
+        snap_helper = bones.get(self.snap_helper)
+        ik_control_bone = bones.get(self.ik_control_bone)
+        ik_pole_bone = bones.get(self.ik_pole_bone)
+        extremity_bone = bones.get(self.extremity_bone)
+
+        if fk_bone and snap_helper and ik_control_bone and ik_pole_bone:
+
+            orig_fk_matrix = fk_bone.matrix.copy()
+            extremity_matrix = extremity_bone.matrix.copy()
+            print(extremity_bone.matrix.copy())
+
+            ik_control_bone.matrix = snap_helper.matrix.copy()
+            context.view_layer.update()
+
+            bone_dir = Vector(fk_bone.tail - fk_bone.head).normalized()
+
+            ik_pole_bone.matrix = orig_fk_matrix
+            context.view_layer.update()
+
+            ik_pole_bone.location -= bone_dir * 10
+            context.view_layer.update()
+
+            if g.snapping_affects_extremeties:
+                print(extremity_bone.matrix.copy())
+                extremity_bone.rotation_quaternion = extremity_matrix.to_quaternion()
+                print(extremity_bone.matrix.copy())
+                context.view_layer.update()
+
+            if g.auto_switch_kinematics:
+                setattr(p, self.ik_fk_prop, 1.0)
+                context.active_object.update_tag()
+                context.view_layer.update()
+    
+        return ({'FINISHED'})
+
+# endregion
 
 # region Body Texture Operators
 
@@ -3430,6 +3513,70 @@ class PZ_HumanRig_RemoveAllModDirectories(Operator):
         return ({'FINISHED'}) 
 
 # ============================================================================================
+# GET ALL ANIMATIONS
+# ============================================================================================
+
+class PZ_HumanRig_GetAllAnimations(Operator):
+    bl_idname = "zomboid.get_all_animations"
+    bl_label = "Get All Animations"
+    bl_description = "Find all humanoid animations and create a list for them"
+
+    def parse_anim_folder(self, context, path : Path, origin : str, anim_list):
+
+        allowed_suffixes = ['.x', '.fbx', '.glb']
+
+        for file in path.iterdir():
+            if file.is_dir():
+                self.parse_anim_folder(context, file, origin, anim_list)
+            if file.is_file() and file.suffix.lower() in allowed_suffixes:
+                a = anim_list.add()
+
+                a.name = file.name
+                a.file_type = file.suffix.lower()
+                a.anim_path = str(file)
+                a.origin = origin
+
+                if 'Bob' in a.name:
+                    a.character_type = 'Bob'
+                elif 'Kate' in a.name:
+                    a.character_type = 'Kate'
+                elif 'Zombie' in a.name:
+                    a.character_type = 'Zombie'
+
+                print(a.name)
+
+    def execute(self, context):
+        a_list = context.scene.pz_human_imported_animations
+
+        a_list.clear()
+
+        all_anim_folders = []
+
+        #TODO Cleanup
+
+        # Check if these are the anims_x folders
+        for folder, mod_name in get_zomboid_asset_folders(context, 'Bob'):
+            if folder.parent.name.lower() == 'anims_x':
+                all_anim_folders.append((folder, mod_name))
+        for folder, mod_name in get_zomboid_asset_folders(context, 'Kate'):
+            if folder.parent.name.lower() == 'anims_x':
+                all_anim_folders.append((folder, mod_name))
+        for folder, mod_name in get_zomboid_asset_folders(context, 'Zombie'):
+            if folder.parent.name.lower() == 'anims_x':
+                all_anim_folders.append((folder, mod_name))
+
+        # Parse the folders
+        for folder, mod_name in all_anim_folders:
+            self.parse_anim_folder(context, folder, mod_name, a_list)
+            
+
+        return ({'FINISHED'}) 
+
+# ============================================================================================
+# REMOVE ALL ANIMATIONS
+# ============================================================================================
+
+# ============================================================================================
 # CLOTHING XML PARSER
 # ============================================================================================
 
@@ -4728,7 +4875,303 @@ class PZ_CheckHatCategory(Operator):
 
 # endregion
 
+# region Animation Operators
+
+# ============================================================================================
+# REMAP ANIMATION
+# ============================================================================================
+
+class PZ_HumanRig_RemapAnimation(Operator):
+    bl_idname = "zomboid.remap_animation"
+    bl_label = "Add Animation to Rig"
+    bl_description = "Remaps a vanilla or modded animation from the game back onto the control rig, to the best of its ability" 
+
+    use_ik : BoolProperty(
+        default=False
+    ) 
+
+    control_dict = {
+        'Bip01' : 'CTRL-Pelvis',
+        'Bip01_Spine' : 'CTRL-Spine1',
+        'Bip01_Spine1' : 'CTRL-Spine2',
+        'Bip01_Neck' : 'CTRL-Chest',
+        'Bip01_Head' : 'CTRL-Head',
+        'Bip01_L_Clavicle' : 'CTRL-Shoulder.L',
+        'Bip01_R_Clavicle' : 'CTRL-Shoulder.R',
+        'Bip01_L_UpperArm' : 'CTRL-UpperArmFK.L',
+        'Bip01_R_UpperArm' : 'CTRL-UpperArmFK.R',
+        'Bip01_L_Forearm' : 'CTRL-ForearmFK.L',
+        'Bip01_R_Forearm' : 'CTRL-ForearmFK.R',
+        'Bip01_L_Hand' : 'CTRL-Hand.L',
+        'Bip01_R_Hand' : 'CTRL-Hand.R',
+        'Bip01_L_Finger0' : 'CTRL-Thumb.L',
+        'Bip01_R_Finger0' : 'CTRL-Thumb.R',
+        'Bip01_L_Finger1' : 'CTRL-Fingers.L',
+        'Bip01_R_Finger1' : 'CTRL-Fingers.R',
+        'Bip01_Prop2' : 'CTRL-Prop.L',
+        'Bip01_Prop1' : 'CTRL-Prop.R',
+        'Bip01_L_Thigh' : 'CTRL-ThighFK.L',
+        'Bip01_R_Thigh' : 'CTRL-ThighFK.R',
+        'Bip01_L_Calf' : 'CTRL-CalfFK.L',
+        'Bip01_R_Calf' : 'CTRL-CalfFK.R',
+        'Bip01_L_Foot' : 'CTRL-Foot.L',
+        'Bip01_R_Foot' : 'CTRL-Foot.R',
+        'Bip01_BackPack' : 'CTRL-Backpack',
+        'Bip01_DressFront' : 'CTRL-DressFront1',
+        'Bip01_DressFront02' : 'CTRL-DressFront2',
+        'Bip01_DressBack' : 'CTRL-DressBack1',
+        'Bip01_DressBack02' : 'CTRL-DressBack2',
+        'Translation_Data' : 'CTRL-TranslationData'
+    }
+
+    rest_deltas = {}
+
+    reference_rig = None
+    target_rig = None
+
+    reference_action = None
+    target_action = None
+
+    reference_slot = None
+    target_slot = None
+
+    def import_reference_rig(self, context, p, g):
+        selected_anim = context.scene.pz_human_imported_animations[g.imported_animation_active_index]
+
+        if Path(selected_anim.anim_path).is_file():
+            
+            if context.mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+            
+            objs_before = set(context.scene.objects)
+
+            match selected_anim.file_type:
+                case '.x':
+                    if not directx_import_available():
+                        print("The .x importer is not enabled or installed")
+                        return({'CANCELLED'})
+                    
+                    bpy.ops.import_scene.directx_x(
+                        filepath = selected_anim.anim_path,
+                        use_import_collection = False
+                    )
+
+            objs_after = set(bpy.context.scene.objects)
+            
+            imported_objects = list(objs_after - objs_before)
+
+            for obj in imported_objects:         
+                if obj.type == 'EMPTY':
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                elif obj.type == 'MESH':
+                    bpy.data.objects.remove(obj, do_unlink=True)       
+                elif obj.type == 'ARMATURE':
+                    self.reference_rig = obj
+                    self.reference_action = obj.animation_data.action
+                    self.reference_slot = obj.animation_data.action_slot
+                    obj.rotation_euler[2] += math.pi
+                    obj.scale[0] = -1
+
+            # Calculate and store the differences in rest position, using the edit bones
+
+            reference_bones = self.reference_rig.data.bones
+            target_bones = self.target_rig.data.bones
+
+            for reference_bone in reference_bones:
+                if reference_bone.name in target_bones:
+                    target_bone = target_bones[reference_bone.name]
+
+                    reference_matrix = reference_bone.matrix_local
+                    target_matrix = target_bone.matrix_local
+
+                    self.rest_deltas.update({reference_bone.name : target_matrix @ reference_matrix.inverted()})
+
+                    loc, rot, scale = (target_matrix @ reference_matrix.inverted()).decompose()
+            
+                    print(f"Bone: {reference_bone.name}")
+                    print(f"  Location Offset: {loc}")
+                    print(f"  Rotation Diff (Quaternion): {rot}")
+                    print("-" * 40)
+
+
+
+            # Reorient Bones
+            # bones = self.reference_rig.data.edit_bones
+            # for bone in bones:
+            #     axis_z = bone.matrix.to_3x3().col[2]
+
+            #     rot_matrix = (Matrix.Translation(bone.head) @
+            #                   Matrix.Rotation(math.radians(-90), 4, axis_z) @
+            #                   Matrix.Translation(-bone.head))
+                
+            #     bone.matrix = rot_matrix @ bone.matrix
+
+        return ({'FINISHED'})
+
+    def cleanup_animation(self, context, p, g):
+        action = self.reference_action
+        channelbag = anim_utils.action_get_channelbag_for_slot(action, action.slots[0])
+        
+        # TODO: Make the curves match how it was before cleanup
+
+        for fcurve in channelbag.fcurves:
+            final_keys = []
+            increasing = False
+            decreasing = False
+            prev_value = 0
+
+            for index, key in enumerate(fcurve.keyframe_points):
+                if not decreasing and not increasing and not math.isclose(key.co[1], prev_value, abs_tol=0.01):
+                    if key.co[1] > prev_value:
+                        increasing = True
+                    elif key.co[1] < prev_value:
+                        decreasing = True
+
+                    final_keys.append(key)
+                
+                elif increasing and key.co[1] < prev_value and not math.isclose(key.co[1], prev_value, abs_tol=0.01):
+                    decreasing = True
+                    increasing = False
+
+                    final_keys.append(fcurve.keyframe_points[index - 1])
+                
+                elif decreasing and key.co[1] > prev_value and not math.isclose(key.co[1], prev_value, abs_tol=0.01):
+                    decreasing = False
+                    increasing = True
+
+                    final_keys.append(fcurve.keyframe_points[index - 1])
+                
+                prev_value = key.co[1]
+            
+            for key in reversed(fcurve.keyframe_points[:]):
+                if key not in final_keys:
+                    fcurve.keyframe_points.remove(key)
+
+        return ({'FINISHED'})         
+
+    def remap_animation(self, context, p, g):
+
+        channelbag = anim_utils.action_get_channelbag_for_slot(self.reference_action, self.reference_slot)
+
+        self.target_action = bpy.data.actions.new(self.reference_action.name + ' (IMPORT)')
+        self.target_slot = self.target_action.slots.new(id_type='OBJECT', name='PZ_HumanRigSlot')
+        self.target_rig.animation_data.action = self.target_action
+        self.target_rig.animation_data.action_slot = self.target_slot
+
+        bone_name_pattern = r'"(.*?)"'
+        bone_name_regex = re.compile(bone_name_pattern)
+
+        transform_type_pattern = r'\]\.(.*)'
+        transform_type_regex = re.compile(transform_type_pattern)
+
+        reference_bones = self.reference_rig.pose.bones
+        target_bones = self.target_rig.pose.bones
+
+        # # Capture the base pose for each bone
+        # context.scene.frame_set(0)
+        # for reference_bone_name, target_bone_name in self.control_dict.items():
+
+        #     reference_bone = reference_bones.get(reference_bone_name)
+        #     target_bone = target_bones.get(target_bone_name)
+
+        #     self.base_poses.update({target_bone_name : reference_bone.matrix.copy()})
+
+        #     data_path = 'pose.bones["' + target_bone_name + '"]'
+        #     self.target_rig.keyframe_insert(data_path=data_path + '.location', frame=0)
+        #     self.target_rig.keyframe_insert(data_path=data_path + '.rotation_quaternion', frame=0)
+
+        # Capture the animation curves
+        #TODO Optimize
+
+        # Set the base pose
+
+        for fcurve in channelbag.fcurves:
+            bone_name = bone_name_regex.search(fcurve.data_path).group().replace('"', '')
+            transform_type = transform_type_regex.search(fcurve.data_path).group().replace('].', '')
+
+            if bone_name in self.control_dict:
+                ctrl_bone_name = self.control_dict[bone_name]
+                ctrl_bone = target_bones.get(ctrl_bone_name)
+                target_data_path = fcurve.data_path.replace(bone_name, self.control_dict[bone_name])
+
+                for key in fcurve.keyframe_points:
+                    context.scene.frame_set(int(key.co[0]))
+
+                    axis_switch = 0
+
+                    match transform_type:
+                        case 'location':
+                            match fcurve.array_index:
+                                case 0:
+                                    axis_switch = 1
+                                case 1:
+                                    axis_switch = 2
+                                case 2:
+                                    axis_switch = 0
+
+                            ctrl_bone.location[axis_switch] = key.co[1] * 100 
+                            if bone_name in self.rest_deltas:
+                                ctrl_bone.location[axis_switch] += self.rest_deltas[bone_name].to_translation()[axis_switch] / 100
+                        case 'rotation_quaternion':
+                            match fcurve.array_index:
+                                case 0:
+                                    # Let Blender calculate the quaternion w
+                                    continue
+                                case 1:
+                                    axis_switch = 3
+                                case 2:
+                                    axis_switch = 1
+                                case 3:
+                                    axis_switch = 2
+
+                            ctrl_bone.rotation_quaternion[axis_switch] = key.co[1] 
+                            if bone_name in self.rest_deltas:
+                                ctrl_bone.rotation_quaternion[axis_switch] += self.rest_deltas[bone_name].to_quaternion()[axis_switch]
+
+                    self.target_rig.keyframe_insert(data_path=target_data_path, frame=int(key.co[0]))
+
+        return ({'FINISHED'})
+
+
+    def execute(self, context):
+        p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
+
+        # Store context to restore later
+        prev_mode = context.mode
+        prev_active_object = context.active_object
+        if prev_active_object is not None:
+            prev_active_object = context.active_object
+        prev_selected_objects = context.selected_objects
+
+        self.target_rig = context.active_object
+
+        self.import_reference_rig(context, p, g)
+        #self.cleanup_animation(context, p, g)
+        self.remap_animation(context, p, g)
+
+        bpy.data.objects.remove(self.reference_rig, do_unlink=True)   
+
+        # Deselect all objects
+        bpy.ops.object.select_all(action='DESELECT')
+        
+        for obj in prev_selected_objects:
+            obj.select_set(True)
+        if prev_active_object is not None:
+            context.view_layer.objects.active = prev_active_object
+            
+        # Restore the context that was before the operation was called
+        bpy.ops.object.mode_set(mode=prev_mode)
+
+        return ({'FINISHED'})
+
+# endregion
+
 # region Instancing Operators
+
+# ============================================================================================
+# DUPLICATE RIG
+# ============================================================================================
 
 class PZ_HumanRig_DuplicateRig(Operator):
     bl_idname = "zomboid.duplicate_rig"
@@ -4879,10 +5322,10 @@ class PZ_HumanRig_Export(Operator):
                     if p.action_filter in action.name:
                         self.export_anim(context, action)
             else:
-                if bpy.data.objects.get('Bip01').animation_data.action is not None:
-                    self.export_anim(context, bpy.data.objects.get('Bip01').animation_data.action)
+                if context.active_object.animation_data.action is not None:
+                    self.export_anim(context, context.active_object.animation_data.action)
                 else:
-                    print("Bip01 has no active action selected.")
+                    print("Selected rig has no active action selected.")
         else:
             self.report({"WARNING"}, "Declare a filepath to export to")
                     
@@ -4899,7 +5342,7 @@ class PZ_HumanRig_Export(Operator):
 
 '''
 This is the main PropertyGroup attatched to each instance of the rig. It contains all
-of the attributes relating to animation, visuals, etc.
+of the attributes relating to animation, visuals, important data blocks, etc.
 '''
 
 class PZ_HumanRigProperties(PropertyGroup):
@@ -4920,7 +5363,34 @@ class PZ_HumanRigProperties(PropertyGroup):
 # INSTANCING
 # ============================================================================================
 
-    rig_instance : IntProperty(default=0)
+    '''
+    When updating the rig instance index, update the name of all instance-specific
+    data blocks to match
+    '''
+
+    def update_rig_instance(self, context):
+        p = context.active_object.pz_human_props
+        instance_str = ' (' + str(p.rig_instance) + ')'
+
+        old_instance_pattern = r' \([0-9]+\)'
+
+        # Recursively go through the rig collection and change all '({old rig instance})'
+        # to '({new rig instance})'
+        
+        p.rig_collection.name = re.sub(old_instance_pattern, instance_str, p.rig_collection.name)
+        for col in p.rig_collection.children_recursive:
+            col.name = re.sub(old_instance_pattern, instance_str, col.name)
+            for obj in col.objects:
+                obj.name = re.sub(old_instance_pattern, instance_str, obj.name)
+                if obj.active_material is not None:
+                    obj.active_material.name = re.sub(old_instance_pattern, instance_str, obj.active_material.name)
+
+
+    rig_instance : IntProperty(
+        default=0,
+        min = 0,
+        update=update_rig_instance
+    )
 
 # ============================================================================================
 # HEAD ROTATION
@@ -5404,15 +5874,9 @@ class PZ_HumanRigProperties(PropertyGroup):
 # ------------------------------------------------------------------------#
 #  Auto Wrist Twist
 
-    auto_wrist_twist : BoolProperty(
-        name="Auto Wrist Twist",
-        description="If true, the forearm will slightly twitst to follow the hand's X rotation, which can mitigate candywrapping",
-        default=True
-    )
-
     wrist_twist_amount : FloatProperty(
         name="Wrist Twist Amount",
-        description="How strongly the forearm follows the hand's X rotation. Can cause issues at higher levels",
+        description="How strongly the forearm follows the hand's X rotation. Can cause snapping issues at higher levels",
         default = 0.25,
         min = 0.0,
         max = 1.0
@@ -5424,7 +5888,6 @@ class PZ_HumanRigProperties(PropertyGroup):
 
     def update_selected_clothing_item(self, context):
         if self.selected_clothing_item != '':
-            item = None
             for clothing_item in context.scene.pz_human_clothing_item_slots:
                 if clothing_item.name == self.selected_clothing_item:
                     bpy.ops.zomboid.add_clothing_item(guid=clothing_item.guid)
@@ -5438,6 +5901,12 @@ class PZ_HumanRigProperties(PropertyGroup):
 
 # ------------------------------------------------------------------------#
 #  Body Mesh
+
+    '''
+    Almost every clothing model has a different verson for both sexes.
+    So, whenever the sex is changed, call functions that properly
+    hide and show the correct sex's clothing in both the viewport and renders
+    '''
     
     def update_clothing_sex_visibility_settings(self, context):
         update_clothing_sex_visibility(self, context)
@@ -5473,8 +5942,8 @@ class PZ_HumanRigProperties(PropertyGroup):
         name="Model Sex",
         description="Which human model to use",
         items=[
-            ('MALE', "Male", "The male model", 0),
-            ('FEMALE', "Female", "The female model", 1),
+            ('MALE', "Male", "The male model and clothing", 0),
+            ('FEMALE', "Female", "The female model and clothing", 1),
         ],
         default='MALE',
         update=update_sex_index
@@ -5537,7 +6006,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     lower_torso_injury : EnumProperty( # 1
         name='Lower Torso Injury',
@@ -5550,7 +6020,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     left_hand_injury : EnumProperty( # 2
         name='Left Hand Injury',
@@ -5563,7 +6034,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     right_hand_injury : EnumProperty( # 3
         name='Right Hand Injury',
@@ -5576,7 +6048,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     left_forearm_injury : EnumProperty( # 4
         name='Left Forearm Injury',
@@ -5589,7 +6062,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     right_forearm_injury : EnumProperty( # 5
         name='Right Forearm Injury',
@@ -5602,7 +6076,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     left_upperarm_injury : EnumProperty( # 6
         name='Left Upperarm Injury',
@@ -5615,7 +6090,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     right_upperarm_injury : EnumProperty( # 7
         name='Right Upperarm Injury',
@@ -5628,7 +6104,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     head_injury : EnumProperty( # 8
         name='Head Injury',
@@ -5638,7 +6115,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 2)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     neck_injury : EnumProperty( # 9
         name='Neck Injury',
@@ -5651,7 +6129,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     groin_injury : EnumProperty( # 10
         name='Groin Injury',
@@ -5664,7 +6143,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     left_thigh_injury : EnumProperty( # 11
         name='Left Thigh Injury',
@@ -5677,7 +6157,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     right_thigh_injury : EnumProperty( # 12
         name='Right Thigh Injury',
@@ -5690,7 +6171,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     left_shin_injury : EnumProperty( # 13
         name='Left Shin Injury',
@@ -5703,7 +6185,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     right_shin_injury : EnumProperty( # 14
         name='Right Shin Injury',
@@ -5716,7 +6199,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     left_foot_injury : EnumProperty( # 15
         name='Left Foot Injury',
@@ -5729,7 +6213,8 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
     right_foot_injury : EnumProperty( # 16
         name='Right Foot Injury',
@@ -5742,10 +6227,12 @@ class PZ_HumanRigProperties(PropertyGroup):
             ('BANDAGEBLOODY', "Bandage (Bloody)", "Bloody Bandage injury texture", 5)
         ],
         default='NONE',
-        update=update_body_injury
+        update=update_body_injury,
+        override={"LIBRARY_OVERRIDABLE"}
     )
 
-    
+# ------------------------------------------------------------------------#
+#  Zombie Injuries
 
     def update_selected_zombie_injury(self, context):
         if self.selected_zombie_injury != 'NONE':
@@ -5775,6 +6262,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5783,6 +6271,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5791,6 +6280,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5799,6 +6289,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5807,6 +6298,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5815,6 +6307,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5823,6 +6316,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5831,6 +6325,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5839,6 +6334,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5847,6 +6343,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5855,6 +6352,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5863,6 +6361,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5871,6 +6370,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5879,6 +6379,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5887,6 +6388,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5895,6 +6397,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5903,6 +6406,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5911,6 +6415,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=5.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_bloodiness_texture
     )
@@ -5928,6 +6433,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -5936,6 +6442,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -5944,6 +6451,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -5952,6 +6460,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -5960,6 +6469,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -5968,6 +6478,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -5976,6 +6487,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -5984,6 +6496,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -5992,6 +6505,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6000,6 +6514,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6008,6 +6523,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6016,6 +6532,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6024,6 +6541,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6032,6 +6550,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6040,6 +6559,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6048,6 +6568,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6056,6 +6577,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6064,6 +6586,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=0.0,
         min=0.0,
         max=2.0,
+        step = 0.25,
         subtype='FACTOR',
         update=update_dirtiness_texture
     )
@@ -6102,6 +6625,20 @@ class PZ_HumanRigProperties(PropertyGroup):
 # ------------------------------------------------------------------------#
 #  Hair Mesh
     
+    '''
+    There are three hair types:
+    - Male Hair
+    - Female Hair
+    - Beard
+
+    Each category is only visible when the respective model sex is selected.
+    For every hair type, there is a 'selected' property and a 'current' property.
+    The 'selected' property is the desired hairstyle from the animator, and the 
+    'current' property dicates which hair model will actually be used, given the 
+    rig's current 'hat category' property and the selected hairstyle's 
+    respective alternate hat hair model specified in the hairstyle XML
+    '''
+
     current_hat_category : IntProperty(
         default = -1
     )
@@ -6151,6 +6688,18 @@ class PZ_HumanRigProperties(PropertyGroup):
     
     current_female_hair_style : StringProperty()
     
+    # Stubble ---------------------------------------
+
+    hair_stubble : BoolProperty(
+        name = 'Hair Stubble',
+        default = False
+    )
+
+    beard_stubble : BoolProperty(
+        name = 'Beard Stubble',
+        default = False
+    )
+
     # ---------------------------------------------------
     
     def update_hair_visibility(self, context):
@@ -6790,8 +7339,34 @@ class PZ_HumanRigGlobalProperties(PropertyGroup):
     beard_style_slot_active_index : IntProperty()
     decal_slot_active_index : IntProperty()
     body_location_active_index : IntProperty()
+    imported_animation_active_index : IntProperty()
 
 # endregion
+
+# ============================================================================================
+# SETTINGS
+# ============================================================================================
+
+    auto_switch_kinematics : BoolProperty(
+        name = 'Auto Switch Kinematics on Snap',
+        description = 'When a snap from FK to IK or vice versa is performed, automatically switch the limb to the target context',
+        default = True
+    )
+    auto_key_snaps : BoolProperty(
+        name = 'Auto Key Snaps',
+        description = 'When a snap from FK to IK or vice versa is performed, automatically key the toggle state and the positions of the affected controls',
+        default = False
+    )
+    snapping_affects_extremeties : BoolProperty(
+        name = 'Snapping Affects Extremeties',
+        description = 'IK/FK snapping will adjust the rotation of the hands and feet as well as the limbs. Best used in tandem with \'Auto Switch Kinematics\'',
+        default = True
+    )
+    allow_overwriting : BoolProperty(
+        name = 'Allow Overwriting',
+        description = 'If an asset entry has the same name as an already registered asset, remove that asset and replace it with the new one. Useful for mods that modify vanilla assets, such as Fluffy Hair',
+        default = True
+    )
 
 #=================================================================================================================================================
 #=================================================================================================================================================
@@ -6839,6 +7414,7 @@ class PZ_HumanRig_MainPanel(Panel):
         p = context.active_object.pz_human_props
         
      #   layout.label(text='Rig Instance: ' + str(p.rig_instance))
+        layout.prop(p, 'rig_instance')
         layout.prop(p, 'debug_toggle')
 
      #   layout.operator('zomboid.duplicate_rig')
@@ -6877,6 +7453,7 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
     def draw(self, context):
         layout = self.layout
         p = context.active_object.pz_human_props
+        g = context.scene.pz_human_global_props
         
         main_column = layout.column()
         
@@ -6901,8 +7478,14 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
         if panel_area:
             box = panel_area.box()
             
+            column = box.column()
+
+            column.prop(g, 'auto_switch_kinematics')
+            column.prop(g, 'auto_key_snaps')
+            column.prop(g, 'snapping_affects_extremeties')
+
             main_row = box.row()
-            
+
             left_column = main_row.column()
             left_column.use_property_split = True
             
@@ -6910,6 +7493,20 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             
             sub_box.label(text="Left Arm")
             sub_box.prop(p, "arm_ik_l", text='IK')
+            op = sub_box.operator('zomboid.snap_fk_to_ik')
+            op.first_fk_bone = 'CTRL-UpperArmFK.L'
+            op.second_fk_bone = 'CTRL-ForearmFK.L'
+            op.first_ik_bone = 'IK-UpperArm.L'
+            op.second_ik_bone = 'IK-Forearm.L'
+            op.extremity_bone = 'CTRL-Hand.L'
+            op.ik_fk_prop = 'arm_ik_l'
+            op = sub_box.operator('zomboid.snap_ik_to_fk')
+            op.fk_bone = 'CTRL-ForearmFK.L'
+            op.snap_helper = 'HLPR-IKSnapTarget.L'
+            op.ik_control_bone = 'CTRL-ArmIK.L'
+            op.ik_pole_bone = 'CTRL-ElbowTarget.L'
+            op.extremity_bone = 'CTRL-Hand.L'
+            op.ik_fk_prop = 'arm_ik_l'
             sub_box.prop(p, "left_arm_ik_control_parent", text='Control Parent')
             sub_box.prop(p, "left_arm_ik_pole_parent", text='Pole Parent')
             sub_box.separator(factor=0.5)
@@ -6920,6 +7517,18 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             
             sub_box.label(text="Left Leg")
             sub_box.prop(p, "leg_ik_l", text='IK')
+            op = sub_box.operator('zomboid.snap_fk_to_ik')
+            op.first_fk_bone = 'CTRL-ThighFK.L'
+            op.second_fk_bone = 'CTRL-CalfFK.L'
+            op.first_ik_bone = 'IK-Thigh.L'
+            op.second_ik_bone = 'IK-Calf.L'
+            op.ik_fk_prop = 'leg_ik_l'
+            op = sub_box.operator('zomboid.snap_ik_to_fk')
+            op.fk_bone = 'CTRL-CalfFK.L'
+            op.snap_helper = ''
+            op.ik_control_bone = 'CTRL-LegIK.L'
+            op.ik_pole_bone = 'CTRL-KneeTarget.L'
+            op.ik_fk_prop = 'leg_ik_l'
             sub_box.prop(p, "left_leg_ik_control_parent", text='Control Parent')
             sub_box.prop(p, "left_leg_ik_pole_parent", text='Pole Parent')
             sub_box.separator(factor=0.5)
@@ -6931,6 +7540,18 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             
             sub_box.label(text="Right Arm")
             sub_box.prop(p, "arm_ik_r", text='IK')
+            op = sub_box.operator('zomboid.snap_fk_to_ik')
+            op.first_fk_bone = 'CTRL-UpperArmFK.R'
+            op.second_fk_bone = 'CTRL-ForearmFK.R'
+            op.first_ik_bone = 'IK-UpperArm.R'
+            op.second_ik_bone = 'IK-Forearm.R'
+            op.ik_fk_prop = 'arm_ik_r'
+            op = sub_box.operator('zomboid.snap_ik_to_fk')
+            op.fk_bone = 'CTRL-ForearmFK.R'
+            op.snap_helper = 'HLPR-IKSnapTarget.R'
+            op.ik_control_bone = 'CTRL-ArmIK.R'
+            op.ik_pole_bone = 'CTRL-ElbowTarget.R'
+            op.ik_fk_prop = 'arm_ik_r'
             sub_box.prop(p, "right_arm_ik_control_parent", text='Control Parent')
             sub_box.prop(p, "right_arm_ik_pole_parent", text='Pole Parent')
             sub_box.separator(factor=0.5)
@@ -6941,6 +7562,18 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
             
             sub_box.label(text="Right Leg")
             sub_box.prop(p, "leg_ik_r", text='IK')
+            op = sub_box.operator('zomboid.snap_fk_to_ik')
+            op.first_fk_bone = 'CTRL-ThighFK.R'
+            op.second_fk_bone = 'CTRL-CalfFK.R'
+            op.first_ik_bone = 'IK-Thigh.R'
+            op.second_ik_bone = 'IK-Calf.R'
+            op.ik_fk_prop = 'leg_ik_r'
+            op = sub_box.operator('zomboid.snap_ik_to_fk')
+            op.fk_bone = 'CTRL-CalfFK.R'
+            op.snap_helper = ''
+            op.ik_control_bone = 'CTRL-LegIK.R'
+            op.ik_pole_bone = 'CTRL-KneeTarget.R'
+            op.ik_fk_prop = 'leg_ik_r'
             sub_box.prop(p, "right_leg_ik_control_parent", text='Control Parent')
             sub_box.prop(p, "right_leg_ik_pole_parent", text='Pole Parent')
             sub_box.separator(factor=0.5)
@@ -6987,16 +7620,14 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
         main_column.separator(factor=2.0, type='LINE')
         
         subpanel, panel_area = main_column.panel("wrist_twist_subpanel", default_closed=False)
-        subpanel.label(text='Auto Wrist Twist')
+        subpanel.label(text='Extremety Rotation')
         
         if panel_area:
             box = panel_area.box()
             column = box.column()
             row = column.row()
             
-            row.prop(p, 'auto_wrist_twist')
-            if p.auto_wrist_twist:
-                row.prop(p, 'wrist_twist_amount')
+            row.prop(p, 'wrist_twist_amount')
             
 # ============================================================================================
 # CONTROLS PANEL
@@ -7806,6 +8437,12 @@ class PZ_UL_BodyLocationList(UIList):
         row = layout.row()
         row.label(text=item.name)
 
+class PZ_UL_ImportedAnimationList(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row()
+        row.label(text=item.name)
+        row.label(text=item.character_type)
+
 class PZ_HumanRig_AssetsPanel(Panel):
     bl_idname = "PROPERTIES_PT_pz_human_rig_assets_panel"
     bl_label = "Assets"
@@ -8084,6 +8721,34 @@ class PZ_HumanRig_AssetsPanel(Panel):
                         column.label(text=loc.name)
                     
                     column.separator()
+        
+        subpanel, panel_area = main_column.panel("imported_animations_subpanel", default_closed=True)
+        subpanel.label(text='Imported Animations')
+
+        if panel_area:
+            box = panel_area.box()
+            column = box.column()
+            
+            row = column.row()
+            
+            row.template_list("PZ_UL_ImportedAnimationList", "pz_imported_animation_list", context.scene, "pz_human_imported_animations", context.scene.pz_human_global_props, "imported_animation_active_index")
+            
+            column.separator()
+            
+            row=column.row()
+
+            if g.imported_animation_active_index != -1:
+                column.operator('zomboid.remap_animation')
+
+                row.label(text="Animation Properties")
+                item_prop = context.scene.pz_human_imported_animations[g.imported_animation_active_index]
+                
+                box = column.box()
+                split = box.split()
+                column = split.column()
+
+                column.label(text='Animation Path:                  ' + item_prop.anim_path)
+                column.label(text='File Type:                              ' + item_prop.file_type)
 
 # endregion
 
@@ -8105,9 +8770,10 @@ object_classes = [PZ_BodyLocationRef, PZ_BodyLocationProperties, PZ_BodyLocation
                   PZ_ClothingItemTextureChoices, PZ_ClothingItemSlot,
                   PZ_OutfitItemChoices, PZ_OutfitItem, PZ_OutfitSlot,
                   PZ_HairStyleHatStyle, PZ_HairStyleSlot,
-                  PZ_ModDirectorySlot, PZ_HumanRigObject]
+                  PZ_ModDirectorySlot, PZ_ImportedAnimation, PZ_HumanRigObject]
 
-operator_classes = [PZ_ConstructBodyTexture, PZ_HumanRig_CreateBodyInjuryTexture,
+operator_classes = [PZ_SnapFKToIK, PZ_SnapIKToFK,
+                    PZ_ConstructBodyTexture, PZ_HumanRig_CreateBodyInjuryTexture,
                     PZ_HumanRig_CreateBodyBloodinessTexture, PZ_HumanRig_CreateBodyDirtinessTexture, PZ_HumanRig_CreateMaskTexture,
                     PZ_HumanRig_AddModDirectorySlot, PZ_HumanRig_RemoveModDirectorySlot,
                     PZ_HumanRig_AddBodyTextureSlot, PZ_HumanRig_RemoveBodyTextureSlot,
@@ -8126,6 +8792,7 @@ operator_classes = [PZ_ConstructBodyTexture, PZ_HumanRig_CreateBodyInjuryTexture
                     PZ_HumanRig_RemoveBodyDirtiness, PZ_HumanRig_RemoveBodyBloodiness,
                     PZ_HumanRig_RemoveAllBodyInjuries, PZ_HumanRig_RemoveAllZombieInjuries,
                     PZ_HumanRig_RemoveAllBodyDamage, PZ_HumanRig_GetAllModDirectories, PZ_HumanRig_RemoveAllModDirectories,
+                    PZ_HumanRig_GetAllAnimations, PZ_HumanRig_RemapAnimation,
                     PZ_HumanRig_ParseClothingXMLs, PZ_HumanRig_ParseOutfitXMLs,
                     PZ_HumanRig_ParseHairStyleXMLs, PZ_HumanRig_ParseDecalXMLs, PZ_HumanRig_ParseInjuries,
                     PZ_HumanRig_ParseBodyLocationLua, PZ_HumanRig_ParseAllXMLs,PZ_HumanRig_ClearAllXMLs,
@@ -8146,7 +8813,7 @@ rig_ui_classes = [PZ_UL_BodyTextureList, PZ_UL_ClothingMeshList, PZ_UL_PropMeshL
 
 scene_ui_classes = [PZ_UL_ModDirectoryList, PZ_UL_ClothingItemList, PZ_UL_OutfitList,
                     PZ_UL_HairStyleList, PZ_UL_BeardStyleList, PZ_UL_DecalsList,
-                    PZ_UL_BodyLocationList, PZ_HumanRig_GlobalPanel,
+                    PZ_UL_BodyLocationList, PZ_UL_ImportedAnimationList, PZ_HumanRig_GlobalPanel,
                     PZ_HumanRig_DirectoriesPanel, PZ_HumanRig_AssetsPanel]
 
 classes = object_classes + operator_classes + property_classes + scene_rig_ui_classes + rig_ui_classes + scene_ui_classes
@@ -8198,7 +8865,7 @@ def initialize_rigs():
         rig_obj = rig.obj
 
         # Force a reload of the generated textures
-        if mask is not None and rig_obj is not None:
+        if mask is not None and rig_obj is not None and rig_obj.name in bpy.context.view_layer.objects:
             bpy.context.view_layer.objects.active = rig_obj
             rig_obj.select_set(True)
 
@@ -8240,6 +8907,7 @@ def register():
     Scene.pz_human_body_locations = CollectionProperty(type=PZ_BodyLocation)
     Scene.pz_human_body_injuries = CollectionProperty(type=PZ_BodyInjury)
     Scene.pz_human_zombie_injuries = CollectionProperty(type=PZ_ZombieInjury)
+    Scene.pz_human_imported_animations = CollectionProperty(type=PZ_ImportedAnimation)
 
     #-------------------------------------------
 
@@ -8293,6 +8961,7 @@ def unregister():
     del Scene.pz_human_body_locations
     del Scene.pz_human_body_injuries
     del Scene.pz_human_zombie_injuries
+    del Scene.pz_human_imported_animations
 
 if __name__ == "__main__":
     register()
