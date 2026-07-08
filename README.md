@@ -21,7 +21,7 @@ This was supposed to be a simple update that only added a small UI for the rig, 
 I still have a lot more I'd like to do with this project, and I would really consider V4 to be the 'halfway point' towards the final vision.
 
 # Installation
-Either install the latest release from Releases (which is reccomended), or download the zipped Blend file straight from the 
+Either install the latest release from Releases (which is reccomended), or download the zipped Blend file straight from the repository.
 
-## How to Use
+# How to Use
 See the [comprehensive documentation](https://github.com/Paddlefruit/ProjectZomboid_CommunityRig/wiki) that explains the various functions of this rig.
