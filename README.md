@@ -1,4 +1,4 @@
-# Project Zomboid Community Rig V4.0.0
+# Project Zomboid Community Rig V4.0.1
 
 By Paddlefruit
 
