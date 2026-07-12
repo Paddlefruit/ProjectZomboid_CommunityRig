@@ -5464,7 +5464,7 @@ class PZ_HumanRig_Export(Operator):
             if p.batch_export:
                 return True
             else:
-                return context.active_object.animation_data.action is None
+                return context.active_object.animation_data.action is not None
         else:
             return False
 
