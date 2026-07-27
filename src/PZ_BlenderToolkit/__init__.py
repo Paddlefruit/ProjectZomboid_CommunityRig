@@ -1,6 +1,6 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 
-import bpy # type: ignore
+import bpy
 from bpy.types import Scene, Object
 from bpy.props import CollectionProperty, PointerProperty
 
