@@ -21,8 +21,9 @@ def init():
 def get_all_submodules(directory):
     imported_modules = []
 
-    for root, _, files in os.walk(directory):
-        for file in files:
+    for root, dirs, files in os.walk(directory):
+        dirs.sort()
+        for file in sorted(files):
             if file.endswith(".py") and file != "__init__.py" and file != "auto_load.py":
                 rel_path = os.path.relpath(os.path.join(root, file), directory)
                 module_dots = rel_path.replace(os.sep, ".").removesuffix(".py")
@@ -35,7 +36,6 @@ def get_all_submodules(directory):
 
 def get_classes_to_register(module_list):
     classes = []
-    addon_pref_obj = None
 
     blender_bases = (Operator, Panel, UIList, PropertyGroup, AddonPreferences)
 
@@ -45,9 +45,6 @@ def get_classes_to_register(module_list):
         file_classes = []
         for name, obj in inspect.getmembers(module, inspect.isclass):
             if obj.__module__ == module.__name__ and issubclass(obj, blender_bases):
-                if issubclass(obj, AddonPreferences):
-                    addon_pref_obj = obj
-                    continue
                 line_no = inspect.getsourcelines(obj)[1]
                 file_classes.append((line_no, obj))
 
@@ -55,10 +52,23 @@ def get_classes_to_register(module_list):
 
         for _, obj in file_classes:
             if obj not in classes:
-                print(obj)
                 classes.append(obj)
-                
-    classes.append(addon_pref_obj)
+
+    def get_registration_order(cls):
+        if issubclass(cls, PropertyGroup):
+            return 0
+        if issubclass(cls, (Operator, UIList)):
+            return 1
+        if issubclass(cls, Panel):
+            print(str(cls) + '   ' + str(hasattr(cls, 'bl_parent_id')))
+            if hasattr(cls, 'bl_parent_id'):
+                return 3
+            return 2
+        if issubclass(cls, AddonPreferences):
+            return 4
+        return 5
+
+    classes.sort(key=get_registration_order)
     return classes
 
 def inspect_package_name(directory):
@@ -66,6 +76,7 @@ def inspect_package_name(directory):
 
 def register():
     for cls in ordered_classes:
+        print(cls)
         bpy.utils.register_class(cls)
 
 def unregister():

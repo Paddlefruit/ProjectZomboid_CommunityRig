@@ -15,8 +15,11 @@ class PZ_HumanRig_CreateRig(Operator):
         rigs = context.scene.pz_human_rigs
 
         # Get the path to the PZ_HumanRig Blend file and append it to this file
-        rig_blend_path = Path(__file__).parent.parent.parent / 'Assets' / 'PZ_HumanRig.blend'
+        rig_blend_path = Path(__file__).parent.parent.parent.parent / 'Assets' / 'PZ_HumanRig.blend'
         rig_col_name = 'CH-PZ_Human ([INSTANCE])'
+
+        # Capture all image in data before
+        images_before = set(bpy.data.images)
 
         with bpy.data.libraries.load(str(rig_blend_path)) as (data_from, data_to):
             if rig_col_name in data_from.collections:
