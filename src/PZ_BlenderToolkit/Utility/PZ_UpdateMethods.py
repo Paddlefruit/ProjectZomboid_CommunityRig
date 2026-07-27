@@ -12,6 +12,8 @@ def update_clothing_sex_visibility(self, context):
         'GEO-PZ_Human_Male_Clothes' + instance_str)
     female_collection = bpy.data.collections.get(
         'GEO-PZ_Human_Female_Clothes' + instance_str)
+    assert male_collection is not None, "Male collection is None"
+    assert female_collection is not None, "Female collection is None"
 
     current_sex = p.model_sex_index
 
@@ -39,6 +41,8 @@ def update_clothing_sex_render(self, context):
         'GEO-PZ_Human_Male_Clothes' + instance_str)
     female_collection = bpy.data.collections.get(
         'GEO-PZ_Human_Female_Clothes' + instance_str)
+    assert male_collection is not None, "Male collection is None"
+    assert female_collection is not None, "Female collection is None"
 
     current_sex = p.model_sex_index
 
@@ -69,6 +73,8 @@ def update_prop_sex_visibility(self, context):
         'GEO-PZ_Human_Male_Props' + instance_str)
     female_collection = bpy.data.collections.get(
         'GEO-PZ_Human_Female_Props' + instance_str)
+    assert male_collection is not None, "Male collection is None"
+    assert female_collection is not None, "Female collection is None"
 
     current_sex = p.model_sex_index
 
@@ -96,6 +102,8 @@ def update_prop_sex_render(self, context):
         'GEO-PZ_Human_Male_Props' + instance_str)
     female_collection = bpy.data.collections.get(
         'GEO-PZ_Human_Female_Props' + instance_str)
+    assert male_collection is not None, "Male collection is None"
+    assert female_collection is not None, "Female collection is None"
 
     current_sex = p.model_sex_index
 

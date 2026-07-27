@@ -13,6 +13,7 @@ class PZ_HumanRig_AssetsPanel(Panel):
 
     def draw(self, context):
         layout = self.layout
+        assert layout is not None, "Layout is None"
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
         main_column = layout.column()
