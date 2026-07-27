@@ -1,0 +1,6 @@
+# out
+build/
+
+# python
+__pycache__/
+*.egg-info
