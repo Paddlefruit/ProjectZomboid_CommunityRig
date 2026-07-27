@@ -15,9 +15,6 @@ def init():
     global modules, ordered_classes
 
     current_dir = os.path.dirname(__file__)
-    if current_dir not in sys.path:
-        sys.path.append(current_dir)
-
     modules = get_all_submodules(current_dir)
     ordered_classes = get_classes_to_register(modules)
 
