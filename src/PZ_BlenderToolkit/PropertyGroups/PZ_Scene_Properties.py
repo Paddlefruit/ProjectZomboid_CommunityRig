@@ -1,8 +1,8 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 
 import bpy
-from bpy.types import PropertyGroup
-from bpy.props import IntProperty
+from bpy.types import PropertyGroup, Collection
+from bpy.props import IntProperty, PointerProperty
 
 
 class PZ_Scene_Properties(PropertyGroup):
@@ -12,11 +12,24 @@ class PZ_Scene_Properties(PropertyGroup):
             return
         selected_rig = context.scene.pz_human_rigs[self.human_rig_active_index]
         if selected_rig:
-            bpy.ops.object.select_all(action='DESELECT')
-            selected_rig.obj.select_set(True)
-            context.view_layer.objects.active = selected_rig.obj
+            if context.active_object.mode == 'OBJECT':
+                bpy.ops.object.select_all(action='DESELECT')
+                selected_rig.obj.select_set(True)
+                context.view_layer.objects.active = selected_rig.obj
+            elif context.active_object.mode == 'POSE':
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.select_all(action='DESELECT')
+                selected_rig.obj.select_set(True)
+                context.view_layer.objects.active = selected_rig.obj
+                bpy.ops.object.mode_set(mode='POSE')
 
     human_rig_active_index: IntProperty(
            default=-1,
            update=update_human_rig_active_index
+    )
+
+    rig_parent_collection: PointerProperty(
+        name='Parent Collection',
+        description='The collection that the new rig will be added to. If left blank, it will be added to the Scene collection',
+        type=Collection
     )

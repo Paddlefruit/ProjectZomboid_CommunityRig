@@ -11,6 +11,7 @@ class PZ_HumanRig_CreateRig(Operator):
     bl_description = "Creates a new instance of the rig and adds it to the scene"
 
     def execute(self, context):
+        scene_props = context.scene.pz_human_global_props
         rigs = context.scene.pz_human_rigs
 
         # Get the path to the PZ_HumanRig Blend file and append it to this file
@@ -23,7 +24,10 @@ class PZ_HumanRig_CreateRig(Operator):
 
         appended_collection = bpy.data.collections.get(rig_col_name)
         if appended_collection:
-            bpy.context.scene.collection.children.link(appended_collection)
+            if scene_props.rig_parent_collection:
+                scene_props.rig_parent_collection.children.link(appended_collection)
+            else:
+                bpy.context.scene.collection.children.link(appended_collection)
 
         # Add this rig to the list of rigs in the scene
         new_rig = rigs.add()
