@@ -12,9 +12,14 @@ class PZ_HumanRig_ConstraintsPanel(Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
+        assert context is not None, "Context is None"
         layout = self.layout
+        assert layout is not None, "Layout is None"
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
+    
+        active_object = context.active_object
+        assert active_object is not None, "Active object is None"
+        p = active_object.pz_human_props
 
         main_column = layout.column()
 

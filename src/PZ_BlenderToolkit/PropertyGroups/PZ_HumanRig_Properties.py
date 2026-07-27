@@ -1818,6 +1818,7 @@ class PZ_HumanRigProperties(PropertyGroup):
 
                     selected_group = bpy.data.node_groups.get(
                         self.custom_shading_group_name)
+                    assert selected_group is not None, f"Node group '{self.custom_shading_group_name}' not found"
 
                     if selected_group.bl_idname != 'ShaderNodeTree':
                         return

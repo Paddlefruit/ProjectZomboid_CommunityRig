@@ -11,8 +11,10 @@ class PZ_HumanRig_SceneRigsPanel(Panel):
     bl_category = "Zomboid"
 
     def draw(self, context):
+        assert context is not None, "Context is None"
         scene_props = context.scene.pz_human_global_props
         layout = self.layout
+        assert layout is not None, "Layout is None"
 
         layout.template_list("PZ_UL_RigList", "pz_human_rigs_list", context.scene,
                                 "pz_human_rigs", scene_props, "human_rig_active_index")

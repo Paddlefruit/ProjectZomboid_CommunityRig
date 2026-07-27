@@ -12,8 +12,13 @@ class PZ_HumanRig_ShadingPanel(Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
+        assert context is not None, "Context is None"
         layout = self.layout
-        p = context.active_object.pz_human_props
+        assert layout is not None, "Layout is None"
+    
+        active_object = context.active_object
+        assert active_object is not None, "Active object is None"
+        p = active_object.pz_human_props
 
         column = layout.column()
         row = column.row()

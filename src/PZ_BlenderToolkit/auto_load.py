@@ -21,8 +21,9 @@ def init():
 def get_all_submodules(directory):
     imported_modules = []
 
-    for root, _, files in os.walk(directory):
-        for file in files:
+    for root, dirs, files in os.walk(directory):
+        dirs.sort()
+        for file in sorted(files):
             if file.endswith(".py") and file != "__init__.py" and file != "auto_load.py":
                 rel_path = os.path.relpath(os.path.join(root, file), directory)
                 module_dots = rel_path.replace(os.sep, ".").removesuffix(".py")
