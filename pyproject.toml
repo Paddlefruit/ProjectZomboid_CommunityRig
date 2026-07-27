@@ -1,0 +1,9 @@
+[project]
+name = "PZ_BlenderToolkit"
+description = "Blender Community Rig for Project Zomboid"
+requires-python = ">=3.13.0"
+version = "5.0.0"
+license-files = ["LICENSE"]
+dependencies = [
+    "fake-bpy-module"
+]
