@@ -3,6 +3,7 @@
 import bpy
 import numpy as np
 from bpy.types import Operator
+from mathutils import Vector
 
 class PZ_CreateBodyTexture(Operator):
     bl_idname = "zomboid.create_body_texture"
@@ -30,7 +31,7 @@ class PZ_CreateBodyTexture(Operator):
                     chest_hair = 'a' if p.chest_hair and p.model_sex == 'MALE' else ''
                     skin_color = '0' + str(p.skin_color + 1)
 
-                    self.body_textures.append(skin_textures.get(sex + skin_color + chest_hair).texture_path)
+                    self.body_textures.append((skin_textures.get(sex + skin_color + chest_hair).texture_path, (1.0, 1.0, 1.0)))
                 else:
                     skin_5_fix = p.skin_color == 4 and p.zombification != 0
                     zombie_3_fix = p.skin_color == 2 and p.zombification > 1 and p.model_sex == 'MALE'
@@ -39,33 +40,33 @@ class PZ_CreateBodyTexture(Operator):
                     skin_color = '0' + str(p.skin_color + 1) if not skin_5_fix else '0' + str(p.skin_color)
                     intensity = '_level' + str(p.zombification) if not zombie_3_fix else '_level1'
 
-                    self.body_textures.append(skin_textures.get(sex + skin_color + intensity).texture_path)
+                    self.body_textures.append((skin_textures.get(sex + skin_color + intensity).texture_path, (1.0, 1.0, 1.0)))
             case 'SKELETON':
                 match p.skeleton_type:
                     case 0:
-                        self.body_textures.append(skin_textures.get('Skeleton').texture_path)
+                        self.body_textures.append((skin_textures.get('Skeleton').texture_path, (1.0, 1.0, 1.0)))
                     case 1:
-                        self.body_textures.append(skin_textures.get('SkeletonBurned').texture_path)
+                        self.body_textures.append((skin_textures.get('SkeletonBurned').texture_path, (1.0, 1.0, 1.0)))
                     case 2:
-                        self.body_textures.append(skin_textures.get('SkeletonMuscle').texture_path)
+                        self.body_textures.append((skin_textures.get('SkeletonMuscle').texture_path, (1.0, 1.0, 1.0)))
             case 'MANNEQUIN':
                 if p.mannequin_type == 0:
-                    self.body_textures.append(skin_textures.get('M_Mannequin_White').texture_path)
+                    self.body_textures.append((skin_textures.get('M_Mannequin_White').texture_path, (1.0, 1.0, 1.0)))
                 else:
-                    self.body_textures.append(skin_textures.get('M_Mannequin_Black').texture_path)
+                    self.body_textures.append((skin_textures.get('M_Mannequin_Black').texture_path, (1.0, 1.0, 1.0)))
             case 'SCARECROW':
-                self.body_textures.append(skin_textures.get('Male_Scarecrow').texture_path)
+                self.body_textures.append((skin_textures.get('Male_Scarecrow').texture_path, (1.0, 1.0, 1.0)))
 
         # Get the stubble textures
         if p.skin_set == 'HUMAN':
             if p.hair_stubble:
                 if p.model_sex == 'MALE':
-                    self.body_textures.append(stubble_textures.get('M_Hair_Stubble').texture_path)
+                    self.body_textures.append((stubble_textures.get('M_Hair_Stubble').texture_path, (1.0, 1.0, 1.0)))
                 else:
-                    self.body_textures.append(stubble_textures.get('F_Hair_Stubble').texture_path)
+                    self.body_textures.append((stubble_textures.get('F_Hair_Stubble').texture_path, (1.0, 1.0, 1.0)))
             
             if p.beard_stubble and p.model_sex == 'MALE':
-                self.body_textures.append(stubble_textures.get('M_Beard_Stubble').texture_path)
+                self.body_textures.append((stubble_textures.get('M_Beard_Stubble').texture_path, (1.0, 1.0, 1.0)))
 
             # Get the body injury textures
             injury_props = [p.upper_torso_injury, p.lower_torso_injury, p.left_hand_injury,
@@ -108,16 +109,16 @@ class PZ_CreateBodyTexture(Operator):
                     else:
                         key = (sex, injury, body_part_dict[index])
                     if key in body_injury_lookup:
-                        self.body_textures.append(body_injury_lookup[key])
+                        self.body_textures.append((body_injury_lookup[key], (1.0, 1.0, 1.0)))
 
             # Get the zombie injury textures
             for injury in zombie_injuries:
-                self.body_textures.append(injury.texture_path)
+                self.body_textures.append((injury.texture_path, (1.0, 1.0, 1.0)))
 
         if p.skin_set != 'SKELETON':
             # Get the clothing textures
             for clothing in clothing_textures:
-                self.body_textures.append(clothing.texture_path)
+                self.body_textures.append((clothing.texture_path, clothing.tint_color))
 
     # -------------------------------------------------------------#
     # Create Body Texture
@@ -150,7 +151,7 @@ class PZ_CreateBodyTexture(Operator):
         body_pixels = np.empty(num_pixels * 4, dtype=np.float32)
 
         for tex_path in self.body_textures:
-            body_texture = bpy.data.images.load(tex_path)
+            body_texture = bpy.data.images.load(tex_path[0])
             body_texture.scale(256, 256)
 
             body_pixels = np.empty(num_pixels * 4, dtype=np.float32)
@@ -163,8 +164,7 @@ class PZ_CreateBodyTexture(Operator):
             generated_alpha = generated_rgba[:, 3:4]
 
             alpha = generated_alpha + body_alpha * (1.0 - generated_alpha)
-            rgb = (body_rgba[:, :3] * body_alpha + generated_rgba[:,
-                   :3] * generated_alpha * (1.0 - body_alpha))
+            rgb = ((body_rgba[:, :3] * tex_path[1])* body_alpha + generated_rgba[:, :3] * generated_alpha * (1.0 - body_alpha)) 
 
             generated_rgba[:, :3] = rgb
             generated_rgba[:, 3] = alpha.squeeze()

@@ -105,15 +105,31 @@ class PZ_ShirtDecalGroup(PropertyGroup):
 # ============================================================================================
 
 class PZ_BodyTextureSlot(PropertyGroup):
-    name: StringProperty(default="New Body Texture")
-    texture_path: StringProperty(name="Texture Path")
-    tintable: BoolProperty(name="Tintable", default=False)
+
+    def update_tint_color(self, context):
+        bpy.ops.zomboid.create_body_texture()
+
+    name: StringProperty(
+        default="New Body Texture"
+    )
+    texture_path: StringProperty(
+        name="Texture Path"
+    )
+    tintable: BoolProperty(
+        name="Tintable", 
+        default=False
+    )
     tint_color: FloatVectorProperty(
-        name="Tint Color", subtype='COLOR', default=(1.0, 1.0, 1.0), max=1.0, min=0.0)
-    opacity: FloatProperty(name="Opacity", default=1.0,
-                           min=0.0, max=1.0, subtype='FACTOR')
-    decal_group: StringProperty(default='None')
-    bloodiness: FloatProperty(default=0.0, min=0.0, max=1.0)
+        name="Tint Color", 
+        subtype='COLOR', 
+        default=(1.0, 1.0, 1.0), 
+        max=1.0, 
+        min=0.0, 
+        update=update_tint_color
+    )
+    decal_group: StringProperty(
+        default='None'
+    )
     origin: StringProperty()
     # decal : PointerProperty(type=PZ_ShirtDecal)
 
@@ -152,6 +168,16 @@ class PZ_VisibilityMask(PropertyGroup):
 
 
 class PZ_OverlayMask(PropertyGroup):
+    texture_path: StringProperty()
+    body_part: StringProperty()
+
+
+# ============================================================================================
+# HOLE MASK MASK
+# ============================================================================================
+
+
+class PZ_HoleMask(PropertyGroup):
     texture_path: StringProperty()
     body_part: StringProperty()
 

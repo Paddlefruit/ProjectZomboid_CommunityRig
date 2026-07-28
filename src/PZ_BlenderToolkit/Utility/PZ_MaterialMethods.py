@@ -66,8 +66,6 @@ def create_model_material(context, texture_path, category, hair_type=None):
 
     ## Set the texture node properties and drivers ##
 
-
-
     if category != 'BODY':
         tex_node.image = bpy.data.images.load(texture_path, check_existing=True)
     else:
@@ -85,6 +83,9 @@ def create_model_material(context, texture_path, category, hair_type=None):
     target = var.targets[0]
     target.id = context.active_object
     target.data_path = "pz_human_props.texture_interpolation_index"
+
+    context.active_object.update_tag()
+    mat.node_tree.update_tag()
 
     ### Set the color tint node properties ###
     tint_node.data_type = 'RGBA'
@@ -105,11 +106,14 @@ def create_model_material(context, texture_path, category, hair_type=None):
                 str(p.accessory_model_active_index) + "].tintable"
         else:
             target.data_path = "pz_clothing_models[" + \
-                str(p.accessory_model_active_index) + "].tintable"
+                str(p.clothing_model_active_index) + "].tintable"
     elif category == 'HAIR':
         tint_node.inputs[0].default_value = 1.0
     else:
         tint_node.inputs[0].default_value = 0.0
+
+    context.active_object.update_tag()
+    mat.node_tree.update_tag()
 
     # Color Drivers
 
@@ -125,11 +129,13 @@ def create_model_material(context, texture_path, category, hair_type=None):
             target.id = context.active_object
 
             if category == 'CLOTHING':
-                target.data_path = "pz_clothing_models[" + str(
-                p.accessory_model_active_index) + "].tint_color[" + str(i) + "]"
+                target.data_path = "pz_clothing_models[" + str(p.clothing_model_active_index) + "].tint_color[" + str(i) + "]"
             if category == 'ACCESSORY':
-                target.data_path = "pz_accessory_models[" + str(
-                p.accessory_model_active_index) + "].tint_color[" + str(i) + "]"
+                target.data_path = "pz_accessory_models[" + str(p.accessory_model_active_index) + "].tint_color[" + str(i) + "]"
+
+            context.active_object.update_tag()
+            mat.node_tree.update_tag()
+            
     elif category == 'HAIR':
         for i in range(3):
             path = 'nodes["NDE-TexTint"].inputs[7].default_value'
@@ -157,6 +163,9 @@ def create_model_material(context, texture_path, category, hair_type=None):
             is_zombie_target.id = context.active_object
             is_zombie_target.data_path = "pz_human_props.zombification"
 
+            context.active_object.update_tag()
+            mat.node_tree.update_tag()
+
 
     ### Set the mix shader node properties ###
 
@@ -171,6 +180,9 @@ def create_model_material(context, texture_path, category, hair_type=None):
     target.id = context.active_object
     target.data_path = "pz_human_props.shading_type_index"
 
+    context.active_object.update_tag()
+    mat.node_tree.update_tag()
+
     ### Set the emission node properties ###
 
     # Strength Driver
@@ -183,6 +195,9 @@ def create_model_material(context, texture_path, category, hair_type=None):
     target = var.targets[0]
     target.id = context.active_object
     target.data_path = "pz_human_props.emission_strength"
+
+    context.active_object.update_tag()
+    mat.node_tree.update_tag()
 
     ### Set the PBR node properties ###
 
@@ -197,6 +212,9 @@ def create_model_material(context, texture_path, category, hair_type=None):
     target.id = context.active_object
     target.data_path = "pz_human_props.roughness"
 
+    context.active_object.update_tag()
+    mat.node_tree.update_tag()
+
     # Metallic Driver
     path = 'nodes["NDE-PBRShader"].inputs[1].default_value'
     fcurve = mat.node_tree.driver_add(path)
@@ -207,6 +225,9 @@ def create_model_material(context, texture_path, category, hair_type=None):
     target = var.targets[0]
     target.id = context.active_object
     target.data_path = "pz_human_props.metallic"
+
+    context.active_object.update_tag()
+    mat.node_tree.update_tag()
 
     ### Set the custom shader node properties ###
     selected_group = bpy.data.node_groups.get(

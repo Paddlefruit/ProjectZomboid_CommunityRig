@@ -5,7 +5,7 @@ import bpy
 from bpy.props import StringProperty, BoolProperty
 from bpy.types import Operator
 
-from random import randint
+from random import randint, uniform
 
 class PZ_HumanRig_AddClothingItem(Operator):
     bl_idname = "zomboid.add_clothing_item"
@@ -40,6 +40,11 @@ class PZ_HumanRig_AddClothingItem(Operator):
                 t.decal_group = item.decal_group
                 t.texture_path = item.texture_choices[rnd].texture_path
 
+                t.tintable = True
+                if item.tintable:
+                    t.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                    print(t.tint_color)
+
                 bpy.ops.zomboid.create_body_texture()
 
             # Clothing Mesh
@@ -55,6 +60,10 @@ class PZ_HumanRig_AddClothingItem(Operator):
                 m.texture_path = item.texture_choices[rnd].texture_path
                 m.name = item.name
 
+                m.tintable = True
+                if item.tintable:
+                    m.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+
                 for i in range(len(item.mask_array)):
                     if item.mask_array[i] == True:
                         m.mask_array[i] = True
@@ -63,7 +72,7 @@ class PZ_HumanRig_AddClothingItem(Operator):
 
                 bpy.ops.zomboid.import_clothing_model()
 
-            # Prop Mesh
+            # Accessory Mesh
             else:
                 p.accessory_model_active_index += 1
                 a = a_list.add()
@@ -75,6 +84,10 @@ class PZ_HumanRig_AddClothingItem(Operator):
                 rnd = randint(0, len(item.texture_choices) - 1)
                 a.texture_path = item.texture_choices[rnd].texture_path
                 a.name = item.name
+
+                a.tintable=True
+                if item.tintable:
+                    a.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
 
                 a.attach_bone = item.attach_bone
 

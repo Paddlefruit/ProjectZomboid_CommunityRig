@@ -4,9 +4,9 @@ import bpy
 from bpy.types import Operator
 from ....Utility.PZ_MaterialMethods import remove_model_material
 
-class PZ_RemovePropMesh(Operator):
+class PZ_RemoveAccessoryMesh(Operator):
     bl_idname = "zomboid.remove_accessory_model"
-    bl_label = "Remove Prop Mesh"
+    bl_label = "Remove Accessory Mesh"
     bl_options = {'REGISTER', 'UNDO'}
 
     def remove_accessory_model(self, context, sex):
@@ -17,7 +17,7 @@ class PZ_RemovePropMesh(Operator):
 
         index = p.accessory_model_active_index
 
-        obj_name = 'OBJ-MalePropMesh' if sex == 'MALE' else 'OBJ-FemalePropMesh'
+        obj_name = 'OBJ-MaleAccessoryMesh' if sex == 'MALE' else 'OBJ-FemaleAccessoryMesh'
         orig_obj_name = obj_name + str(index) + instance_str
 
         old_obj = bpy.data.objects.get(orig_obj_name)

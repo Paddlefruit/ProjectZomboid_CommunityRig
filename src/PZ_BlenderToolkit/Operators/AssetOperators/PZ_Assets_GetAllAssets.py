@@ -22,14 +22,17 @@ class PZ_Assets_GetAllAssets(Operator):
 
         bpy.ops.zomboid.clear_all_assets()
 
-     #   bpy.ops.zomboid.parse_body_location_lua()
+        
         bpy.ops.zomboid.get_skin_textures()
+        bpy.ops.zomboid.parse_body_location_lua()
         bpy.ops.zomboid.parse_clothing_xmls()
+        bpy.ops.zomboid.parse_body_location_txt()
         bpy.ops.zomboid.parse_outfit_xmls()
         bpy.ops.zomboid.get_skin_textures()
         bpy.ops.zomboid.parse_hair_style_xmls()
      #   bpy.ops.zomboid.parse_decal_xmls()
         bpy.ops.zomboid.get_injuries()
+        
      #   bpy.ops.zomboid.get_all_animations()
 
         addon_prefs.assets_parsed = True

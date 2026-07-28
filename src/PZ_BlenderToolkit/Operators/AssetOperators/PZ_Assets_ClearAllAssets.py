@@ -20,7 +20,7 @@ class PZ_Assets_ClearAllAssets(Operator):
         addon_prefs.hair_style_slot_active_index = -1
         addon_prefs.beard_style_slot_active_index = -1
      #   addon_prefs.decal_slot_active_index = -1
-     #   addon_prefs.body_location_active_index = -1
+        addon_prefs.body_location_active_index = -1
      #   addon_prefs.imported_animation_active_index = -1
 
         addon_prefs.pz_human_clothing_item_slots.clear()
@@ -35,7 +35,7 @@ class PZ_Assets_ClearAllAssets(Operator):
         addon_prefs.pz_human_beard_styles.clear()
      #   addon_prefs.pz_human_decals.clear()
      #   addon_prefs.pz_human_decal_groups.clear()
-      #  addon_prefs.pz_human_body_locations.clear()
+        addon_prefs.pz_human_body_locations.clear()
       #  addon_prefs.pz_human_imported_animations.clear()
 
         addon_prefs.assets_parsed = False

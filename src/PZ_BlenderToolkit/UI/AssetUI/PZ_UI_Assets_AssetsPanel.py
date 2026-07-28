@@ -278,60 +278,60 @@ class PZ_HumanRig_AssetsPanel(Panel):
         # ------------------------------------------------------------------------#
         #  Body Locations
 
-        # subpanel, panel_area = main_column.panel(
-        #     "body_locations_subpanel", default_closed=True)
-        # subpanel.label(text='Body Locations')
+        subpanel, panel_area = main_column.panel(
+            "body_locations_subpanel", default_closed=True)
+        subpanel.label(text='Body Locations')
 
-        # if panel_area:
-        #     box = panel_area.box()
-        #     column = box.column()
+        if panel_area:  
+            box = panel_area.box()
+            column = box.column()
 
-        #     row = column.row()
+            row = column.row()
 
-        #     row.template_list("PZ_UL_BodyLocationList", "pz_body_location_list", addon_prefs,
-        #                       "pz_human_body_locations", addon_prefs, "body_location_active_index")
+            row.template_list("PZ_UL_BodyLocationList", "pz_body_location_list", addon_prefs,
+                              "pz_human_body_locations", addon_prefs, "body_location_active_index")
 
-        #     column.separator()
+            column.separator()
 
-        #     row = column.row()
+            row = column.row()
 
-        #     if addon_prefs.body_location_active_index != -1:
-        #         row.label(text="Body Location Properties")
-        #         item_prop = addon_prefs.pz_human_body_locations[addon_prefs.body_location_active_index]
+            if addon_prefs.body_location_active_index != -1:
+                row.label(text="Body Location Properties")
+                item_prop = addon_prefs.pz_human_body_locations[addon_prefs.body_location_active_index]
 
-        #         box = column.box()
-        #         split = box.split()
-        #         column = split.column()
+                box = column.box()
+                split = box.split()
+                column = split.column()
 
-        #         if len(item_prop.properties.hide_locations) > 0:
-        #             column.label(
-        #                 text='Body Location will be hidden if any of these locations are used:')
-        #             column.separator(factor=0.5)
+                if len(item_prop.properties.hide_locations) > 0:
+                    column.label(
+                        text='Body Location will be hidden if any of these locations are used:')
+                    column.separator(factor=0.5)
 
-        #             for loc in item_prop.properties.hide_locations:
-        #                 column.label(text=loc.name)
+                    for loc in item_prop.properties.hide_locations:
+                        column.label(text=loc.name)
 
-        #             column.separator()
+                    column.separator()
 
-        #         if len(item_prop.properties.alt_locations) > 0:
-        #             column.label(
-        #                 text='Body Location will use an alternate model if any of these locations are used:')
-        #             column.separator(factor=0.5)
+                if len(item_prop.properties.alt_locations) > 0:
+                    column.label(
+                        text='Body Location will use an alternate model if any of these locations are used:')
+                    column.separator(factor=0.5)
 
-        #             for loc in item_prop.properties.alt_locations:
-        #                 column.label(text=loc.name)
+                    for loc in item_prop.properties.alt_locations:
+                        column.label(text=loc.name)
 
-        #             column.separator()
+                    column.separator()
 
-        #         if len(item_prop.properties.exclusive_locations) > 0:
-        #             column.label(
-        #                 text='Body Location cannot be equpped if any of these locations are used (will be hidden in Blender):')
-        #             column.separator(factor=0.5)
+                if len(item_prop.properties.exclusive_locations) > 0:
+                    column.label(
+                        text='Body Location cannot be equpped if any of these locations are used (will be hidden in Blender):')
+                    column.separator(factor=0.5)
 
-        #             for loc in item_prop.properties.exclusive_locations:
-        #                 column.label(text=loc.name)
+                    for loc in item_prop.properties.exclusive_locations:
+                        column.label(text=loc.name)
 
-        #             column.separator()
+                    column.separator()
 
         # ------------------------------------------------------------------------#
         #  Skin Textures

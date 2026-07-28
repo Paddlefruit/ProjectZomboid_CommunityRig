@@ -273,21 +273,21 @@ class PZ_HumanRig_ModelPanel(Panel):
                 side_column.operator(
                     "zomboid.move_body_texture_down", icon="TRIA_DOWN", text="")
 
-            # column.separator(factor=1.5)
-            # row = column.row()
+            column.separator(factor=1.5)
+            row = column.row()
 
-            # if p.body_texture_slot_active_index != -1:
-            #     row.label(text="Current Slot Properties")
-            #     t = context.active_object.pz_human_body_texture_slots[
-            #         p.body_texture_slot_active_index]
+            if p.body_texture_slot_active_index != -1:
+                row.label(text="Current Slot Properties")
+                t = context.active_object.pz_human_body_texture_slots[
+                    p.body_texture_slot_active_index]
 
-            #     box = column.box()
-            #     column = box.column()
+                box = column.box()
+                column = box.column()
 
-            #     row = column.row()
-            #     row.prop(t, "tintable")
-            #     if t.tintable:
-            #         row.prop(t, "tint_color")
+                row = column.row()
+                row.prop(t, "tintable")
+                if t.tintable:
+                    row.prop(t, "tint_color")
 
 
         main_column.separator(factor=1.5, type='LINE')
@@ -320,21 +320,21 @@ class PZ_HumanRig_ModelPanel(Panel):
                 side_column.operator(
                     "zomboid.remove_clothing_model", text="", icon="REMOVE")
 
-            # column.separator(factor=1.5)
-            # row = column.row()
+            column.separator(factor=1.5)
+            row = column.row()
 
-            # if p.clothing_model_active_index != -1:
-            #     row.label(text="Current Slot Properties")
-            #     m = context.active_object.pz_clothing_models[
-            #         p.clothing_model_active_index]
+            if p.clothing_model_active_index != -1:
+                row.label(text="Current Slot Properties")
+                m = context.active_object.pz_clothing_models[
+                    p.clothing_model_active_index]
 
-            #     box = column.box()
-            #     column = box.column()
+                box = column.box()
+                column = box.column()
 
-            #     row = column.row()
-            #     row.prop(m, "tintable")
-            #     if m.tintable:
-            #         row.prop(m, "tint_color")
+                row = column.row()
+                row.prop(m, "tintable")
+                if m.tintable:
+                    row.prop(m, "tint_color")
 
         main_column.separator(factor=1.5, type='LINE')
 
@@ -366,20 +366,20 @@ class PZ_HumanRig_ModelPanel(Panel):
                 side_column.operator(
                     "zomboid.remove_accessory_model", text="", icon="REMOVE")
 
-            # column.separator(factor=1.5)
-            # row = column.row()
+            column.separator(factor=1.5)
+            row = column.row()
 
-            # if p.accessory_model_active_index != -1:
-            #     row.label(text="Current Slot Properties")
-            #     m = context.active_object.pz_accessory_models[p.accessory_model_active_index]
+            if p.accessory_model_active_index != -1:
+                row.label(text="Current Slot Properties")
+                m = context.active_object.pz_accessory_models[p.accessory_model_active_index]
 
-            #     box = column.box()
-            #     column = box.column()
+                box = column.box()
+                column = box.column()
 
-            #     row = column.row()
-            #     row.prop(m, "tintable")
-            #     if m.tintable:
-            #         row.prop(m, "tint_color")
+                row = column.row()
+                row.prop(m, "tintable")
+                if m.tintable:
+                    row.prop(m, "tint_color")
 
         main_column.separator(factor=1.5, type='LINE')
 

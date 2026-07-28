@@ -87,6 +87,9 @@ class PZ_AddonPreferences(AddonPreferences):
     decal_slot_active_index: IntProperty(
         default=-1
     )
+    body_location_active_index: IntProperty(
+        default=-1
+    )
 
 # ============================================================================================
 # ASSET COLLECTIONS
@@ -106,6 +109,7 @@ class PZ_AddonPreferences(AddonPreferences):
     pz_human_visibility_masks : CollectionProperty(type=PZ_VisibilityMask)
     pz_human_overlay_masks : CollectionProperty(type=PZ_OverlayMask)
     pz_human_imported_animations : CollectionProperty(type=PZ_ImportedAnimation)
+    pz_human_body_locations : CollectionProperty(type=PZ_BodyLocation)
 
 # ============================================================================================
 # PREFERENCES LAYOUT

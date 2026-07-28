@@ -109,7 +109,6 @@ class PZ_HumanRig_CreateBloodinessMask(Operator):
             red = (blood_rgba[:, 0:1] * blood_alpha + generated_rgba[:,0:1])
 
             generated_rgba[:, 0:1] = red
-            #generated_rgba[:, 3] = alpha.squeeze()
 
             blood_texture.user_clear()
             bpy.data.images.remove(blood_texture)

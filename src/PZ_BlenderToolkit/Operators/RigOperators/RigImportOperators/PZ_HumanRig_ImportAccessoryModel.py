@@ -62,8 +62,7 @@ class PZ_ImportAccessoryModel(Operator):
             imported_objects = list(objs_after - objs_before)
 
             sex_collection_name = 'COL-PZ_Human_Male_Accessories' if sex == 'MALE' else 'COL-PZ_Human_Female_Accessories'
-            print(sex_collection_name)
-            prop_collection = bpy.data.collections.get(
+            accessory_collection = bpy.data.collections.get(
                 sex_collection_name + instance_str)
 
             for obj in imported_objects:
@@ -86,8 +85,8 @@ class PZ_ImportAccessoryModel(Operator):
                     for collection in obj.users_collection[:]:
                         collection.objects.unlink(obj)
 
-                    if obj.name not in prop_collection.objects:
-                        prop_collection.objects.link(obj)
+                    if obj.name not in accessory_collection.objects:
+                        accessory_collection.objects.link(obj)
 
                     bip01 = prev_active_object
                     bone = bip01.pose.bones.get(attach_bone)

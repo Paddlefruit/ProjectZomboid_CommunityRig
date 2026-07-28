@@ -109,7 +109,6 @@ class PZ_HumanRig_CreateDirtinessMask(Operator):
             green = (dirt_rgba[:, 1:2] * dirt_alpha + generated_rgba[:,1:2])
 
             generated_rgba[:, 1:2] = green
-            #generated_rgba[:, 3] = alpha.squeeze()
 
             dirt_texture.user_clear()
             bpy.data.images.remove(dirt_texture)

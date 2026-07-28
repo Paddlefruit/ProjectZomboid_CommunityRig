@@ -45,4 +45,18 @@ class PZ_RandomizeHairColor(Operator):
         p.hair_color[1] = color[1]
         p.hair_color[2] = color[2]
 
+        # Call a tag update on the hair color drivers
+        instance_str = ' (' + str(p.rig_instance) + ')'
+        context.active_object.update_tag()
+        hair_mats = ('MAT-MaleHair' + instance_str, 'MAT-FemaleHair' + instance_str, 'MAT-Beard' + instance_str)
+        for hair_mat in hair_mats:
+            mat = bpy.data.materials.get(hair_mat)
+            if mat:
+                mat.node_tree.update_tag()
+
+        # Redraw the viewport
+        for area in context.window.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+
         return ({'FINISHED'})
