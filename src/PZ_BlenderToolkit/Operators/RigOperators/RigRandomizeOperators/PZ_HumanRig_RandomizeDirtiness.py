@@ -10,6 +10,7 @@ class PZ_HumanRig_RandomizeDirtiness(Operator):
     bl_idname = "zomboid.randomize_dirtiness"
     bl_label = "Randomize Dirtiness"
     bl_description = "Randomize the values of all the body dirtiness options based on a set intensity"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         p = context.active_object.pz_human_props

@@ -10,6 +10,7 @@ class PZ_HumanRig_RandomizeBloodiness(Operator):
     bl_idname = "zomboid.randomize_bloodiness"
     bl_label = "Randomize Bloodiness"
     bl_description = "Randomize the values of all the body bloodiness options based on a set intensity"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         p = context.active_object.pz_human_props

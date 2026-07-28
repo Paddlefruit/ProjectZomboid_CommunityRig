@@ -8,6 +8,7 @@ class PZ_HumanRig_ApplyOutfit(Operator):
     bl_idname = "zomboid.apply_outfit"
     bl_label = "Apply Outfit"
     bl_description = "Applies the outfit from the selected XML with the same paramaters and probabilities as in game"
+    bl_options = {'REGISTER', 'UNDO'}
 
     selected_guids = []
     random_top = False

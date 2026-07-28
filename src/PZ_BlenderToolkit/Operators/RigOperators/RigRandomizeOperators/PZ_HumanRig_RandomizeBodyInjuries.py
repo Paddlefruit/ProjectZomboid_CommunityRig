@@ -10,6 +10,7 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
     bl_idname = "zomboid.randomize_body_injuries"
     bl_label = "Randomize Body Injuries"
     bl_description = "Randomize the values of all the body intensity options based on a set intensity"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         p = context.active_object.pz_human_props

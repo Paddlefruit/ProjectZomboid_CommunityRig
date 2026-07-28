@@ -8,6 +8,7 @@ class PZ_HumanRig_RemoveBodyDirtiness(Operator):
     bl_idname = "zomboid.remove_body_dirtiness"
     bl_label = "Remove Dirtiness"
     bl_description = "Sets all dirtiness on the body to zero"
+    bl_options = {'REGISTER', 'UNDO'}
 
     halt_texture_updates: BoolProperty(
         default=True

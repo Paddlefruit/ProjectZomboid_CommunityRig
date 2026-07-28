@@ -43,7 +43,7 @@ class PZ_HumanRig_ModelPanel(Panel):
         column.separator(factor=2.0)
 
         row = column.row()
-        #row.enabled = g.assets_parsed and directx_import_available()
+        
         row.scale_y = 1.5
         row.prop(p, "model_sex", expand=True)
 
@@ -264,14 +264,14 @@ class PZ_HumanRig_ModelPanel(Panel):
 
             if p.body_texture_slot_active_index != -1:
                 side_column.operator(
-                    "zomboid.remove_body_texture_slot", text="", icon="REMOVE")
+                    "zomboid.remove_body_texture", text="", icon="REMOVE")
 
                 column.separator()
 
                 side_column.operator(
-                    "zomboid.move_body_texture_slot_up", icon="TRIA_UP", text="")
+                    "zomboid.move_body_texture_up", icon="TRIA_UP", text="")
                 side_column.operator(
-                    "zomboid.move_body_texture_slot_down", icon="TRIA_DOWN", text="")
+                    "zomboid.move_body_texture_down", icon="TRIA_DOWN", text="")
 
             # column.separator(factor=1.5)
             # row = column.row()
@@ -312,21 +312,21 @@ class PZ_HumanRig_ModelPanel(Panel):
             side_column = row.column(align=True)
 
             side_column.template_list("PZ_UL_ClothingMeshList", "pz_clothing_mesh_list", context.object,
-                                      "pz_human_clothing_mesh_slots", context.object.pz_human_props, "clothing_mesh_slot_active_index")
+                                      "pz_clothing_models", context.object.pz_human_props, "clothing_model_active_index")
 
             side_column = row.column(align=True)
 
-            if p.clothing_mesh_slot_active_index != -1:
+            if p.clothing_model_active_index != -1:
                 side_column.operator(
                     "zomboid.remove_clothing_model", text="", icon="REMOVE")
 
             # column.separator(factor=1.5)
             # row = column.row()
 
-            # if p.clothing_mesh_slot_active_index != -1:
+            # if p.clothing_model_active_index != -1:
             #     row.label(text="Current Slot Properties")
-            #     m = context.active_object.pz_human_clothing_mesh_slots[
-            #         p.clothing_mesh_slot_active_index]
+            #     m = context.active_object.pz_clothing_models[
+            #         p.clothing_model_active_index]
 
             #     box = column.box()
             #     column = box.column()
@@ -358,20 +358,20 @@ class PZ_HumanRig_ModelPanel(Panel):
             side_column = row.column(align=True)
 
             side_column.template_list("PZ_UL_PropMeshList", "pz_prop_mesh_list", context.object,
-                                      "pz_human_prop_mesh_slots", context.object.pz_human_props, "prop_mesh_slot_active_index")
+                                      "pz_accessory_models", context.object.pz_human_props, "accessory_model_active_index")
 
             side_column = row.column(align=True)
 
-            if p.prop_mesh_slot_active_index != -1:
+            if p.accessory_model_active_index != -1:
                 side_column.operator(
                     "zomboid.remove_accessory_model", text="", icon="REMOVE")
 
             # column.separator(factor=1.5)
             # row = column.row()
 
-            # if p.prop_mesh_slot_active_index != -1:
+            # if p.accessory_model_active_index != -1:
             #     row.label(text="Current Slot Properties")
-            #     m = context.active_object.pz_human_prop_mesh_slots[p.prop_mesh_slot_active_index]
+            #     m = context.active_object.pz_accessory_models[p.accessory_model_active_index]
 
             #     box = column.box()
             #     column = box.column()
@@ -400,6 +400,9 @@ class PZ_HumanRig_ModelPanel(Panel):
             row.prop(p, 'hair_color')
             row.operator('zomboid.randomize_hair_color',
                          text='', icon='FILE_REFRESH')
+
+            row = column.row()
+            row.prop(p, 'darken_zombie_hair')
 
             column.separator(factor=1.5, type='LINE')
 

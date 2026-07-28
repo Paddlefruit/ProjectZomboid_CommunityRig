@@ -20,21 +20,21 @@ class PZ_RemoveHairMesh(Operator):
         match self.hair_type:
             case 'M':
                 col = bpy.data.collections.get(
-                    'GEO-PZ_Human_Hair_Male' + instance_str)
+                    'COL-PZ_Human_Hair_Male' + instance_str)
                 if col:
                     obj = col.objects.get('OBJ-MaleHair' + instance_str)
                     if obj:
                         bpy.data.objects.remove(obj, do_unlink=True)
             case 'F':
                 col = bpy.data.collections.get(
-                    'GEO-PZ_Human_Hair_Female' + instance_str)
+                    'COL-PZ_Human_Hair_Female' + instance_str)
                 if col:
                     obj = col.objects.get('OBJ-FemaleHair' + instance_str)
                     if obj:
                         bpy.data.objects.remove(obj, do_unlink=True)
             case 'B':
                 col = bpy.data.collections.get(
-                    'GEO-PZ_Human_Hair_Beard' + instance_str)
+                    'COL-PZ_Human_Hair_Beard' + instance_str)
                 if col:
                     obj = col.objects.get('OBJ-Beard' + instance_str)
                     if obj:

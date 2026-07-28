@@ -47,11 +47,11 @@ def register():
         type=PZ_BodyTextureSlot,
         override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
     )
-    Object.pz_human_clothing_mesh_slots = CollectionProperty(
+    Object.pz_clothing_models = CollectionProperty(
         type=PZ_ClothingMeshSlot,
         override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
     )
-    Object.pz_human_prop_mesh_slots = CollectionProperty(
+    Object.pz_accessory_models = CollectionProperty(
         type=PZ_PropMeshSlot,
         override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
     )
@@ -68,8 +68,8 @@ def unregister():
     # Remove properties and collections from the rig objects
     del Object.pz_human_props
     del Object.pz_human_body_texture_slots
-    del Object.pz_human_clothing_mesh_slots
-    del Object.pz_human_prop_mesh_slots
+    del Object.pz_clothing_models
+    del Object.pz_accessory_models
     del Object.pz_human_zombie_injuries
 
     # -------------------------------------------

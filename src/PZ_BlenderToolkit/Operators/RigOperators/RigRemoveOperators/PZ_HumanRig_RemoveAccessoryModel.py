@@ -7,14 +7,15 @@ from ....Utility.PZ_MaterialMethods import remove_model_material
 class PZ_RemovePropMesh(Operator):
     bl_idname = "zomboid.remove_accessory_model"
     bl_label = "Remove Prop Mesh"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def remove_accessory_model(self, context, sex):
         p = context.active_object.pz_human_props
-        a_list = context.active_object.pz_human_prop_mesh_slots
+        a_list = context.active_object.pz_accessory_models
 
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        index = p.prop_mesh_slot_active_index
+        index = p.accessory_model_active_index
 
         obj_name = 'OBJ-MalePropMesh' if sex == 'MALE' else 'OBJ-FemalePropMesh'
         orig_obj_name = obj_name + str(index) + instance_str
@@ -32,17 +33,17 @@ class PZ_RemovePropMesh(Operator):
 
     def execute(self, context):
         p = context.active_object.pz_human_props
-        a_list = context.active_object.pz_human_prop_mesh_slots
+        a_list = context.active_object.pz_accessory_models
 
-        remove_model_material(context, 'PROP')
+        remove_model_material(context, 'ACCESSORY')
 
         self.remove_accessory_model(context, 'MALE')
         self.remove_accessory_model(context, 'FEMALE')
 
         bpy.ops.zomboid.check_hat_category(count_self=False)
 
-        a_list.remove(p.prop_mesh_slot_active_index)
-        p.prop_mesh_slot_active_index -= 1
+        a_list.remove(p.accessory_model_active_index)
+        p.accessory_model_active_index -= 1
 
         bpy.ops.outliner.orphans_purge(
             do_local_ids=True, do_linked_ids=True, do_recursive=True)

@@ -59,15 +59,15 @@ class PZ_ImportHairModel(Operator):
         match self.hair_type:
             case 'M':
                 col = bpy.data.collections.get(
-                    'GEO-PZ_Human_Hair_Male' + instance_str)
+                    'COL-PZ_Human_Hair_Male' + instance_str)
                 prev_obj = col.objects.get('OBJ-MaleHair' + instance_str)
             case 'F':
                 col = bpy.data.collections.get(
-                    'GEO-PZ_Human_Hair_Female' + instance_str)
+                    'COL-PZ_Human_Hair_Female' + instance_str)
                 prev_obj = col.objects.get('OBJ-FemaleHair' + instance_str)
             case 'B':
                 col = bpy.data.collections.get(
-                    'GEO-PZ_Human_Hair_Beard' + instance_str)
+                    'COL-PZ_Human_Hair_Beard' + instance_str)
                 prev_obj = col.objects.get('OBJ-Beard' + instance_str)
 
         if prev_obj:
@@ -136,13 +136,6 @@ class PZ_ImportHairModel(Operator):
 
                 obj.hide_viewport = obj['sex'] != p.model_sex_index
                 obj.hide_render = obj['sex'] != p.model_sex_index
-
-                # matrix_world = obj.matrix_world.copy()
-                # obj.parent = prev_active_object
-                # obj.matrix_world = matrix_world
-
-                # obj.location = prev_active_object.location
-                # obj.rotation_euler = prev_active_object.rotation_euler
 
                 bip01 = prev_active_object
                 obj.parent = bip01

@@ -7,6 +7,7 @@ from random import random, randint
 class PZ_RandomizeHairColor(Operator):
     bl_idname = "zomboid.randomize_hair_color"
     bl_label = "Randomize Hair Color"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         p = context.active_object.pz_human_props

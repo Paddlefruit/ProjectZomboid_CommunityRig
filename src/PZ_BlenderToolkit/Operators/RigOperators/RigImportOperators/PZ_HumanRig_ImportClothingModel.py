@@ -65,7 +65,7 @@ class PZ_ImportClothingModel(Operator):
 
             imported_objects = list(objs_after - objs_before)
 
-            sex_collection_name = 'GEO-PZ_Human_Male_Clothes' if sex == 'MALE' else 'GEO-PZ_Human_Female_Clothes'
+            sex_collection_name = 'COL-PZ_Human_Male_Clothes' if sex == 'MALE' else 'COL-PZ_Human_Female_Clothes'
             clothing_collection = bpy.data.collections.get(
                 sex_collection_name + instance_str)
 
@@ -90,7 +90,7 @@ class PZ_ImportClothingModel(Operator):
 
                     sex_name = 'OBJ-MaleClothingMesh' if sex == 'MALE' else 'OBJ-FemaleClothingMesh'
                     obj_name = sex_name + \
-                        str(p.clothing_mesh_slot_active_index) + instance_str
+                        str(p.clothing_model_active_index) + instance_str
 
                     old_obj = bpy.data.objects.get(obj_name)
                     if old_obj:
@@ -111,10 +111,6 @@ class PZ_ImportClothingModel(Operator):
 
                     if obj.name not in clothing_collection.objects:
                         clothing_collection.objects.link(obj)
-
-                    # matrix_world = obj.matrix_world.copy()
-                    # obj.parent = prev_active_object
-                    # obj.matrix_world = matrix_world
 
                     bip01 = prev_active_object
                     obj.parent = bip01
@@ -142,7 +138,7 @@ class PZ_ImportClothingModel(Operator):
                     arm_mod.object = prev_active_object
 
                     obj.active_material = bpy.data.materials.get(
-                        'MAT-ClothingMaterial' + str(p.clothing_mesh_slot_active_index) + instance_str)
+                        'MAT-ClothingMaterial' + str(p.clothing_model_active_index) + instance_str)
 
                     obj["sex"] = 0 if sex == 'MALE' else 1
                     obj.hide_viewport = obj['sex'] != p.model_sex_index
@@ -165,8 +161,8 @@ class PZ_ImportClothingModel(Operator):
 
     def add_masks(self, context):
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_clothing_mesh_slots
-        m = m_list[p.clothing_mesh_slot_active_index]
+        m_list = context.active_object.pz_clothing_models
+        m = m_list[p.clothing_model_active_index]
 
         if self.halt_texture_updates:
             p.halt_texture_updates = True
@@ -183,8 +179,8 @@ class PZ_ImportClothingModel(Operator):
     def execute(self, context):
 
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_clothing_mesh_slots
-        m = m_list[p.clothing_mesh_slot_active_index]
+        m_list = context.active_object.pz_clothing_models
+        m = m_list[p.clothing_model_active_index]
 
         create_model_material(context, m.texture_path, 'CLOTHING')
 

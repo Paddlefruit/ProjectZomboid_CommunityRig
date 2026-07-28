@@ -8,6 +8,7 @@ class PZ_HumanRig_RemoveAllBodyInjuries(Operator):
     bl_idname = "zomboid.remove_all_body_injuries"
     bl_label = "Remove All Body Injuries"
     bl_description = "Removes all body injuries"
+    bl_options = {'REGISTER', 'UNDO'}
 
     halt_texture_updates: BoolProperty(
         default=True

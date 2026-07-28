@@ -8,6 +8,7 @@ class PZ_HumanRig_RemoveBodyBloodiness(Operator):
     bl_idname = "zomboid.remove_body_bloodiness"
     bl_label = "Remove Bloodiness"
     bl_description = "Sets all bloodiness on the body to zero"
+    bl_options = {'REGISTER', 'UNDO'}
 
     halt_texture_updates: BoolProperty(
         default=True

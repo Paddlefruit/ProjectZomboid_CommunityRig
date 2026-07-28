@@ -8,6 +8,7 @@ from random import randint
 class PZ_RandomizeHairModel(Operator):
     bl_idname = "zomboid.randomize_hair_model"
     bl_label = "Randomize Hair Model"
+    bl_options = {'REGISTER', 'UNDO'}
 
     hair_type: StringProperty(
         name='Hair Type'

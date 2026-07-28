@@ -2,30 +2,33 @@
 
 import bpy
 
+def resolve_image_users(img_name):
+    target_img = bpy.data.images.get(img_name)
+    real_img = bpy.data.images.get(img_name.split('.001')[0])
+
+    if real_img:
+        # Loop through all materials and nodes to see if this image is used there, and replace it if so
+        for mat in bpy.data.materials:
+            if mat.use_nodes and mat.node_tree:
+                for node in mat.node_tree.nodes:
+                    if node.type == 'TEX_IMAGE' and node.image == target_img:
+                        node.image = real_img
+
+    bpy.data.images.remove(target_img)
+
 def create_model_material(context, texture_path, category, hair_type=None):
     p = context.active_object.pz_human_props
-
-    m_list = None
-    m = None
-
-    match category:
-        case 'PROP':
-            m_list = context.active_object.pz_human_prop_mesh_slots
-            m = m_list[p.prop_mesh_slot_active_index]
-        case 'CLOTHING':
-            m_list = context.active_object.pz_human_clothing_mesh_slots
-            m = m_list[p.clothing_mesh_slot_active_index]
 
     instance_str = ' (' + str(p.rig_instance) + ')'
 
     mat_name = ''
     match category:
-        case 'PROP':
-            mat_name = 'MAT-PropMaterial' + \
-                str(p.prop_mesh_slot_active_index) + instance_str
+        case 'ACCESSORY':
+            mat_name = 'MAT-AccessoryMaterial' + \
+                str(p.accessory_model_active_index) + instance_str
         case 'CLOTHING':
             mat_name = 'MAT-ClothingMaterial' + \
-                str(p.clothing_mesh_slot_active_index) + instance_str
+                str(p.clothing_model_active_index) + instance_str
         case 'BODY':
             mat_name = 'MAT-HumanBody' + instance_str
         case 'HAIR':
@@ -42,7 +45,6 @@ def create_model_material(context, texture_path, category, hair_type=None):
     if old_mat:
         bpy.data.materials.remove(old_mat, do_unlink=True)
 
-    # if Path(texture_path).is_file():
     mat = bpy.data.materials.get('MAT-PZMaterialBoilerplate').copy()
 
     mat.name = mat_name
@@ -58,21 +60,20 @@ def create_model_material(context, texture_path, category, hair_type=None):
     emission_node = nodes.get('NDE-EmissionShader')
     pbr_node = nodes.get('NDE-PBRShader')
     custom_shader_node = nodes.get('NDE-CustomShader')
-    mix_transparent_emission_node = nodes.get('NDE-MixTransparentEmission')
     mix_custom_shader_node = nodes.get('NDE-MixCustomShader')
     dirt_mix_node = nodes.get('NDE-DirtMix')
     alpha_mix_node = nodes.get('NDE-AlphaMix')
 
     ## Set the texture node properties and drivers ##
 
+
+
     if category != 'BODY':
-        tex_node.image = bpy.data.images.load(texture_path)
+        tex_node.image = bpy.data.images.load(texture_path, check_existing=True)
     else:
         tex_node.image = p.body_tex
     
     mask_node.image = p.mask_tex
-
-    print(context.active_object)
 
     # Interpolation Driver
     path = 'nodes["NDE-TexSlot"].interpolation'
@@ -89,7 +90,7 @@ def create_model_material(context, texture_path, category, hair_type=None):
     tint_node.data_type = 'RGBA'
     tint_node.blend_type = 'MULTIPLY'
 
-    if category == 'CLOTHING' or category == 'PROP':
+    if category == 'CLOTHING' or category == 'ACCESSORY':
         # Factor Driver
         path = 'nodes["NDE-TexTint"].inputs[0].default_value'
         fcurve = mat.node_tree.driver_add(path)
@@ -99,12 +100,12 @@ def create_model_material(context, texture_path, category, hair_type=None):
         var = driver.variables.new()
         target = var.targets[0]
         target.id = context.active_object
-        if category == 'PROP':
-            target.data_path = "pz_human_prop_mesh_slots[" + \
-                str(p.prop_mesh_slot_active_index) + "].tintable"
+        if category == 'ACCESSORY':
+            target.data_path = "pz_accessory_models[" + \
+                str(p.accessory_model_active_index) + "].tintable"
         else:
-            target.data_path = "pz_human_clothing_mesh_slots[" + \
-                str(p.prop_mesh_slot_active_index) + "].tintable"
+            target.data_path = "pz_clothing_models[" + \
+                str(p.accessory_model_active_index) + "].tintable"
     elif category == 'HAIR':
         tint_node.inputs[0].default_value = 1.0
     else:
@@ -112,7 +113,7 @@ def create_model_material(context, texture_path, category, hair_type=None):
 
     # Color Drivers
 
-    if category == 'CLOTHING' or category == 'PROP' or category == 'HAIR':
+    if category == 'CLOTHING' or category == 'ACCESSORY':
         for i in range(3):
             path = 'nodes["NDE-TexTint"].inputs[7].default_value'
             fcurve = mat.node_tree.driver_add(path, i)
@@ -124,13 +125,37 @@ def create_model_material(context, texture_path, category, hair_type=None):
             target.id = context.active_object
 
             if category == 'CLOTHING':
-                target.data_path = "pz_human_clothing_mesh_slots[" + str(
-                p.prop_mesh_slot_active_index) + "].tint_color[" + str(i) + "]"
-            if category == 'PROP':
-                target.data_path = "pz_human_prop_mesh_slots[" + str(
-                p.prop_mesh_slot_active_index) + "].tint_color[" + str(i) + "]"
-            elif category == 'HAIR':
-                target.data_path = "pz_human_props.hair_color[" + str(i) + "]"
+                target.data_path = "pz_clothing_models[" + str(
+                p.accessory_model_active_index) + "].tint_color[" + str(i) + "]"
+            if category == 'ACCESSORY':
+                target.data_path = "pz_accessory_models[" + str(
+                p.accessory_model_active_index) + "].tint_color[" + str(i) + "]"
+    elif category == 'HAIR':
+        for i in range(3):
+            path = 'nodes["NDE-TexTint"].inputs[7].default_value'
+            fcurve = mat.node_tree.driver_add(path, i)
+            driver = fcurve.driver
+            driver.type = 'SCRIPTED'
+
+            driver.expression = 'max(color / 4, 0.01) if toggle and zomb > 0 else color'
+
+            color_var = driver.variables.new()
+            color_var.name = 'color'
+            color_target = color_var.targets[0]
+            color_target.id = context.active_object
+            color_target.data_path = "pz_human_props.hair_color[" + str(i) + "]"
+
+            do_darken_var = driver.variables.new()
+            do_darken_var.name = 'toggle'
+            do_darken_target = do_darken_var.targets[0]
+            do_darken_target.id = context.active_object
+            do_darken_target.data_path = "pz_human_props.darken_zombie_hair"
+
+            is_zombie_var = driver.variables.new()
+            is_zombie_var.name = 'zomb'
+            is_zombie_target = is_zombie_var.targets[0]
+            is_zombie_target.id = context.active_object
+            is_zombie_target.data_path = "pz_human_props.zombification"
 
 
     ### Set the mix shader node properties ###
@@ -251,7 +276,7 @@ def create_model_material(context, texture_path, category, hair_type=None):
 
     # Skip overlay links if this is an accessory or hair
 
-    if category == 'PROP' or category == 'HAIR':
+    if category == 'ACCESSORY' or category == 'HAIR':
         links.new(tint_node.outputs['Result'], emission_node.inputs['Color'])
         links.new(tint_node.outputs['Result'], pbr_node.inputs['Base Color'])
         if custom_shader_node.inputs.get('Color') is not None:
@@ -273,14 +298,14 @@ def remove_model_material(context, category):
 
     mat_name = ''
     match category:
-        case 'PROP':
-            mat_name = 'MAT-PropMaterial' + str(index) + instance_str
-            a_list = context.active_object.pz_human_prop_mesh_slots
-            index = p.prop_mesh_slot_active_index
+        case 'ACCESSORY':
+            mat_name = 'MAT-AccessoryMaterial' + str(index) + instance_str
+            a_list = context.active_object.pz_accessory_models
+            index = p.accessory_model_active_index
         case 'CLOTHING':
             mat_name = 'MAT-ClothingMaterial' + str(index) + instance_str
-            a_list = context.active_object.pz_human_clothing_mesh_slots
-            index = p.clothing_mesh_slot_active_index
+            a_list = context.active_object.pz_clothing_models
+            index = p.clothing_model_active_index
 
     old_mat = bpy.data.materials.get(mat_name)
     if old_mat:
@@ -295,8 +320,8 @@ def remove_model_material(context, category):
         index_mat = bpy.data.materials.get(mat_name)
         if index_mat:
             match category:
-                case 'PROP':
-                    index_mat.name = 'MAT-PropMaterial' + \
+                case 'ACCESSORY':
+                    index_mat.name = 'MAT-AccessoryMaterial' + \
                         str(i - 1) + instance_str
                 case 'CLOTHING':
                     index_mat.name = 'MAT-ClothingMaterial' + \
@@ -307,14 +332,14 @@ def remove_model_material(context, category):
                 target = driver.variables[0].targets[0]
 
                 match category:
-                    case 'PROP':
-                        old_path = "pz_human_prop_mesh_slots[" + str(i) + "]"
-                        new_path = "pz_human_prop_mesh_slots[" + \
+                    case 'ACCESSORY':
+                        old_path = "pz_accessory_models[" + str(i) + "]"
+                        new_path = "pz_accessory_models[" + \
                             str(i - 1) + "]"
                     case 'CLOTHING':
-                        old_path = "pz_human_clothing_mesh_slots[" + str(
+                        old_path = "pz_clothing_models[" + str(
                             i) + "]"
-                        new_path = "pz_human_clothing_mesh_slots[" + str(
+                        new_path = "pz_clothing_models[" + str(
                             i - 1) + "]"
 
                 target.data_path = target.data_path.replace(old_path, new_path)

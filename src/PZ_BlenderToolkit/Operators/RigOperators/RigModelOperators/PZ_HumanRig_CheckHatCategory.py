@@ -15,11 +15,11 @@ class PZ_CheckHatCategory(Operator):
     def execute(self, context):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         p = context.active_object.pz_human_props
-        a_list = context.active_object.pz_human_prop_mesh_slots
-        clothing_prop_list = context.active_object.pz_human_clothing_mesh_slots
+        a_list = context.active_object.pz_accessory_models
+        clothing_prop_list = context.active_object.pz_clothing_models
 
         # If there are no props or clothing meshes, set the hair style to the selected one
-        if p.prop_mesh_slot_active_index == -1 and p.clothing_mesh_slot_active_index == -1:
+        if p.accessory_model_active_index == -1 and p.clothing_model_active_index == -1:
             if p.current_male_hair_style != p.selected_male_hair_style:
                 p.current_male_hair_style = p.selected_male_hair_style
                 bpy.ops.zomboid.import_hair_model(hair_type='M')
@@ -34,8 +34,8 @@ class PZ_CheckHatCategory(Operator):
             return ({'FINISHED'})
 
         test = False
-        if p.prop_mesh_slot_active_index != -1:
-            prop_prop = a_list[p.prop_mesh_slot_active_index]
+        if p.accessory_model_active_index != -1:
+            prop_prop = a_list[p.accessory_model_active_index]
 
             for i in range(len(a_list)):
                 if a_list[i].hat_category != -1:  # Found a p mesh that has a hat category
@@ -45,8 +45,8 @@ class PZ_CheckHatCategory(Operator):
                     if a_list[i].hat_category > p.current_hat_category:
                         p.current_hat_category = a_list[i].hat_category
 
-        if p.clothing_mesh_slot_active_index != -1:
-            clothing_prop = clothing_prop_list[p.clothing_mesh_slot_active_index]
+        if p.clothing_model_active_index != -1:
+            clothing_prop = clothing_prop_list[p.clothing_model_active_index]
 
             for i in range(len(clothing_prop_list)):
                 # Found a clothing mesh that has a hat category

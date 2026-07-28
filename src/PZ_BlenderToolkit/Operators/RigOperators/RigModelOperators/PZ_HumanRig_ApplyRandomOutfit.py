@@ -8,6 +8,7 @@ class PZ_HumanRig_ApplyRandomOutfit(Operator):
     bl_idname = "zomboid.apply_random_outfit"
     bl_label = "Apply Random Outfit"
     bl_description = "Applies a random outfit from all XMLs with the same paramaters and probabilities as in game"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences

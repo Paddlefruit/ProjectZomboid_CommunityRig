@@ -61,7 +61,7 @@ class PZ_ImportAccessoryModel(Operator):
 
             imported_objects = list(objs_after - objs_before)
 
-            sex_collection_name = 'GEO-PZ_Human_Male_Props' if sex == 'MALE' else 'GEO-PZ_Human_Female_Props'
+            sex_collection_name = 'COL-PZ_Human_Male_Accessories' if sex == 'MALE' else 'COL-PZ_Human_Female_Accessories'
             print(sex_collection_name)
             prop_collection = bpy.data.collections.get(
                 sex_collection_name + instance_str)
@@ -73,9 +73,9 @@ class PZ_ImportAccessoryModel(Operator):
                     bpy.data.objects.remove(obj, do_unlink=True)
                 elif obj.type == 'MESH':
 
-                    sex_name = 'OBJ-MalePropMesh' if sex == 'MALE' else 'OBJ-FemalePropMesh'
+                    sex_name = 'OBJ-MaleAccessoryMesh' if sex == 'MALE' else 'OBJ-FemaleAccessoryMesh'
                     obj_name = sex_name + \
-                        str(p.prop_mesh_slot_active_index) + instance_str
+                        str(p.accessory_model_active_index) + instance_str
 
                     old_obj = bpy.data.objects.get(obj_name)
                     if old_obj:
@@ -136,7 +136,7 @@ class PZ_ImportAccessoryModel(Operator):
                     obj.modifiers.clear()
 
                     obj.active_material = bpy.data.materials.get(
-                        'MAT-PropMaterial' + str(p.prop_mesh_slot_active_index) + instance_str)
+                        'MAT-AccessoryMaterial' + str(p.accessory_model_active_index) + instance_str)
 
                     obj["sex"] = 0 if sex == 'MALE' else 1
                     obj.hide_viewport = obj['sex'] != p.model_sex_index
@@ -160,10 +160,10 @@ class PZ_ImportAccessoryModel(Operator):
 
     def execute(self, context):
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_prop_mesh_slots
-        m = m_list[p.prop_mesh_slot_active_index]
+        m_list = context.active_object.pz_accessory_models
+        m = m_list[p.accessory_model_active_index]
 
-        create_model_material(context, m.texture_path, 'PROP')
+        create_model_material(context, m.texture_path, 'ACCESSORY')
 
         self.import_accessory_model(context, m.male_model_path,
                                m.model_type, m.attach_bone, 'MALE')

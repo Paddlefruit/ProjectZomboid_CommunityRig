@@ -60,7 +60,6 @@ def get_classes_to_register(module_list):
         if issubclass(cls, (Operator, UIList)):
             return 1
         if issubclass(cls, Panel):
-            print(str(cls) + '   ' + str(hasattr(cls, 'bl_parent_id')))
             if hasattr(cls, 'bl_parent_id'):
                 return 3
             return 2
@@ -76,7 +75,6 @@ def inspect_package_name(directory):
 
 def register():
     for cls in ordered_classes:
-        print(cls)
         bpy.utils.register_class(cls)
 
 def unregister():

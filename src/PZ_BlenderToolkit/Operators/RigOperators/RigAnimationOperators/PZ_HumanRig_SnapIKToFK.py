@@ -10,6 +10,7 @@ from mathutils import Vector, Quaternion
 class PZ_HumanRig_SnapIKToFK(Operator):
     bl_idname = "zomboid.snap_ik_to_fk"
     bl_label = "Snap IK to FK"
+    bl_options = {'REGISTER', 'UNDO'}
 
     fk_bone: StringProperty()
     ik_control_bone: StringProperty()

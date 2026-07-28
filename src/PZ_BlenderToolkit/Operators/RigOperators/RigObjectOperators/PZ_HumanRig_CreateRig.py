@@ -4,11 +4,13 @@ import bpy
 
 from pathlib import Path
 from bpy.types import Operator
+from ....Utility.PZ_MaterialMethods import resolve_image_users
 
 class PZ_HumanRig_CreateRig(Operator):
     bl_idname = "zomboid.create_rig"
     bl_label = "Create Rig"
     bl_description = "Creates a new instance of the rig and adds it to the scene"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         scene_props = context.scene.pz_human_global_props
@@ -42,6 +44,11 @@ class PZ_HumanRig_CreateRig(Operator):
         rig_props.rig_instance = 1
 
         # Check if the import duplicated textures, and remove those duplicates if so
-        
+        images_after = set(bpy.data.images)
+        images_to_check = images_after - images_before
+
+        for img in images_to_check:
+            if '.001' in img.name:
+                resolve_image_users(img.name)
 
         return ({'FINISHED'})

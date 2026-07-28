@@ -20,9 +20,9 @@ class PZ_HumanRig_AddClothingItem(Operator):
     def execute(self, context):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_clothing_mesh_slots
+        m_list = context.active_object.pz_clothing_models
         t_list = context.active_object.pz_human_body_texture_slots
-        a_list = context.active_object.pz_human_prop_mesh_slots
+        a_list = context.active_object.pz_accessory_models
 
         item = None
         for clothing_item in addon_prefs.pz_human_clothing_item_slots:
@@ -44,7 +44,7 @@ class PZ_HumanRig_AddClothingItem(Operator):
 
             # Clothing Mesh
             elif item.static == False and item.attach_bone == 'None' or item.static == True and item.attach_bone == 'None':
-                p.clothing_mesh_slot_active_index += 1
+                p.clothing_model_active_index += 1
                 m = m_list.add()
 
                 m.male_model_path = item.male_model_path
@@ -65,7 +65,7 @@ class PZ_HumanRig_AddClothingItem(Operator):
 
             # Prop Mesh
             else:
-                p.prop_mesh_slot_active_index += 1
+                p.accessory_model_active_index += 1
                 a = a_list.add()
 
                 a.male_model_path = item.male_model_path

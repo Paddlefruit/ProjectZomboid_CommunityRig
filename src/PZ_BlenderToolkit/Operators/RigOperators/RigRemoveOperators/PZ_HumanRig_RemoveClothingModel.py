@@ -8,6 +8,7 @@ from ....Utility.PZ_MaterialMethods import remove_model_material
 class PZ_RemoveClothingMesh(Operator):
     bl_idname = "zomboid.remove_clothing_model"
     bl_label = "Remove Clothing Mesh"
+    bl_options = {'REGISTER', 'UNDO'}
 
     halt_texture_updates: BoolProperty(
         default=True
@@ -18,11 +19,11 @@ class PZ_RemoveClothingMesh(Operator):
 
     def remove_clothing_material(self, context):
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_clothing_mesh_slots
+        m_list = context.active_object.pz_clothing_models
 
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        index = p.clothing_mesh_slot_active_index
+        index = p.clothing_model_active_index
 
         old_mat = bpy.data.materials.get(
             'MAT-ClothingMaterial' + str(index) + instance_str)
@@ -45,8 +46,8 @@ class PZ_RemoveClothingMesh(Operator):
                     driver = fcurve.driver
                     target = driver.variables[0].targets[0]
 
-                    old_path = "pz_human_clothing_mesh_slots[" + str(i) + "]"
-                    new_path = "pz_human_clothing_mesh_slots[" + str(
+                    old_path = "pz_clothing_models[" + str(i) + "]"
+                    new_path = "pz_clothing_models[" + str(
                         i - 1) + "]"
 
                     target.data_path = target.data_path.replace(
@@ -59,11 +60,11 @@ class PZ_RemoveClothingMesh(Operator):
 
     def remove_male_clothing_mesh(self, context):
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_clothing_mesh_slots
+        m_list = context.active_object.pz_clothing_models
 
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        index = p.clothing_mesh_slot_active_index
+        index = p.clothing_model_active_index
 
         old_obj = bpy.data.objects.get(
             'OBJ-MaleClothingMesh' + str(index) + instance_str)
@@ -84,11 +85,11 @@ class PZ_RemoveClothingMesh(Operator):
 
     def remove_female_clothing_mesh(self, context):
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_clothing_mesh_slots
+        m_list = context.active_object.pz_clothing_models
 
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        index = p.clothing_mesh_slot_active_index
+        index = p.clothing_model_active_index
 
         old_obj = bpy.data.objects.get(
             'OBJ-FemaleClothingMesh' + str(index) + instance_str)
@@ -106,8 +107,8 @@ class PZ_RemoveClothingMesh(Operator):
 
     def check_masks(self, context):
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_clothing_mesh_slots
-        m = m_list[p.clothing_mesh_slot_active_index]
+        m_list = context.active_object.pz_clothing_models
+        m = m_list[p.clothing_model_active_index]
 
         if self.halt_texture_updates:
             p.halt_texture_updates = True
@@ -129,7 +130,7 @@ class PZ_RemoveClothingMesh(Operator):
 
     def execute(self, context):
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_human_clothing_mesh_slots
+        m_list = context.active_object.pz_clothing_models
 
         remove_model_material(context, 'CLOTHING')
         self.remove_male_clothing_mesh(context)
@@ -139,8 +140,8 @@ class PZ_RemoveClothingMesh(Operator):
 
         bpy.ops.zomboid.check_hat_category(count_self=False)
 
-        m_list.remove(p.clothing_mesh_slot_active_index)
-        p.clothing_mesh_slot_active_index -= 1
+        m_list.remove(p.clothing_model_active_index)
+        p.clothing_model_active_index -= 1
 
         bpy.ops.outliner.orphans_purge(
             do_local_ids=True, do_linked_ids=True, do_recursive=True)

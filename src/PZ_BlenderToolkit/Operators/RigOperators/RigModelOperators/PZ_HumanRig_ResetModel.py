@@ -7,6 +7,7 @@ class PZ_ResetModel(Operator):
     bl_idname = "zomboid.reset_model"
     bl_label = "Reset Model"
     bl_description = "Resets all changes to the model and sets all respective settings to default"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         p = context.active_object.pz_human_props

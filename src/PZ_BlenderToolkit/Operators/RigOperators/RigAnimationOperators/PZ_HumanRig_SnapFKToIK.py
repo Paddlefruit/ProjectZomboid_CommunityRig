@@ -7,6 +7,7 @@ from bpy.props import StringProperty
 class PZ_HumanRig_SnapFKToIK(Operator):
     bl_idname = "zomboid.snap_fk_to_ik"
     bl_label = "Snap FK to IK"
+    bl_options = {'REGISTER', 'UNDO'}
 
     first_fk_bone: StringProperty()
     second_fk_bone: StringProperty()

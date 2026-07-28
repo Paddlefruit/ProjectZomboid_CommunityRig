@@ -10,6 +10,7 @@ class PZ_HumanRig_RandomizeZombieInjuries(Operator):
     bl_idname = "zomboid.randomize_zombie_injuries"
     bl_label = "Randomize Zombie Injuries"
     bl_description = "Add a set or random amount of random zombie specific injuries"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences

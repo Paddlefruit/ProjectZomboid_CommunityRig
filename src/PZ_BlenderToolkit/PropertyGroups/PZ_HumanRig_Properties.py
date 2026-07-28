@@ -637,13 +637,19 @@ class PZ_HumanRigProperties(PropertyGroup):
 
     def update_selected_clothing_item(self, context):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-
+        
         if self.selected_clothing_item != '':
-            for clothing_item in addon_prefs.pz_human_clothing_item_slots:
-                if clothing_item.name == self.selected_clothing_item:
-                    bpy.ops.zomboid.add_clothing_item(guid=clothing_item.guid)
-                    break
+            item = self.selected_clothing_item
             self.selected_clothing_item = ''
+            
+           # bpy.ops.ed.undo_push(message="Added manual clothing item")
+
+            if item != '':
+                for clothing_item in addon_prefs.pz_human_clothing_item_slots:
+                    if clothing_item.name == item:
+                        bpy.ops.zomboid.add_clothing_item(guid=clothing_item.guid)
+                        break
+            
 
     selected_clothing_item: StringProperty(
         name='Add Clothing Item',
@@ -686,7 +692,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         p = context.active_object.pz_human_props
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        col = bpy.data.collections.get('GEO-PZ_Human_Bodies' + instance_str)
+        col = bpy.data.collections.get('COL-PZ_Human_Bodies' + instance_str)
         if col:
             col.hide_viewport = not self.show_body
             col.hide_render = not self.show_body
@@ -1570,7 +1576,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         p = context.active_object.pz_human_props
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        col = bpy.data.collections.get('GEO-PZ_Human_Hair' + instance_str)
+        col = bpy.data.collections.get('COL-PZ_Human_Hair' + instance_str)
         if col:
             col.hide_viewport = not self.show_hair
             col.hide_render = not self.show_hair
@@ -1593,6 +1599,12 @@ class PZ_HumanRigProperties(PropertyGroup):
         min=0,
         max=1,
         override={"LIBRARY_OVERRIDABLE"}
+    )
+
+    darken_zombie_hair: BoolProperty(
+        name='Darken Zombie Hair',
+        description='If character is a zombie, darken the hair color which is similar to how it looks in the game',
+        default=True
     )
 
 # ============================================================================================
@@ -1807,7 +1819,7 @@ class PZ_HumanRigProperties(PropertyGroup):
 
         p = context.active_object.pz_human_props
 
-        mat_names = ['MAT-HumanBody', 'MAT-PropMaterial', 'MAT-ClothingMaterial', 'MAT-Hair']
+        mat_names = ['MAT-HumanBody', 'MAT-AccessoryMaterial', 'MAT-ClothingMaterial', 'MAT-Hair']
 
         for col in p.rig_collection.children_recursive:
             for obj in col.objects:
@@ -2127,26 +2139,26 @@ class PZ_HumanRigProperties(PropertyGroup):
     #     return update_body_texture_slots(self, context)
 
     body_texture_slot_active_index: IntProperty(
-        override={"LIBRARY_OVERRIDABLE"}
+        default=-1
     )
 
-    clothing_mesh_slot_active_index: IntProperty(
-        override={"LIBRARY_OVERRIDABLE"}
+    clothing_model_active_index: IntProperty(
+        default=-1
     )
 
-    prop_mesh_slot_active_index: IntProperty(
-        override={"LIBRARY_OVERRIDABLE"}
+    accessory_model_active_index: IntProperty(
+        default=-1
     )
 
     zombie_injury_active_index: IntProperty(
-        override={"LIBRARY_OVERRIDABLE"}
+        default=-1
     )
 
     def update_clothing_visibility(self, context):
         p = context.active_object.pz_human_props
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        col = bpy.data.collections.get('GEO-PZ_Human_Clothes' + instance_str)
+        col = bpy.data.collections.get('COL-PZ_Human_Clothes' + instance_str)
         if col:
             col.hide_viewport = not self.show_clothing
             col.hide_render = not self.show_clothing
@@ -2162,7 +2174,7 @@ class PZ_HumanRigProperties(PropertyGroup):
         p = context.active_object.pz_human_props
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        col = bpy.data.collections.get('GEO-PZ_Human_Props' + instance_str)
+        col = bpy.data.collections.get('COL-PZ_Human_Props' + instance_str)
         if col:
             col.hide_viewport = not self.show_props
             col.hide_render = not self.show_props

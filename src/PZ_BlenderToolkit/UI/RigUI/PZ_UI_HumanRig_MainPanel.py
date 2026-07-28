@@ -9,6 +9,7 @@ class PZ_HumanRig_MainPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Zomboid"
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -20,6 +21,7 @@ class PZ_HumanRig_MainPanel(Panel):
     def draw(self, context):
         layout = self.layout
         p = context.active_object.pz_human_props
+        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
         layout.prop(p, 'rig_name')
         
@@ -28,7 +30,7 @@ class PZ_HumanRig_MainPanel(Panel):
      #   layout.operator('zomboid.duplicate_rig')
         layout.operator('zomboid.remove_rig')
 
-        if p.debug_toggle:
+        if addon_prefs.debug:
             layout.prop(p, 'rig_instance')
 
             layout.prop(p, 'rig_collection')
@@ -52,5 +54,5 @@ class PZ_HumanRig_MainPanel(Panel):
             layout.separator()
 
             layout.prop(p, 'body_texture_slot_active_index')
-            layout.prop(p, 'clothing_mesh_slot_active_index')
-            layout.prop(p, 'prop_mesh_slot_active_index')
+            layout.prop(p, 'clothing_model_active_index')
+            layout.prop(p, 'accessory_model_active_index')
