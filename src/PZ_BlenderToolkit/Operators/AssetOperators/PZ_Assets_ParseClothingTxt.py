@@ -16,8 +16,8 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
         body_locations = addon_prefs.pz_human_body_locations
         clothing_items = addon_prefs.pz_human_clothing_item_slots
 
-        for folder, origin in get_zomboid_asset_folders(context, 'items'):
-            if (folder / 'clothing.txt').is_file():
+        def parse_file(path):
+            if path.is_file():
                 in_main_portion = False
                 in_item_block = False
 
@@ -34,9 +34,6 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                             continue
 
                         if in_main_portion and not in_item_block:
-                            if 'item' in txt_line:
-                                current_clothing_item = txt_line.split('item ')[1]
-                                continue
                             if '{' in txt_line:
                                 in_item_block = True
                                 continue
@@ -45,29 +42,36 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                                 continue
 
                         if in_main_portion and in_item_block:
-                            if 'BodyLocation' in txt_line:
-                                current_body_location = txt_line.split(
-                                    ':')[1].split(',')[0].upper()
-                                print(current_body_location)
+                            if 'BodyLocation' in txt_line or 'CanBeEquipped' in txt_line:
+                                current_body_location = txt_line.split(':')[1].split(',')[0].upper()
 
-                            if 'ClothingItem' in txt_line:
-                                current_clothing_item = txt_line.split('= ')[
-                                    1].split(',')[0]
-                                print(current_clothing_item)
+                            if 'ClothingItem ' in txt_line:
+                                current_clothing_item = txt_line.split('= ')[1].split(',')[0]
 
                             if '}' in txt_line:
                                 in_item_block = False
 
-                                for clothing_item in clothing_items:
-                                    if clothing_item.name == current_clothing_item:
-                                        for body_location in body_locations:
-                                            if body_location.name == current_body_location:
-
-                                                current_clothing_item = ''
-                                                current_body_location = ''
+                                clothing_item = clothing_items.get(current_clothing_item)
+                                if clothing_item:
+                                    for body_location in body_locations:
+                                        if body_location.name.replace('_', '') == current_body_location.replace('_', ''):
+                                            clothing_item.body_location.name = body_location.name
+                                            for loc in body_location.properties.hide_locations:
+                                                new_loc = clothing_item.body_location.properties.hide_locations.add()
+                                                new_loc.name = loc.name
+                                            for loc in body_location.properties.alt_locations:
+                                                new_loc = clothing_item.body_location.properties.alt_locations.add()
+                                                new_loc.name = loc.name
+                                            for loc in body_location.properties.exclusive_locations:
+                                                new_loc = clothing_item.body_location.properties.exclusive_locations.add()
+                                                new_loc.name = loc.name
                                             break
-                                        break
 
-                                continue
+                                current_clothing_item = ''
+                                current_body_location = ''
+
+        for folder, origin in get_zomboid_asset_folders(context, 'items'):
+            parse_file(folder / 'clothing.txt')
+            parse_file(folder / 'container.txt')
 
         return ({'FINISHED'})

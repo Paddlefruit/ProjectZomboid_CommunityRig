@@ -69,17 +69,21 @@ class PZ_ImportClothingModel(Operator):
             clothing_collection = bpy.data.collections.get(
                 sex_collection_name + instance_str)
 
-            # Check for a special condition if the Bob_Trousers model is used. It has an issue where it has two meshes instead of one, which causes issues
-            x = None
-            y = None
-            for obj in imported_objects:
-                if obj.name == 'Bob_Trousers':
-                    x = obj
-                elif obj.name == 'Bob_LongShorts':
-                    y = obj
-            if x is not None and y is not None:
-                imported_objects.remove(y)
-                bpy.data.objects.remove(y, do_unlink=True)
+            # Check for a special condition if the Bob_Trousers or F_HydrationBackpack model is used. It has an issue where it has two meshes instead of one, which causes issues
+            def check_multi_model(wanted_model_name, delete_model_name):
+                x = None
+                y = None
+                for obj in imported_objects:
+                    if obj.name == wanted_model_name:
+                        x = obj
+                    elif obj.name == delete_model_name:
+                        y = obj
+                if x is not None and y is not None:
+                    imported_objects.remove(y)
+                    bpy.data.objects.remove(y, do_unlink=True)
+
+            check_multi_model('Bob_Trousers', 'Bob_LongShorts')
+            check_multi_model('F_HydrationBackpack', 'F_ALICE_PackODD')
 
             for obj in imported_objects:
                 if obj.type == 'ARMATURE':

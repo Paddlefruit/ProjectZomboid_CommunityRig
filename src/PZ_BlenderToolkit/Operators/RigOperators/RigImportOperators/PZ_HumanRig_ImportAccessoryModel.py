@@ -15,6 +15,7 @@ class PZ_ImportAccessoryModel(Operator):
 
     def import_accessory_model(self, context, model_path, model_type, attach_bone, sex):
         p = context.active_object.pz_human_props
+        #model_props = context.active_object.pz_model_props
 
         instance_str = ' (' + str(p.rig_instance) + ')'
 

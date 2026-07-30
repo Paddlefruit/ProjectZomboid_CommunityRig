@@ -50,17 +50,20 @@ class PZ_HumanRig_AssetsPanel(Panel):
                 sub_column = split.column()
 
                 sub_column.label(
-                    text="GUID:                             " + item_prop.guid)
+                    text="GUID:                             " + item_prop.guid
+                )
                 sub_column.label(
-                    text="Male Model Path:         " + item_prop.male_model_path)
-                sub_column.label(text="Female Model Path:     " +
-                                 item_prop.female_model_path)
+                    text="Male Model Path:         " + item_prop.male_model_path
+                )
+                sub_column.label(
+                    text="Female Model Path:     " + item_prop.female_model_path
+                )
                 sub_column.label(
                     text="Model Type:                  " + item_prop.model_type)
                 sub_column.label(
                     text="Tintable:                        " + str(item_prop.tintable))
-                # sub_column.label(
-                #     text="Body Location:             " + item_prop.body_location.name)
+                sub_column.label(
+                    text="Body Location:             " + item_prop.body_location.name)
 
                 sub_column = split.column()
 

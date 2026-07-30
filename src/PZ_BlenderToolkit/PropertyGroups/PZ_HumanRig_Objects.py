@@ -314,7 +314,7 @@ class PZ_ClothingItemSlot(PropertyGroup):
     )
     hat_category: IntProperty()
     decal_group: StringProperty(default='None')
-  #  body_location: PointerProperty(type=PZ_BodyLocation)
+    body_location: PointerProperty(type=PZ_BodyLocation)
     origin: StringProperty()
 
 # ============================================================================================

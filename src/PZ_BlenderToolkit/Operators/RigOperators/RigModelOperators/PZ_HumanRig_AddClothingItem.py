@@ -42,8 +42,10 @@ class PZ_HumanRig_AddClothingItem(Operator):
 
                 t.tintable = True
                 if item.tintable:
-                    t.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
-                    print(t.tint_color)
+                    if p.random_tint_color:
+                        t.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                    else:
+                        t.tint_color = p.static_tint_color
 
                 bpy.ops.zomboid.create_body_texture()
 
@@ -62,7 +64,10 @@ class PZ_HumanRig_AddClothingItem(Operator):
 
                 m.tintable = True
                 if item.tintable:
-                    m.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                    if p.random_tint_color:
+                        m.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                    else:
+                        m.tint_color = p.static_tint_color
 
                 for i in range(len(item.mask_array)):
                     if item.mask_array[i] == True:
@@ -87,7 +92,10 @@ class PZ_HumanRig_AddClothingItem(Operator):
 
                 a.tintable=True
                 if item.tintable:
-                    a.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                    if p.random_tint_color:
+                        a.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                    else:
+                        a.tint_color = p.static_tint_color
 
                 a.attach_bone = item.attach_bone
 

@@ -143,7 +143,7 @@ def create_model_material(context, texture_path, category, hair_type=None):
             driver = fcurve.driver
             driver.type = 'SCRIPTED'
 
-            driver.expression = 'max(color / 4, 0.01) if toggle and zomb > 0 else color'
+            driver.expression = 'max(color / (zomb + 1), 0.01) if toggle and zomb > 0 else color'
 
             color_var = driver.variables.new()
             color_var.name = 'color'

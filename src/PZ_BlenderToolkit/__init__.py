@@ -7,7 +7,7 @@ from bpy.props import CollectionProperty, PointerProperty
 from . import auto_load
 from .PropertyGroups.PZ_HumanRig_Objects import *
 from .PropertyGroups.PZ_Scene_Properties import *
-from .PropertyGroups.PZ_HumanRig_Properties import PZ_HumanRigProperties
+from .PropertyGroups.RigProperties.PZ_HumanRig_Properties import *
 
 bl_info = {
     "name": "Project Zomboid Blender Toolkit",
@@ -21,6 +21,7 @@ def register():
     auto_load.init()
     auto_load.register()
 
+    # Store our scene props on the Scene
     Scene.pz_human_global_props = PointerProperty(
         type=PZ_Scene_Properties,
         name="PZ Human Rig Global Properties"
@@ -42,7 +43,14 @@ def register():
         override={"LIBRARY_OVERRIDABLE"}
     )
 
-    # Store the rig collections on the rig object
+    # # Store our property groups on the Rig objects
+    # Object.pz_model_props = PointerProperty(
+    #     type=PZ_HumanRigModelProperties,
+    #     name="PZ Human Rig Properties",
+    #     poll=poll_bip01
+    # )
+    
+    # Store the rig clothing item collections on the rig object
     Object.pz_human_body_texture_slots = CollectionProperty(
         type=PZ_BodyTextureSlot,
         override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
@@ -60,17 +68,33 @@ def register():
         override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
     )
 
-  #  initialize_rigs()
+    # Store the rig body location collections on the rig object
+    Object.pz_body_locations_to_hide = CollectionProperty(
+        type=PZ_BodyLocation
+    )
+
+    Object.pz_body_locations_to_ban = CollectionProperty(
+        type=PZ_BodyLocation
+    )
+
+    Object.pz_body_locations_to_set_alt_model = CollectionProperty(
+        type=PZ_BodyLocation
+    )
 
 def unregister():
     auto_load.unregister()
 
     # Remove properties and collections from the rig objects
     del Object.pz_human_props
+
     del Object.pz_human_body_texture_slots
     del Object.pz_clothing_models
     del Object.pz_accessory_models
     del Object.pz_human_zombie_injuries
+
+    del Object.pz_body_locations_to_hide
+    del Object.pz_body_locations_to_ban
+    del Object.pz_body_locations_to_set_alt_model
 
     # -------------------------------------------
 

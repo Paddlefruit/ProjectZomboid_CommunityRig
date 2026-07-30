@@ -12,6 +12,12 @@ class PZ_HumanRig_ModelPanel(Panel):
     bl_parent_id = "VIEW3D_PT_pz_human_rig_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
 
+    # def draw(self, context):
+    #     addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+    #     p = context.active_object.pz_human_props
+
+    #     layout = self.layout
+
     def draw(self, context):
         layout = self.layout
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
@@ -458,6 +464,12 @@ class PZ_HumanRig_ModelPanel(Panel):
 
             row.prop(p, 'random_zombie')
             row.prop(p, 'random_skin_color')
+
+            row = column.row()
+
+            row.prop(p, 'random_tint_color')
+            if not p.random_tint_color:
+                row.prop(p, 'static_tint_color')
 
             row = column.row()
 
