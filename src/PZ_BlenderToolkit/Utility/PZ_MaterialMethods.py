@@ -39,6 +39,9 @@ def create_model_material(context, texture_path, category, hair_type=None):
                     mat_name = 'MAT-FemaleHair' + instance_str
                 case 'B':
                     mat_name = 'MAT-Beard' + instance_str
+        case 'ATTACHMENT':
+            mat_name = 'MAT-AttachmentMaterial' + \
+                str(p.attachment_active_index) + instance_str
                 
 
     old_mat = bpy.data.materials.get(mat_name)
@@ -308,7 +311,7 @@ def create_model_material(context, texture_path, category, hair_type=None):
             if link.from_node == alpha_mix_node:
                 links.remove(link)
 
-    return ({'FINISHED'})
+    return mat
 
 
 def remove_model_material(context, category):

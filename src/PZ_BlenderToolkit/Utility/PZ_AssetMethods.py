@@ -38,7 +38,7 @@ def get_zomboid_asset_folders(context, parent_path):
                     results.append((path, mod.name))
     return results
 
-def get_zomboid_asset(context, item_path):
+def get_zomboid_asset(context, item_path, allowed_types=[]):
     item_path = item_path.replace('\\', '/')
     parent_name = Path(item_path).parent.name
     asset_name = Path(item_path).stem
@@ -46,7 +46,11 @@ def get_zomboid_asset(context, item_path):
     for folder, mod_name in get_zomboid_asset_folders(context, parent_name):
         for file in folder.glob(f"{asset_name}.*", case_sensitive=False):
             if file.is_file():
-                return file, file.suffix.lower()
+                if len(allowed_types) > 0:
+                    if file.suffix.lower() in allowed_types:
+                        return file, file.suffix.lower()
+                else:
+                    return file, file.suffix.lower()
 
     print('Could not find ' + item_path)
     return (None, None)

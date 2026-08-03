@@ -33,6 +33,10 @@ class PZ_UL_PropMeshList(UIList):
         render_icon = "RESTRICT_RENDER_OFF" if item.slot_hide_render else "RESTRICT_RENDER_ON"
         row.prop(item, 'slot_hide_render', text="", icon=render_icon)
 
+class PZ_UL_EquippedAttachmentList(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        row.label(text=item.name)
 
 class PZ_UL_ZombieInjuryList(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):

@@ -47,10 +47,14 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
                 x = get_zomboid_asset(context, 'textures/' + texture.text)
                 item.texture_path = str(x[0])
 
-            if hair.find('model').text:
-                item.model_path = hair.find('model').text
+            model = hair.find('model')
+            if model is not None and model.text:
+                x = get_zomboid_asset(context, 'models_X/' + model.text)
+                item.model_path = str(x[0])
+                item.model_type = x[1]
             else:
                 item.model_path = 'None'
+                item.model_type = 'N/A'
 
             for hat_group in hair.findall('alternate'):
                 x = -1
@@ -113,10 +117,14 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
                 x = get_zomboid_asset(context, 'textures/' + texture.text)
                 item.texture_path = str(x[0])
 
-            if hair.find('model').text:
-                item.model_path = hair.find('model').text
+            model = hair.find('model')
+            if model is not None and model.text:
+                x = get_zomboid_asset(context, 'models_X/' + model.text)
+                item.model_path = str(x[0])
+                item.model_type = x[1]
             else:
                 item.model_path = 'None'
+                item.model_type = 'N/A'
 
             for hat_group in hair.findall('alternate'):
                 x = -1
@@ -177,7 +185,14 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
                 x = get_zomboid_asset(context, 'textures/' + texture.text)
                 item.texture_path = str(x[0])
 
-            item.model_path = beard.find('model').text
+            model = beard.find('model')
+            if model is not None and model.text:
+                x = get_zomboid_asset(context, 'models_X/' + model.text)
+                item.model_path = str(x[0])
+                item.model_type = x[1]
+            else:
+                item.model_path = 'None'
+                item.model_type = 'N/A'
 
             self.beard_count = self.beard_count + 1
 

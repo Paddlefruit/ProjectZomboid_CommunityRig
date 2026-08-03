@@ -44,7 +44,7 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                     # Models
                     def get_model(xml_id):
                         m = root.find(xml_id)
-                        if m is not None and m.text is not None:
+                        if m is not None and m.text is not None and m.text != 'null':
                             path = m.text
                             start = path.find(':') + 1
                             end = path.find('.')
@@ -63,10 +63,10 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                         else:
                             return ('None', 'N/A', True)
 
-                    item.male_model_path, item.model_type, item.is_body_texture = get_model(
-                        'm_MaleModel')
-                    item.female_model_path, item.model_type, item.is_body_texture = get_model(
-                        'm_FemaleModel')
+                    item.male_model_path, item.model_type, item.is_body_texture = get_model('m_MaleModel')
+                    item.male_alt_model_path = get_model('m_AltMaleModel')[0]
+                    item.female_model_path, item.model_type, item.is_body_texture = get_model('m_FemaleModel')
+                    item.female_alt_model_path = get_model('m_AltFemaleModel')[0]
 
                     # Textures
                     base_texture = root.find('m_BaseTextures')

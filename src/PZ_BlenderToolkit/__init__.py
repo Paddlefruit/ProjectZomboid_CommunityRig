@@ -6,7 +6,7 @@ from bpy.props import CollectionProperty, PointerProperty
 
 from . import auto_load
 from .PropertyGroups.PZ_HumanRig_Objects import *
-from .PropertyGroups.PZ_Scene_Properties import *
+from .PropertyGroups.PZ_SceneProperties import *
 from .PropertyGroups.RigProperties.PZ_HumanRig_Properties import *
 
 bl_info = {
@@ -23,7 +23,7 @@ def register():
 
     # Store our scene props on the Scene
     Scene.pz_human_global_props = PointerProperty(
-        type=PZ_Scene_Properties,
+        type=PZ_SceneProperties,
         name="PZ Human Rig Global Properties"
     )
 
@@ -49,35 +49,36 @@ def register():
     #     name="PZ Human Rig Properties",
     #     poll=poll_bip01
     # )
-    
-    # Store the rig clothing item collections on the rig object
+
     Object.pz_human_body_texture_slots = CollectionProperty(
-        type=PZ_BodyTextureSlot,
-        override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
+        type=PZ_BodyTextureSlot
     )
     Object.pz_clothing_models = CollectionProperty(
-        type=PZ_ClothingMeshSlot,
-        override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
+        type=PZ_ClothingMeshSlot
     )
     Object.pz_accessory_models = CollectionProperty(
-        type=PZ_PropMeshSlot,
-        override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
+        type=PZ_PropMeshSlot
     )
     Object.pz_human_zombie_injuries = CollectionProperty(
-        type=PZ_ZombieInjury,
-        override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"}
+        type=PZ_ZombieInjury
+    )
+    Object.pz_attachments = CollectionProperty(
+        type=PZ_Attachment
     )
 
     # Store the rig body location collections on the rig object
-    Object.pz_body_locations_to_hide = CollectionProperty(
-        type=PZ_BodyLocation
-    )
+    # Object.pz_body_locations_to_hide = CollectionProperty(
+    #     type=PZ_BodyLocation
+    # )
 
-    Object.pz_body_locations_to_ban = CollectionProperty(
-        type=PZ_BodyLocation
-    )
+    # Object.pz_body_locations_to_ban = CollectionProperty(
+    #     type=PZ_BodyLocation
+    # )
 
-    Object.pz_body_locations_to_set_alt_model = CollectionProperty(
+    # Object.pz_body_locations_to_set_alt_model = CollectionProperty(
+    #     type=PZ_BodyLocation
+    # )
+    Object.pz_used_body_locations = CollectionProperty(
         type=PZ_BodyLocation
     )
 
@@ -92,9 +93,11 @@ def unregister():
     del Object.pz_accessory_models
     del Object.pz_human_zombie_injuries
 
-    del Object.pz_body_locations_to_hide
-    del Object.pz_body_locations_to_ban
-    del Object.pz_body_locations_to_set_alt_model
+    # del Object.pz_body_locations_to_hide
+    # del Object.pz_body_locations_to_ban
+    # del Object.pz_body_locations_to_set_alt_model
+
+    del Object.pz_used_body_locations
 
     # -------------------------------------------
 

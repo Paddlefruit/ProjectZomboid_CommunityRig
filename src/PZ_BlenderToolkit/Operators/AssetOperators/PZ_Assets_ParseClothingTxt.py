@@ -23,8 +23,9 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
 
                 current_clothing_item = ''
                 current_body_location = ''
+                can_have_holes = True
 
-                with open(str((folder / 'clothing.txt')), 'r', encoding='utf-8') as file:
+                with open(str(path), 'r', encoding='utf-8') as file:
                     # TODO: Replace with albion's more sophisticated parser
                     for line in file:
                         txt_line = line.strip()
@@ -48,14 +49,28 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                             if 'ClothingItem ' in txt_line:
                                 current_clothing_item = txt_line.split('= ')[1].split(',')[0]
 
+                            if 'CanHaveHoles' in txt_line:
+                                if txt_line.split('= ')[1].split(',')[0].lower() == 'false':
+                                    can_have_holes = False
+
+                            if 'Cosmetic' in txt_line:
+                                if txt_line.split('= ')[1].split(',')[0].lower() == 'true':
+                                    can_have_holes = False
+
+                            if 'hidden' in txt_line:
+                                if txt_line.split('= ')[1].split(',')[0].lower() == 'true':
+                                    can_have_holes = False
+
                             if '}' in txt_line:
                                 in_item_block = False
 
                                 clothing_item = clothing_items.get(current_clothing_item)
                                 if clothing_item:
+                                    clothing_item.can_have_holes = can_have_holes
                                     for body_location in body_locations:
                                         if body_location.name.replace('_', '') == current_body_location.replace('_', ''):
                                             clothing_item.body_location.name = body_location.name
+                                            clothing_item.body_location.order = body_location.order
                                             for loc in body_location.properties.hide_locations:
                                                 new_loc = clothing_item.body_location.properties.hide_locations.add()
                                                 new_loc.name = loc.name
@@ -69,6 +84,7 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
 
                                 current_clothing_item = ''
                                 current_body_location = ''
+                                can_have_holes = True
 
         for folder, origin in get_zomboid_asset_folders(context, 'items'):
             parse_file(folder / 'clothing.txt')

@@ -59,6 +59,12 @@ class PZ_HumanRig_AssetsPanel(Panel):
                     text="Female Model Path:     " + item_prop.female_model_path
                 )
                 sub_column.label(
+                    text="Male Alt Model Path:         " + item_prop.male_alt_model_path
+                )
+                sub_column.label(
+                    text="Female Alt Model Path:     " + item_prop.female_alt_model_path
+                )
+                sub_column.label(
                     text="Model Type:                  " + item_prop.model_type)
                 sub_column.label(
                     text="Tintable:                        " + str(item_prop.tintable))
@@ -77,6 +83,8 @@ class PZ_HumanRig_AssetsPanel(Panel):
                     text="Hat Category:                           " + str(item_prop.hat_category))
                 sub_column.label(
                     text="Decal Group:                             " + str(item_prop.decal_group))
+                sub_column.label(
+                    text="Can Have Holes:                             " + str(item_prop.can_have_holes))
                 sub_column.label(
                     text="Origin:                                        " + item_prop.origin)
 
@@ -232,8 +240,8 @@ class PZ_HumanRig_AssetsPanel(Panel):
                 column = split.column()
 
                 column.label(text='Model Path:        ' + item_prop.model_path)
-                column.label(text='Beard Level:           ' +
-                             str(item_prop.level))
+                column.label(text='Texture Path:        ' + item_prop.texture_path)
+                column.label(text='Beard Level:           ' + str(item_prop.level))
 
         # ------------------------------------------------------------------------#
         #  Decals
@@ -306,6 +314,8 @@ class PZ_HumanRig_AssetsPanel(Panel):
                 split = box.split()
                 column = split.column()
 
+                column.label(text='Render Order: ' + str(item_prop.order))
+
                 if len(item_prop.properties.hide_locations) > 0:
                     column.label(
                         text='Body Location will be hidden if any of these locations are used:')
@@ -328,7 +338,7 @@ class PZ_HumanRig_AssetsPanel(Panel):
 
                 if len(item_prop.properties.exclusive_locations) > 0:
                     column.label(
-                        text='Body Location cannot be equpped if any of these locations are used (will be hidden in Blender):')
+                        text='Body Location cannot be equpped if any of these locations are used:')
                     column.separator(factor=0.5)
 
                     for loc in item_prop.properties.exclusive_locations:
@@ -479,6 +489,94 @@ class PZ_HumanRig_AssetsPanel(Panel):
 
                 column.label(
                     text='Texture Path:                  ' + item_prop.texture_path)
+
+        # ------------------------------------------------------------------------#
+        #  Attachment Points
+
+        subpanel, panel_area = main_column.panel(
+            "attachment_points_subpanel", default_closed=True)
+        subpanel.label(text='Attachment Points')
+
+        if panel_area:
+            box = panel_area.box()
+            column = box.column()
+
+            row = column.row()
+
+            row.template_list("PZ_UL_AttachmentPointList", "pz_attachment_point_list", addon_prefs,
+                                "pz_human_attachment_points", addon_prefs, "attachment_point_active_index")
+
+            column.separator()
+
+            row = column.row()
+
+            if addon_prefs.attachment_point_active_index != -1:
+
+                row.label(text="Attachment Point Properties")
+                item_prop = addon_prefs.pz_human_attachment_points[addon_prefs.attachment_point_active_index]
+
+                box = column.box()
+                split = box.split()
+                column = split.column()
+
+                column.label(
+                    text='Bone Name:                  ' + item_prop.bone_name
+                )
+                column.label(
+                    text='Offset:                  ' + str(item_prop.offset[:])
+                )
+                column.label(
+                    text='Rotation:                  ' + str(item_prop.rotation[:])
+                )
+
+        # ------------------------------------------------------------------------#
+        #  Attachments
+
+        subpanel, panel_area = main_column.panel(
+            "attachments_subpanel", default_closed=True)
+        subpanel.label(text='Attachments')
+
+        if panel_area:
+            box = panel_area.box()
+            column = box.column()
+
+            row = column.row()
+
+            row.template_list("PZ_UL_AttachmentsList", "pz_attachments_list", addon_prefs,
+                                "pz_human_attachments", addon_prefs, "attachment_active_index")
+
+            column.separator()
+
+            row = column.row()
+
+            if addon_prefs.attachment_active_index != -1:
+
+                row.label(text="Attachment Properties")
+                item_prop = addon_prefs.pz_human_attachments[addon_prefs.attachment_active_index]
+
+                box = column.box()
+                split = box.split()
+                column = split.column()
+
+                column.label(
+                    text='Model Path:                  ' + item_prop.model_path
+                )
+                column.label(
+                    text='Model Type:                  ' + item_prop.model_type
+                )
+                column.label(
+                    text='Texture Path:                  ' + item_prop.texture_path
+                )
+
+                sub_box = column.box()
+                sub_column = sub_box.column()
+
+                for attachment_group in item_prop.attachment_groups:
+                    sub_column.label(text='Attachment Group:   ' + attachment_group.attachment_point)
+                    sub_column.label(text='Offset:             ' + str(attachment_group.offset[:]))
+                    sub_column.label(text='Rotation:           ' + str(attachment_group.rotation[:]))
+                    sub_column.label(text='Scale:              ' + str(attachment_group.scale))
+                    sub_column.separator(factor=1.5, type='LINE')
 
         # ------------------------------------------------------------------------#
         #  Imported Animations

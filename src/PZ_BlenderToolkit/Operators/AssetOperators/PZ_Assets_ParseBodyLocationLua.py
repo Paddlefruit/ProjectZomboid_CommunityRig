@@ -21,6 +21,9 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
         for folder, origin in get_zomboid_asset_folders(context, 'NPCs'):
             if (folder / 'BodyLocations.lua').is_file():
                 with open(str((folder / 'BodyLocations.lua')), 'r', encoding='utf-8') as file:
+
+                    counter = 0
+                    
                     for line in file:
                         lua_line = line.strip()
 
@@ -29,6 +32,8 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
                             pattern = r'\.(.*?)\)'
                             body_location = body_locations.add()
                             body_location.name = re.findall(pattern, lua_line)[0]
+                            body_location.order = counter
+                            counter += 1
 
                         elif 'setExclusive' in lua_line:
                             pattern = r'ItemBodyLocation\.([A-Z_]+)'

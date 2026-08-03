@@ -90,6 +90,12 @@ class PZ_AddonPreferences(AddonPreferences):
     body_location_active_index: IntProperty(
         default=-1
     )
+    attachment_point_active_index: IntProperty(
+        default=-1
+    )
+    attachment_active_index: IntProperty(
+        default=-1
+    )
 
 # ============================================================================================
 # ASSET COLLECTIONS
@@ -110,6 +116,8 @@ class PZ_AddonPreferences(AddonPreferences):
     pz_human_overlay_masks : CollectionProperty(type=PZ_OverlayMask)
     pz_human_imported_animations : CollectionProperty(type=PZ_ImportedAnimation)
     pz_human_body_locations : CollectionProperty(type=PZ_BodyLocation)
+    pz_human_attachment_points : CollectionProperty(type=PZ_AttachmentPoint)
+    pz_human_attachments : CollectionProperty(type=PZ_Attachment)
 
 # ============================================================================================
 # PREFERENCES LAYOUT

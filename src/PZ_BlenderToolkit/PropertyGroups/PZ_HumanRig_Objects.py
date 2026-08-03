@@ -1,8 +1,8 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 
 import bpy
-from bpy.types import PropertyGroup, Object
-from bpy.props import StringProperty, BoolProperty, FloatProperty, IntProperty, FloatVectorProperty, CollectionProperty, PointerProperty, BoolVectorProperty
+from bpy.types import PropertyGroup, Object, Material, Image
+from bpy.props import StringProperty, BoolProperty, FloatProperty, IntProperty, FloatVectorProperty, CollectionProperty, PointerProperty, BoolVectorProperty, EnumProperty
 
 from ..Utility.PZ_UpdateMethods import *
 
@@ -46,6 +46,7 @@ class PZ_BodyLocationProperties(PropertyGroup):
 class PZ_BodyLocation(PropertyGroup):
     name: StringProperty(default='NONE')
     properties: PointerProperty(type=PZ_BodyLocationProperties)
+    order: IntProperty()
 
 
 # ============================================================================================
@@ -130,6 +131,7 @@ class PZ_BodyTextureSlot(PropertyGroup):
     decal_group: StringProperty(
         default='None'
     )
+    render_order: IntProperty()
     origin: StringProperty()
     # decal : PointerProperty(type=PZ_ShirtDecal)
 
@@ -179,6 +181,7 @@ class PZ_OverlayMask(PropertyGroup):
 
 class PZ_HoleMask(PropertyGroup):
     texture_path: StringProperty()
+    hole_type: StringProperty()
     body_part: StringProperty()
 
 # ============================================================================================
@@ -196,7 +199,9 @@ class PZ_ClothingMeshSlot(PropertyGroup):
 
     name: StringProperty()
     male_model_path: StringProperty()
+    male_alt_model_path: StringProperty()
     female_model_path: StringProperty()
+    female_alt_model_path: StringProperty()
     model_type: StringProperty()
     texture_path: StringProperty()
     tintable: BoolProperty(
@@ -247,7 +252,9 @@ class PZ_PropMeshSlot(PropertyGroup):
 
     name: StringProperty()
     male_model_path: StringProperty()
+    male_alt_model_path: StringProperty()
     female_model_path: StringProperty()
+    female_alt_model_path: StringProperty()
     model_type: StringProperty()
     texture_path: StringProperty()
     tintable: BoolProperty(
@@ -288,7 +295,9 @@ class PZ_ClothingItemSlot(PropertyGroup):
     guid: StringProperty()
     is_body_texture: BoolProperty()
     male_model_path: StringProperty()
+    male_alt_model_path: StringProperty()
     female_model_path: StringProperty()
+    female_alt_model_path: StringProperty()
     model_type: StringProperty()
     texture_choices: CollectionProperty(type=PZ_ClothingItemTextureChoices)
     tintable: BoolProperty(
@@ -315,6 +324,7 @@ class PZ_ClothingItemSlot(PropertyGroup):
     hat_category: IntProperty()
     decal_group: StringProperty(default='None')
     body_location: PointerProperty(type=PZ_BodyLocation)
+    can_have_holes: BoolProperty(default=True)
     origin: StringProperty()
 
 # ============================================================================================
@@ -358,6 +368,7 @@ class PZ_HairStyleHatStyle(PropertyGroup):
 class PZ_HairStyleSlot(PropertyGroup):
     name: StringProperty()
     model_path: StringProperty()
+    model_type: StringProperty()
     texture_path: StringProperty()
     sex: StringProperty()
     level: IntProperty()
@@ -374,6 +385,50 @@ class PZ_ImportedAnimation(PropertyGroup):
     anim_path: StringProperty()
     origin: StringProperty()
     character_type: StringProperty()
+
+# ============================================================================================
+# ITEM SCRIPT
+# ============================================================================================
+
+
+# class PZ_ItemScript(PropertyGroup):
+#     display_name: StringProperty(default='None')
+#     display_category: StringProperty(default='None')
+
+
+# ============================================================================================
+# ATTACHMENT
+# ============================================================================================
+
+def update_selected_attachment_point(self, context):
+    p = context.active_object.pz_human_props
+    attachments = context.active_object.pz_attachments
+    bpy.ops.zomboid.move_attachment(attachment_point=attachments[p.attachment_active_index].selected_point)
+
+class PZ_AttachmentPoint(PropertyGroup):
+    sex: StringProperty()
+    bone_name: StringProperty()
+    offset: FloatVectorProperty()
+    rotation: FloatVectorProperty()
+
+class PZ_AttachmentTransformGroup(PropertyGroup):
+    attachment_point: StringProperty()
+    offset: FloatVectorProperty()
+    rotation: FloatVectorProperty()
+    scale: FloatProperty(default=1.0)
+
+class PZ_Attachment(PropertyGroup):
+    model_path: StringProperty()
+    model_type: StringProperty()
+    texture_path: StringProperty()
+    override_groups: CollectionProperty(type=PZ_AttachmentTransformGroup)
+    selected_point: StringProperty(
+        name='Attachment Point',
+        update=update_selected_attachment_point
+    )
+    object_name: StringProperty()
+    material_name: StringProperty()
+    image_name: StringProperty()
 
 # ============================================================================================
 # MOD DIRECTORY

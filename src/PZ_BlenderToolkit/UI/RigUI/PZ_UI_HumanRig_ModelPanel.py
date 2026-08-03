@@ -12,12 +12,6 @@ class PZ_HumanRig_ModelPanel(Panel):
     bl_parent_id = "VIEW3D_PT_pz_human_rig_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
 
-    # def draw(self, context):
-    #     addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-    #     p = context.active_object.pz_human_props
-
-    #     layout = self.layout
-
     def draw(self, context):
         layout = self.layout
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
@@ -61,16 +55,21 @@ class PZ_HumanRig_ModelPanel(Panel):
 
         row = column.row()
         row.enabled = addon_prefs.assets_parsed and directx_import_available()
-        row.prop_search(p, 'selected_clothing_item',
-                        addon_prefs, 'pz_human_clothing_item_slots')
+        row.prop_search(p, 'selected_clothing_item', addon_prefs, 'pz_human_clothing_item_slots')
 
         row = column.row()
         row.operator('zomboid.remove_all_clothing_items')
 
+        # column.separator(factor=2)
+
+        # row = column.row()
+        # row.enabled = addon_prefs.assets_parsed and directx_import_available()
+        # row.prop_search(p, 'selected_attachment', addon_prefs, 'pz_human_attachments')
+
         column.separator(factor=2)
 
         subpanel, panel_area = column.panel(
-            "body_model_subpanel", default_closed=False)
+            "body_model_subpanel", default_closed=True)
         subpanel.label(text='Body')
 
         icon = "HIDE_OFF" if p.show_body else "HIDE_ON"
@@ -137,7 +136,7 @@ class PZ_HumanRig_ModelPanel(Panel):
                 box = column.box()
 
                 body_injury_subpanel, body_injury_panel_area = box.panel(
-                    "body_injury_subpanel", default_closed=False)
+                    "body_injury_subpanel", default_closed=True)
                 body_injury_subpanel.label(text='Body Injuries')
 
                 if body_injury_panel_area:
@@ -175,7 +174,7 @@ class PZ_HumanRig_ModelPanel(Panel):
                     sub_col.operator('zomboid.remove_all_body_injuries')
 
                 zombie_injury_subpanel, zombie_injury_panel_area = box.panel(
-                    "zombie_injury_subpanel", default_closed=False)
+                    "zombie_injury_subpanel", default_closed=True)
                 zombie_injury_subpanel.label(text='Zombie Injuries')
 
                 if zombie_injury_panel_area:
@@ -194,7 +193,7 @@ class PZ_HumanRig_ModelPanel(Panel):
             if p.skin_set != 'SKELETON':
 
                 bloodiness_subpanel, bloodiness_panel_area = box.panel(
-                    "bloodiness_subpanel", default_closed=False)
+                    "bloodiness_subpanel", default_closed=True)
                 bloodiness_subpanel.label(text='Bloodiness')
 
                 if bloodiness_panel_area:
@@ -224,7 +223,7 @@ class PZ_HumanRig_ModelPanel(Panel):
                     sub_col.operator('zomboid.remove_body_bloodiness')
 
                 dirtiness_subpanel, dirtiness_panel_area = box.panel(
-                    "dirtiness_subpanel", default_closed=False)
+                    "dirtiness_subpanel", default_closed=True)
                 dirtiness_subpanel.label(text='Dirtiness')
 
                 if dirtiness_panel_area:
@@ -278,6 +277,7 @@ class PZ_HumanRig_ModelPanel(Panel):
                     "zomboid.move_body_texture_up", icon="TRIA_UP", text="")
                 side_column.operator(
                     "zomboid.move_body_texture_down", icon="TRIA_DOWN", text="")
+                side_column.operator("zomboid.sort_body_clothing_textures", text='', icon="SEQ_HISTOGRAM")
 
             column.separator(factor=1.5)
             row = column.row()
@@ -442,7 +442,29 @@ class PZ_HumanRig_ModelPanel(Panel):
             if p.model_sex == 'MALE':
                 row.prop(p, 'beard_stubble')
 
-        main_column.separator(factor=1.5)
+        main_column.separator(factor=1.5, type='LINE')
+
+###############################################################################################################3
+        
+        # subpanel, panel_area = main_column.panel("attachments_subpanel", default_closed=True)
+        # subpanel.label(text='Attachments')
+
+        # # icon = "HIDE_OFF" if p.show_hair else "HIDE_ON"
+        # # subpanel.prop(p, "show_hair", text='', icon=icon)
+
+        # if panel_area and p.show_hair:
+        #     box = panel_area.box()
+        #     column = box.column()
+        #     column.enabled = addon_prefs.assets_parsed and directx_import_available()
+
+        #     column.template_list("PZ_UL_EquippedAttachmentList", "pz_equipped_attachment_list", context.object, "pz_attachments", context.object.pz_human_props, "attachment_active_index")
+
+        #     if p.attachment_active_index != -1:
+        #         attachment_props = context.active_object.pz_attachments[p.attachment_active_index]
+        #         column.prop_search(attachment_props, 'selected_point', addon_prefs, 'pz_human_attachment_points')
+        #         column.operator('zomboid.remove_attachment')
+
+###############################################################################################################3
 
         main_column.separator(factor=3.0)
 

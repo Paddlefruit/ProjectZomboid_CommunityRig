@@ -73,3 +73,14 @@ class PZ_UL_ImportedAnimationList(UIList):
         row = layout.row()
         row.label(text=item.name)
         row.label(text=item.character_type)
+
+class PZ_UL_AttachmentPointList(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row()
+        row.label(text=item.name)
+        row.label(text=item.sex)
+
+class PZ_UL_AttachmentsList(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row()
+        row.label(text=item.name)

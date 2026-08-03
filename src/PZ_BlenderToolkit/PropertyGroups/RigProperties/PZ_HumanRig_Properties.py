@@ -649,12 +649,29 @@ class PZ_HumanRigProperties(PropertyGroup):
                     if clothing_item.name == item:
                         bpy.ops.zomboid.add_clothing_item(guid=clothing_item.guid)
                         break
-            
 
     selected_clothing_item: StringProperty(
         name='Add Clothing Item',
         update=update_selected_clothing_item,
         override={"LIBRARY_OVERRIDABLE"}
+    )
+    
+# ------------------------------------------------------------------------#
+#  Attachments
+
+    def update_selected_attachment(self, context):
+        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        
+        if self.selected_attachment != '':
+            item = self.selected_attachment
+            self.selected_attachment = ''
+            
+            if item != '':
+                bpy.ops.zomboid.add_attachment(attachment_name=item)
+
+    selected_attachment: StringProperty(
+        name='Add Attachment',
+        update=update_selected_attachment
     )
 
 # ------------------------------------------------------------------------#
@@ -2179,6 +2196,10 @@ class PZ_HumanRigProperties(PropertyGroup):
         default=-1
     )
 
+    attachment_active_index: IntProperty(
+        default=-1
+    )
+
     zombie_injury_active_index: IntProperty(
         default=-1
     )
@@ -2232,4 +2253,24 @@ class PZ_HumanRigProperties(PropertyGroup):
     halt_texture_updates: BoolProperty(
         default=False,
         override={"LIBRARY_OVERRIDABLE"}
+    )
+    use_body_location_exclusivity: BoolProperty(
+        name='Use Body Location Exclusivity',
+        description='Use the body location exclusivity system from the game, meaning that some clothing items will block other clothing items from being added',
+        default=True
+    )
+    use_body_location_hiding: BoolProperty(
+        name='Use Body Location Hiding',
+        description='Use the body location hiding system from the game, meaning that some clothing items still be on the rig, but will be hidden if another body location blocks it',
+        default=True
+    )
+    use_body_location_alt_models: BoolProperty(
+        name='Use Body Location Alt Models',
+        description='Use the body location alt model system from the game, where some equipped clothing items will force some other body locations to use an alternate model',
+        default=True
+    )
+    use_body_location_sorting: BoolProperty(
+        name='Use Body Location Sorting',
+        description='Use the body location sorting system from the game, which will automatically sort body textures to make sure that the render order is correct. For instance, always putting shoes over socks',
+        default=True
     )
