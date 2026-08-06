@@ -12,38 +12,61 @@ class PZ_HumanRig_SortBodyClothingTextures(Operator):
     def execute(self, context):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         props = context.active_object.pz_human_props
-        clothes = context.active_object.pz_human_body_texture_slots
+
+        body_locations = addon_prefs.pz_human_body_locations
+        equipped_clothing = context.active_object.pz_equipped_clothing_items
+        body_clothing_textures = [item for item in equipped_clothing if item.data.clothing_type == 'BODYTEXTURE']
 
         # Unfortunately there's not a simple way to reassign a collection, so we have to remake it here
+
+        # Create a temporary list that will be sorted later
         temp_list = []
 
-        for item in clothes:
+        # Store important data that the clothing item will need to remember
+        for item in body_clothing_textures:
+            texture_list = []
+            for choice in item.data.texture_choices:
+                texture_list.append(choice.texture_path)
+                
             temp_list.append({
                 'name' : item.name,
-                'texture_path' : item.texture_path,
-                'tintable' : item.tintable,
+                'tintable' : item.data.tintable,
                 'tint_color' : list(item.tint_color),
-                'decal_group' : item.decal_group,
-                'render_order' : item.render_order,
-                'origin' : item.origin
+                'decal_group' : item.data.decal_group,
+                'body_location' : item.data.body_location,
+                'origin' : item.data.origin,
+                'textures' : texture_list,
+
+                'render_order' : body_locations.get(item.data.body_location).order
             })
 
+        # Sort the temp list
         sorted_list = sorted(
             temp_list,
             key=lambda x: x['render_order']
         )
 
-        clothes.clear()
+        # Remove all body clothing textures from the equipped clothing
+        for i in range(len(equipped_clothing) - 1, -1, -1):
+            clothing = equipped_clothing[i]
 
+            if clothing.data.clothing_type == 'BODYTEXTURE':
+                equipped_clothing.remove(i)
+
+        # Recreate the body clothing textures
         for item in sorted_list:
-            sorted_item = clothes.add()
+            sorted_item = equipped_clothing.add()
 
             sorted_item.name = item['name']
-            sorted_item.texture_path = item['texture_path']
-            sorted_item.tintable = item['tintable']
+            sorted_item.data.clothing_type = 'BODYTEXTURE'
+            sorted_item.data.tintable = item['tintable']
             sorted_item.tint_color = item['tint_color']
-            sorted_item.decal_group = item['decal_group']
-            sorted_item.render_order = item['render_order']
-            sorted_item.origin = item['origin']
+            sorted_item.data.decal_group = item['decal_group']
+            sorted_item.data.body_location = item['body_location']
+            sorted_item.data.origin = item['origin']
+
+            for path in item['textures']:
+                new_choice = sorted_item.data.texture_choices.add()
+                new_choice.texture_path = path
 
         return ({'FINISHED'})

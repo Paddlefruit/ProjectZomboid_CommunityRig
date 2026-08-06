@@ -16,28 +16,14 @@ class PZ_HumanRig_RemoveAllClothingItems(Operator):
     )
 
     def execute(self, context):
+        # Get all data
         p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_clothing_models
-        t_list = context.active_object.pz_human_body_texture_slots
-        a_list = context.active_object.pz_accessory_models
+        equipped_clothing = context.active_object.pz_equipped_clothing_items
 
-        # Remove all existing clothing meshes
-        for i in range(len(m_list)):
-            bpy.ops.zomboid.remove_clothing_model()
-
-        # Remove all existing accessory meshes
-        for i in range(len(a_list)):
-            bpy.ops.zomboid.remove_accessory_model()
-
-        # Remove all existing body textures
-        if self.halt_texture_updates:
-            p.halt_texture_updates = True
-        t_list.clear()
-        p.body_texture_slot_active_index = -1
-
-        if self.halt_texture_updates:
-            p.halt_texture_updates = False
-            bpy.ops.zomboid.create_body_texture()
+        # Set the pointer to the top of the clothing items, then call the remove operator for each one
+        p.equipped_clothing_item_active_index = len(equipped_clothing) - 1
+        for i in range(len(equipped_clothing)):
+            bpy.ops.zomboid.remove_clothing_item(halt_texture_updates=self.halt_texture_updates)
 
         #TEMP
         context.active_object.pz_used_body_locations.clear()

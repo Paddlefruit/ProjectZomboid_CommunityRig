@@ -143,7 +143,7 @@ class PZ_Assets_ParseOutfitXMLs(Operator):
         outfits.clear()
 
         clothing_lookup = {
-            clothing.guid : clothing.name for clothing in addon_prefs.pz_human_clothing_item_slots
+            clothing.guid : clothing.name for clothing in addon_prefs.pz_human_clothing_item_references
         }
 
         for folder, mod_name in get_zomboid_asset_folders(context, 'clothing'):

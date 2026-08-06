@@ -24,11 +24,9 @@ def create_model_material(context, texture_path, category, hair_type=None):
     mat_name = ''
     match category:
         case 'ACCESSORY':
-            mat_name = 'MAT-AccessoryMaterial' + \
-                str(p.accessory_model_active_index) + instance_str
+            mat_name = 'MAT-AccessoryMaterial' + str(p.equipped_clothing_item_active_index) + instance_str
         case 'CLOTHING':
-            mat_name = 'MAT-ClothingMaterial' + \
-                str(p.clothing_model_active_index) + instance_str
+            mat_name = 'MAT-ClothingMaterial' + str(p.equipped_clothing_item_active_index) + instance_str
         case 'BODY':
             mat_name = 'MAT-HumanBody' + instance_str
         case 'HAIR':
@@ -40,8 +38,7 @@ def create_model_material(context, texture_path, category, hair_type=None):
                 case 'B':
                     mat_name = 'MAT-Beard' + instance_str
         case 'ATTACHMENT':
-            mat_name = 'MAT-AttachmentMaterial' + \
-                str(p.attachment_active_index) + instance_str
+            mat_name = 'MAT-AttachmentMaterial' + str(p.attachment_active_index) + instance_str
                 
 
     old_mat = bpy.data.materials.get(mat_name)
@@ -94,30 +91,6 @@ def create_model_material(context, texture_path, category, hair_type=None):
     tint_node.data_type = 'RGBA'
     tint_node.blend_type = 'MULTIPLY'
 
-    if category == 'CLOTHING' or category == 'ACCESSORY':
-        # Factor Driver
-        path = 'nodes["NDE-TexTint"].inputs[0].default_value'
-        fcurve = mat.node_tree.driver_add(path)
-        driver = fcurve.driver
-        driver.type = 'AVERAGE'
-
-        var = driver.variables.new()
-        target = var.targets[0]
-        target.id = context.active_object
-        if category == 'ACCESSORY':
-            target.data_path = "pz_accessory_models[" + \
-                str(p.accessory_model_active_index) + "].tintable"
-        else:
-            target.data_path = "pz_clothing_models[" + \
-                str(p.clothing_model_active_index) + "].tintable"
-    elif category == 'HAIR':
-        tint_node.inputs[0].default_value = 1.0
-    else:
-        tint_node.inputs[0].default_value = 0.0
-
-    context.active_object.update_tag()
-    mat.node_tree.update_tag()
-
     # Color Drivers
 
     if category == 'CLOTHING' or category == 'ACCESSORY':
@@ -132,9 +105,7 @@ def create_model_material(context, texture_path, category, hair_type=None):
             target.id = context.active_object
 
             if category == 'CLOTHING':
-                target.data_path = "pz_clothing_models[" + str(p.clothing_model_active_index) + "].tint_color[" + str(i) + "]"
-            if category == 'ACCESSORY':
-                target.data_path = "pz_accessory_models[" + str(p.accessory_model_active_index) + "].tint_color[" + str(i) + "]"
+                target.data_path = "pz_equipped_clothing_items[" + str(p.equipped_clothing_item_active_index) + "].tint_color[" + str(i) + "]"
 
             context.active_object.update_tag()
             mat.node_tree.update_tag()
@@ -311,7 +282,7 @@ def create_model_material(context, texture_path, category, hair_type=None):
             if link.from_node == alpha_mix_node:
                 links.remove(link)
 
-    return mat
+    return (mat, tex_node.image)
 
 
 def remove_model_material(context, category):
@@ -345,11 +316,9 @@ def remove_model_material(context, category):
         if index_mat:
             match category:
                 case 'ACCESSORY':
-                    index_mat.name = 'MAT-AccessoryMaterial' + \
-                        str(i - 1) + instance_str
+                    index_mat.name = 'MAT-AccessoryMaterial' + str(i - 1) + instance_str
                 case 'CLOTHING':
-                    index_mat.name = 'MAT-ClothingMaterial' + \
-                        str(i - 1) + instance_str
+                    index_mat.name = 'MAT-ClothingMaterial' + str(i - 1) + instance_str
 
             for fcurve in index_mat.node_tree.animation_data.drivers:
                 driver = fcurve.driver
@@ -358,12 +327,9 @@ def remove_model_material(context, category):
                 match category:
                     case 'ACCESSORY':
                         old_path = "pz_accessory_models[" + str(i) + "]"
-                        new_path = "pz_accessory_models[" + \
-                            str(i - 1) + "]"
+                        new_path = "pz_accessory_models[" + str(i - 1) + "]"
                     case 'CLOTHING':
-                        old_path = "pz_clothing_models[" + str(
-                            i) + "]"
-                        new_path = "pz_clothing_models[" + str(
-                            i - 1) + "]"
+                        old_path = "pz_clothing_models[" + str(i) + "]"
+                        new_path = "pz_clothing_models[" + str(i - 1) + "]"
 
                 target.data_path = target.data_path.replace(old_path, new_path)

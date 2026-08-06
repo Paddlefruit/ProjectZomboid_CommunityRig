@@ -55,7 +55,7 @@ class PZ_HumanRig_ModelPanel(Panel):
 
         row = column.row()
         row.enabled = addon_prefs.assets_parsed and directx_import_available()
-        row.prop_search(p, 'selected_clothing_item', addon_prefs, 'pz_human_clothing_item_slots')
+        row.prop_search(p, 'selected_clothing_item', addon_prefs, 'pz_human_clothing_item_references')
 
         row = column.row()
         row.operator('zomboid.remove_all_clothing_items')

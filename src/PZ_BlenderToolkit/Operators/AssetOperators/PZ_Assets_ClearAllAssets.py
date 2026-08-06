@@ -25,7 +25,7 @@ class PZ_Assets_ClearAllAssets(Operator):
       #   addon_prefs.attachment_active_index = -1
      #   addon_prefs.imported_animation_active_index = -1
 
-        addon_prefs.pz_human_clothing_item_slots.clear()
+        addon_prefs.pz_human_clothing_item_references.clear()
         addon_prefs.pz_human_outfit_slots.clear()
         addon_prefs.pz_human_skin_textures.clear()
         addon_prefs.pz_human_stubble_textures.clear()

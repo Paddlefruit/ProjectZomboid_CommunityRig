@@ -14,7 +14,7 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
     def execute(self, context):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         body_locations = addon_prefs.pz_human_body_locations
-        clothing_items = addon_prefs.pz_human_clothing_item_slots
+        clothing_items = addon_prefs.pz_human_clothing_item_references
 
         def parse_file(path):
             if path.is_file():
@@ -69,18 +69,7 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                                     clothing_item.can_have_holes = can_have_holes
                                     for body_location in body_locations:
                                         if body_location.name.replace('_', '') == current_body_location.replace('_', ''):
-                                            clothing_item.body_location.name = body_location.name
-                                            clothing_item.body_location.order = body_location.order
-                                            for loc in body_location.properties.hide_locations:
-                                                new_loc = clothing_item.body_location.properties.hide_locations.add()
-                                                new_loc.name = loc.name
-                                            for loc in body_location.properties.alt_locations:
-                                                new_loc = clothing_item.body_location.properties.alt_locations.add()
-                                                new_loc.name = loc.name
-                                            for loc in body_location.properties.exclusive_locations:
-                                                new_loc = clothing_item.body_location.properties.exclusive_locations.add()
-                                                new_loc.name = loc.name
-                                            break
+                                            clothing_item.body_location = body_location.name
 
                                 current_clothing_item = ''
                                 current_body_location = ''

@@ -645,7 +645,7 @@ class PZ_HumanRigProperties(PropertyGroup):
            # bpy.ops.ed.undo_push(message="Added manual clothing item")
 
             if item != '':
-                for clothing_item in addon_prefs.pz_human_clothing_item_slots:
+                for clothing_item in addon_prefs.pz_human_clothing_item_references:
                     if clothing_item.name == item:
                         bpy.ops.zomboid.add_clothing_item(guid=clothing_item.guid)
                         break
@@ -2203,6 +2203,9 @@ class PZ_HumanRigProperties(PropertyGroup):
     zombie_injury_active_index: IntProperty(
         default=-1
     )
+    equipped_clothing_item_active_index: IntProperty(
+        default=-1
+    )
 
     def update_clothing_visibility(self, context):
         p = context.active_object.pz_human_props
@@ -2274,3 +2277,4 @@ class PZ_HumanRigProperties(PropertyGroup):
         description='Use the body location sorting system from the game, which will automatically sort body textures to make sure that the render order is correct. For instance, always putting shoes over socks',
         default=True
     )
+

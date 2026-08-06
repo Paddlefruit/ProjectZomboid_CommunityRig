@@ -23,6 +23,10 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                     tree = ET.parse(file)
                     root = tree.getroot()
 
+                    has_model = False
+                    has_attach_bone = False
+                    is_static = False
+
                     # If there is an existing clothing item with the same name as the file we are about to evaluate, remove it and overwrite it
                     overwrite_check = clothing_items.find(
                         os.path.splitext(file.name)[0])
@@ -59,14 +63,36 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                             if y is not None:
                                 return (str(x), y, False)
                             else:
-                                return ('None', 'N/A', True)
+                                return ('', 'N/A', True)
                         else:
-                            return ('None', 'N/A', True)
+                            return ('', 'N/A', True)
 
                     item.male_model_path, item.model_type, item.is_body_texture = get_model('m_MaleModel')
                     item.male_alt_model_path = get_model('m_AltMaleModel')[0]
                     item.female_model_path, item.model_type, item.is_body_texture = get_model('m_FemaleModel')
                     item.female_alt_model_path = get_model('m_AltFemaleModel')[0]
+
+                    if item.male_model_path != '' or item.female_model_path != '':
+                        has_model = True
+
+                    # Attach Bone
+                    m = root.find('m_AttachBone')
+                    if m is not None and m.text is not None:
+                        has_attach_bone = True
+                        item.attach_bone = m.text
+
+                    # Static
+                    m = root.find('m_Static')
+                    if m is not None and m.text == 'true':
+                        is_static = True
+
+                    # Clothing Type
+                    if not has_model:
+                        item.clothing_type = 'BODYTEXTURE'
+                    elif not is_static and not has_attach_bone or is_static and not has_attach_bone:
+                        item.clothing_type = 'CLOTHINGMODEL'
+                    else:
+                        item.clothing_type = 'ACCESSORY'
 
                     # Textures
                     base_texture = root.find('m_BaseTextures')
@@ -86,20 +112,6 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                         item.tintable = True
                     else:
                         item.tintable = False
-
-                    # Attach Bone
-                    m = root.find('m_AttachBone')
-                    if m is not None and m.text is not None:
-                        item.attach_bone = m.text
-                    else:
-                        item.attach_bone = 'None'
-
-                    # Static
-                    m = root.find('m_Static')
-                    if m is not None and m.text == 'true':
-                        item.static = True
-                    else:
-                        item.static = False
 
                     # Masks
                     masks = root.findall('m_Masks')
@@ -147,10 +159,10 @@ class PZ_Assets_ParseClothingXMLs(Operator):
 
     def execute(self, context):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        clothing_items = addon_prefs.pz_human_clothing_item_slots
+        clothing_items = addon_prefs.pz_human_clothing_item_references
         for folder in get_zomboid_asset_folders(context, 'clothingItems'):
             self.parse_folder(context, folder[0], clothing_items, folder[1])
 
-        self.report({'INFO'}, "Parsed " +
-                    str(self.item_count) + " Clothing Item XMLs")
+        self.report({'INFO'}, "Parsed " + str(self.item_count) + " Clothing Item XMLs")
+
         return ({'FINISHED'})

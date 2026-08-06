@@ -3,8 +3,21 @@
 import bpy
 
 from bpy.types import AddonPreferences
-from bpy.props import StringProperty, BoolProperty, IntProperty
-from ..PropertyGroups.PZ_HumanRig_Objects import *
+from bpy.props import StringProperty, BoolProperty, IntProperty, CollectionProperty
+
+from ..PropertyGroups.General.PZ_Attachment import PZ_Attachment, PZ_AttachmentPoint
+from ..PropertyGroups.General.PZ_BodyLocation import PZ_BodyLocation
+from ..PropertyGroups.General.PZ_ClothingItem import PZ_ClothingItemReference
+from ..PropertyGroups.General.PZ_GameAnimation import PZ_GameAnimation
+from ..PropertyGroups.General.PZ_HairStyle import PZ_HairStyle
+from ..PropertyGroups.General.PZ_Injuries import PZ_BodyInjury, PZ_ZombieInjury
+from ..PropertyGroups.General.PZ_Item import PZ_Item
+from ..PropertyGroups.General.PZ_Masks import PZ_HoleMask, PZ_OverlayMask, PZ_VisibilityMask
+from ..PropertyGroups.General.PZ_ModDirectory import PZ_ModDirectory
+from ..PropertyGroups.General.PZ_Outfit import PZ_Outfit
+from ..PropertyGroups.General.PZ_SkinTexture import PZ_SkinTexture
+from ..PropertyGroups.General.PZ_StubbleTexture import PZ_StubbleTexture
+
 
 class PZ_AddonPreferences(AddonPreferences):
     bl_idname = 'PZ_BlenderToolkit'
@@ -101,20 +114,20 @@ class PZ_AddonPreferences(AddonPreferences):
 # ASSET COLLECTIONS
 # ============================================================================================
 
-    pz_human_mod_directory_slots : CollectionProperty(type=PZ_ModDirectorySlot)
-    pz_human_clothing_item_slots : CollectionProperty(type=PZ_ClothingItemSlot)
-    pz_human_outfit_slots : CollectionProperty(type=PZ_OutfitSlot)
-    pz_human_hair_style_slots : CollectionProperty(type=PZ_HairStyleSlot)
-    pz_human_male_hair_styles : CollectionProperty(type=PZ_HairStyleSlot)
-    pz_human_female_hair_styles : CollectionProperty(type=PZ_HairStyleSlot)
-    pz_human_beard_styles : CollectionProperty(type=PZ_HairStyleSlot)
+    pz_human_mod_directory_slots : CollectionProperty(type=PZ_ModDirectory)
+    pz_human_clothing_item_references : CollectionProperty(type=PZ_ClothingItemReference)
+    pz_human_outfit_slots : CollectionProperty(type=PZ_Outfit)
+    pz_human_hair_style_slots : CollectionProperty(type=PZ_HairStyle)
+    pz_human_male_hair_styles : CollectionProperty(type=PZ_HairStyle)
+    pz_human_female_hair_styles : CollectionProperty(type=PZ_HairStyle)
+    pz_human_beard_styles : CollectionProperty(type=PZ_HairStyle)
     pz_human_body_injuries : CollectionProperty(type=PZ_BodyInjury)
     pz_human_zombie_injuries : CollectionProperty(type=PZ_ZombieInjury)
     pz_human_skin_textures : CollectionProperty(type=PZ_SkinTexture)
     pz_human_stubble_textures : CollectionProperty(type=PZ_StubbleTexture)
     pz_human_visibility_masks : CollectionProperty(type=PZ_VisibilityMask)
     pz_human_overlay_masks : CollectionProperty(type=PZ_OverlayMask)
-    pz_human_imported_animations : CollectionProperty(type=PZ_ImportedAnimation)
+    pz_human_imported_animations : CollectionProperty(type=PZ_GameAnimation)
     pz_human_body_locations : CollectionProperty(type=PZ_BodyLocation)
     pz_human_attachment_points : CollectionProperty(type=PZ_AttachmentPoint)
     pz_human_attachments : CollectionProperty(type=PZ_Attachment)

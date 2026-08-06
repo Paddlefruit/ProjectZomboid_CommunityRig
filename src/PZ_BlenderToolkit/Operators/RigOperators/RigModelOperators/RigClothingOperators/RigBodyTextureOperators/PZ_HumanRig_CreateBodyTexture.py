@@ -20,8 +20,8 @@ class PZ_CreateBodyTexture(Operator):
         skin_textures = addon_prefs.pz_human_skin_textures
         stubble_textures = addon_prefs.pz_human_stubble_textures
         body_injury_textures = addon_prefs.pz_human_body_injuries
-        zombie_injuries = context.active_object.pz_human_zombie_injuries
-        clothing_textures = context.active_object.pz_human_body_texture_slots
+        zombie_injuries = context.active_object.pz_zombie_injuries
+        equipped_clothing = context.active_object.pz_equipped_clothing_items
 
         # Get the base skin texture
         match p.skin_set:
@@ -116,9 +116,9 @@ class PZ_CreateBodyTexture(Operator):
                 self.body_textures.append((injury.texture_path, (1.0, 1.0, 1.0)))
 
         if p.skin_set != 'SKELETON':
-            # Get the clothing textures
-            for clothing in clothing_textures:
-                self.body_textures.append((clothing.texture_path, clothing.tint_color))
+            # Get the body clothing textures
+            for clothing in [item for item in equipped_clothing if item.data.clothing_type == 'BODYTEXTURE']:
+                self.body_textures.append((clothing.get_texture_path(), clothing.tint_color))
 
     # -------------------------------------------------------------#
     # Create Body Texture

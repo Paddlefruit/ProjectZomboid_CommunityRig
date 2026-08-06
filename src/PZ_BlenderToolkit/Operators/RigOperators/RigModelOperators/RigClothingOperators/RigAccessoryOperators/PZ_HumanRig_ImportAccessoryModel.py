@@ -5,6 +5,7 @@ import math
 
 from bpy.types import Operator
 from pathlib import Path
+from random import randint
 
 from ......Utility.PZ_AssetMethods import directx_import_available
 from ......Utility.PZ_MaterialMethods import create_model_material
@@ -13,159 +14,165 @@ class PZ_ImportAccessoryModel(Operator):
     bl_idname = "zomboid.import_accessory_model"
     bl_label = "Import Accessory Model"
 
-    def import_accessory_model(self, context, model_path, model_type, attach_bone, sex):
+    def execute(self, context):
+
+        # Get all data
+        addon_prefs = context.preferences.addons['PZ_BlenderToolkit'].preferences
         p = context.active_object.pz_human_props
-        #model_props = context.active_object.pz_model_props
+
+        current_clothing_item = context.active_object.pz_equipped_clothing_items[p.equipped_clothing_item_active_index]
 
         instance_str = ' (' + str(p.rig_instance) + ')'
 
-        if Path(model_path).is_file():
+        # Select a random texture from all available texture choices
+        texture_path = current_clothing_item.get_texture_path()
 
-            # Store the current context (current mode, selected objects, and active object) to restore later when operation is finished
-            prev_mode = context.mode
-            if context.active_object is not None:
-                prev_active_object = context.active_object
-            prev_selected_objects = context.selected_objects
+        # Create the attachment material, and assign it to the clothing item data
+        current_clothing_item.material, current_clothing_item.image = create_model_material(context, texture_path, 'ACCESSORY')
+    
+        # Method that will be run for both sex's models
+        def import_accessory_model(sex: str, model_path: str):
+            if Path(model_path).is_file():
+                with bpy.context.temp_override(active_object=context.active_object):
 
-            bpy.ops.object.mode_set(mode='OBJECT')
+                    # Get a list of all objects before the import
+                    objs_before = set(bpy.context.scene.objects)
 
-            objs_before = set(bpy.context.scene.objects)
+                    # Run the import method for the respective model type
+                    match current_clothing_item.data.model_type:
+                        case '.x':
+                            if not directx_import_available():
+                                print("The .x importer is not enabled or installed")
+                                return ({'CANCELLED'})
 
-            match model_type:
-                case '.x':
-                    if not directx_import_available():
-                        self.report(
-                            {"ERROR"}, "The .x importer is not enabled or installed")
+                            bpy.ops.import_scene.directx_x(
+                                filepath=model_path,
+                                import_textures=False,
+                                import_materials=False,
+                                import_armature=False,
+                                import_animation=False,
+                                use_import_collection=False
+                            )
+                        case '.fbx':
+                            bpy.ops.import_scene.fbx(
+                                filepath=model_path,
+                                global_scale=100.0
+                            )
+                        case '.glb':
+                            bpy.ops.import_scene.gltf(
+                                filepath=model_path,
+                                disable_bone_shape=True
+                            )
+
+                    # Get a list of all added objects to the scene
+                    objs_after = set(bpy.context.scene.objects)
+                    imported_objects = list(objs_after - objs_before)
+
+                    # Loop through all added objects, delete unneeded ones, and isolate the model object
+                    model_obj = None
+                    for obj in imported_objects:
+                        match obj.type:
+                            case 'ARMATURE':
+                                bpy.data.objects.remove(obj, do_unlink=True)
+                            case 'EMPTY':
+                                bpy.data.objects.remove(obj, do_unlink=True)
+                            case 'MESH':
+                                model_obj = obj
+
+                    if not model_obj:
                         return ({'CANCELLED'})
 
-                    bpy.ops.import_scene.directx_x(
-                        filepath=model_path,
-                        import_textures=False,
-                        import_materials=False,
-                        import_armature=False,
-                        import_animation=False,
-                        use_import_collection=False
-                    )
+                    # Create the name for the new object
+                    sex_name = 'OBJ-MaleAccessory' if sex == 'MALE' else 'OBJ-FemaleAccessory'
+                    obj_name = sex_name + str(p.equipped_clothing_item_active_index) + instance_str
 
-                case '.fbx':
-                    bpy.ops.import_scene.fbx(
-                        filepath=model_path,
-                        global_scale=100.0
-                    )
-                case '.glb':
-                    bpy.ops.import_scene.gltf(
-                        filepath=model_path,
-                        disable_bone_shape=True
-                    )
-
-            objs_after = set(bpy.context.scene.objects)
-
-            imported_objects = list(objs_after - objs_before)
-
-            sex_collection_name = 'COL-PZ_Human_Male_Accessories' if sex == 'MALE' else 'COL-PZ_Human_Female_Accessories'
-            accessory_collection = bpy.data.collections.get(
-                sex_collection_name + instance_str)
-
-            for obj in imported_objects:
-                if obj.type == 'ARMATURE':
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                elif obj.type == 'EMPTY':
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                elif obj.type == 'MESH':
-
-                    sex_name = 'OBJ-MaleAccessoryMesh' if sex == 'MALE' else 'OBJ-FemaleAccessoryMesh'
-                    obj_name = sex_name + \
-                        str(p.accessory_model_active_index) + instance_str
-
+                    # Remove pre-existing object with this name, if it exists
                     old_obj = bpy.data.objects.get(obj_name)
                     if old_obj:
                         bpy.data.objects.remove(old_obj, do_unlink=True)
 
-                    obj.name = obj_name
+                    # Rename the new object
+                    model_obj.name = obj_name
 
-                    for collection in obj.users_collection[:]:
-                        collection.objects.unlink(obj)
+                    # Unlink this object from any collections it may have been linked to in the import process
+                    for collection in model_obj.users_collection[:]:
+                        collection.objects.unlink(model_obj)
 
-                    if obj.name not in accessory_collection.objects:
-                        accessory_collection.objects.link(obj)
+                    # Get the rig's clothing collection for the respective sex, and add the model object to it
+                    sex_collection_name = 'COL-PZ_Human_Male_Accessories' if sex == 'MALE' else 'COL-PZ_Human_Female_Accessories'
+                    attachment_collection = bpy.data.collections.get(sex_collection_name + instance_str)
+                    attachment_collection.objects.link(model_obj)
 
-                    bip01 = prev_active_object
-                    bone = bip01.pose.bones.get(attach_bone)
+                    # Apply the material that was created to the model
+                    model_obj.active_material = current_clothing_item.material
 
-                    obj.parent = bip01
-                    obj.parent_type = 'BONE'
-                    obj.parent_bone = bone.name
+                    # Set the parent of the model object to the specific bone on the rig
+                    bone = context.active_object.pose.bones.get(current_clothing_item.data.attach_bone)
 
-                    obj.matrix_parent_inverse = bone.matrix.inverted()
-                    bone_world_matrix = bip01.matrix_world @ bone.matrix
-                    obj.matrix_world = bone_world_matrix
+                    model_obj.parent = context.active_object
+                    model_obj.parent_type = 'BONE'
+                    model_obj.parent_bone = bone.name
 
-                    match model_type:
+                    model_obj.matrix_parent_inverse = bone.matrix.inverted()
+                    bone_world_matrix = context.active_object.matrix_world @ bone.matrix
+                    model_obj.matrix_world = bone_world_matrix
+
+                    # Apply additional transformations based on the model type
+                    match current_clothing_item.data.model_type:
                         case '.x':
-                            obj.rotation_euler[0] += math.pi
-                            obj.scale *= 100
+                            model_obj.rotation_euler[0] += math.pi
+                            model_obj.scale *= 100
 
                             # Wrist items are imported upside down and have off rotations, for some reason
                             if sex == 'MALE':
                                 if bone.name == 'Bip01_L_Forearm':
-                                    obj.scale[2] *= -1
-                                    obj.rotation_euler[1] += math.radians(3)
+                                    model_obj.scale[2] *= -1
+                                    model_obj.rotation_euler[1] += math.radians(3)
                                 if bone.name == 'Bip01_R_Forearm':
-                                    obj.scale[2] *= -1
-                                    obj.rotation_euler[1] -= math.radians(3)
+                                    model_obj.scale[2] *= -1
+                                    model_obj.rotation_euler[1] -= math.radians(3)
                             elif sex == 'FEMALE':
                                 if bone.name == 'Bip01_L_Forearm':
-                                    obj.scale[2] *= -1
-                                    obj.rotation_euler[1] -= math.radians(3)
+                                    model_obj.scale[2] *= -1
+                                    model_obj.rotation_euler[1] -= math.radians(3)
                                 if bone.name == 'Bip01_R_Forearm':
-                                    obj.scale[2] *= -1
-                                    obj.rotation_euler[1] += math.radians(3)
+                                    model_obj.scale[2] *= -1
+                                    model_obj.rotation_euler[1] += math.radians(3)
                         
-                          #  flip_uvs(obj)
+                            #  flip_uvs(obj)
 
                         case '.fbx':
-                            obj.data.materials.clear()
-                            obj.scale[0] = 1.0
-                            obj.scale[1] = 1.0
-                            obj.scale[2] = 1.0
+                            model_obj.data.materials.clear()
+                            model_obj.scale[0] = 1.0
+                            model_obj.scale[1] = 1.0
+                            model_obj.scale[2] = 1.0
                         case '.glb':
-                            obj.scale[0] = 1.0
-                            obj.scale[1] = 1.0
-                            obj.scale[2] = 1.0
+                            model_obj.scale[0] = 1.0
+                            model_obj.scale[1] = 1.0
+                            model_obj.scale[2] = 1.0
 
-                    obj.modifiers.clear()
+                    # Remove any modifiers from the model object
+                    model_obj.modifiers.clear()
 
-                    obj.active_material = bpy.data.materials.get(
-                        'MAT-AccessoryMaterial' + str(p.accessory_model_active_index) + instance_str)
+                    # Add a custom property to indicate which sex this model is
+                    model_obj["sex"] = 0 if sex == 'MALE' else 1
 
-                    obj["sex"] = 0 if sex == 'MALE' else 1
-                    obj.hide_viewport = obj['sex'] != p.model_sex_index
-                    obj.hide_render = obj['sex'] != p.model_sex_index
+                    # Set initial view paramaters for the model based on the current sex
+                    model_obj.hide_viewport = model_obj['sex'] != p.model_sex_index
+                    model_obj.hide_render = model_obj['sex'] != p.model_sex_index
 
-                    # Deselect all objects
-                    bpy.ops.object.select_all(action='DESELECT')
+                    return model_obj
 
-                    for obj in prev_selected_objects:
-                        obj.select_set(True)
-                    if prev_active_object is not None:
-                        context.view_layer.objects.active = prev_active_object
-
-                    # Restore the context that was before the operation was called
-                    bpy.ops.object.mode_set(mode=prev_mode)
-                    return ({'FINISHED'})
-                else:
-                    self.report(
-                        {'ERROR'}, "Could not find a model file at the path: " + model_path)
-                    return ({'CANCELLED'})
-
-    def execute(self, context):
-        p = context.active_object.pz_human_props
-        m_list = context.active_object.pz_accessory_models
-        m = m_list[p.accessory_model_active_index]
-
-        create_model_material(context, m.texture_path, 'ACCESSORY')
-
-        self.import_accessory_model(context, m.male_model_path, m.model_type, m.attach_bone, 'MALE')
-        self.import_accessory_model(context, m.female_model_path, m.model_type, m.attach_bone, 'FEMALE')
+        # Call the import method for both the male and female model
+        if current_clothing_item.use_alt_model:
+            if current_clothing_item.data.male_alt_model_path != '' and current_clothing_item.data.female_alt_model_path != '':
+                current_clothing_item.male_model_object = import_accessory_model('MALE', current_clothing_item.data.male_alt_model_path)
+                current_clothing_item.female_model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_alt_model_path)
+            else:
+                current_clothing_item.male_model_object = import_accessory_model('MALE', current_clothing_item.data.male_model_path)
+                current_clothing_item.female_model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_model_path)
+        else:
+            current_clothing_item.male_model_object = import_accessory_model('MALE', current_clothing_item.data.male_model_path)
+            current_clothing_item.female_model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_model_path)
 
         return ({'FINISHED'})

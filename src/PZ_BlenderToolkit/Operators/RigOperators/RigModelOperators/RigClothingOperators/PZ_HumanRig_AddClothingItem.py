@@ -26,16 +26,17 @@ class PZ_HumanRig_AddClothingItem(Operator):
         addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         p = context.active_object.pz_human_props
 
-        # Collections of all the clothing item categories
-        m_list = context.active_object.pz_clothing_models
-        t_list = context.active_object.pz_human_body_texture_slots
-        a_list = context.active_object.pz_accessory_models
+        # The collection of body location references
+        body_locations = addon_prefs.pz_human_body_locations
+
+        # The collection of equipped clothing items
+        equipped_items = context.active_object.pz_equipped_clothing_items
 
         # Collection of the list of used body locations
         used_locs = context.active_object.pz_used_body_locations
 
         item = None
-        for clothing_item in addon_prefs.pz_human_clothing_item_slots:
+        for clothing_item in addon_prefs.pz_human_clothing_item_references:
             if clothing_item.guid == self.guid:
                 item = clothing_item
 
@@ -46,100 +47,85 @@ class PZ_HumanRig_AddClothingItem(Operator):
             use_alt_model = False
             start_hidden = False
             for used_loc in used_locs:
-                if p.use_body_location_exclusivity:
-                    for ban_loc in item.body_location.properties.exclusive_locations:
-                        if used_loc.name == ban_loc.name:
-                            return({'CANCELLED'})
-                if p.use_body_location_alt_models:
-                    for alt_loc in item.body_location.properties.alt_locations:
-                        if used_loc.name == alt_loc.name:
-                            use_alt_model = True
-                            break
-                if p.use_body_location_hiding:
-                    for hide_loc in item.body_location.properties.hide_locations:
-                        if used_loc.name == hide_loc.name:
-                            start_hidden = True
-                            break
+                if body_locations.get(item.body_location):
+                    if p.use_body_location_exclusivity:
+                        for ban_loc in body_locations.get(item.body_location).properties.exclusive_locations:
+                            if used_loc.name == ban_loc.name:
+                                return({'CANCELLED'})
+                    if p.use_body_location_alt_models:
+                        for alt_loc in body_locations.get(item.body_location).properties.alt_locations:
+                            if used_loc.name == alt_loc.name:
+                                use_alt_model = True
+                                break
+                    if p.use_body_location_hiding:
+                        for hide_loc in body_locations.get(item.body_location).properties.hide_locations:
+                            if used_loc.name == hide_loc.name:
+                                start_hidden = True
+                                break
 
-            # Body Texture
-            if item.is_body_texture:
-                t = t_list.add()
+            # Create a new eqipped item entry and increment the index
+            new_item = equipped_items.add()
+            p.equipped_clothing_item_active_index += 1
 
-                rnd = randint(0, len(item.texture_choices) - 1)
-                t.name = item.name
-                t.decal_group = item.decal_group
-                t.texture_path = item.texture_choices[rnd].texture_path
-                t.render_order = item.body_location.order
+            # Copy the general data
+            new_item.name = item.name
+            new_item.data.name = item.name
+            new_item.data.guid = item.guid
+            new_item.data.clothing_type = item.clothing_type
+            new_item.data.hat_category = item.hat_category
+            new_item.data.can_have_holes = item.can_have_holes
+            new_item.data.origin = item.origin
+            new_item.data.attach_bone = item.attach_bone
+            new_item.data.decal_group = item.decal_group
 
-                t.tintable = True
-                if item.tintable:
-                    if p.random_tint_color:
-                        t.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
-                    else:
-                        t.tint_color = p.static_tint_color
+            # Equipped clothing item specific parameters
+            new_item.use_alt_model = use_alt_model
+            
+            # Copy the body location (in name)
+            new_item.data.body_location = item.body_location
 
-                if self.create_body_texture:
-                    bpy.ops.zomboid.create_body_texture()
+            # Copy the tint settings, and get a random or set tint if applicable
+            new_item.data.tintable = item.tintable
+            if new_item.data.tintable:
+                if p.random_tint_color:
+                    new_item.data.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                else:
+                    new_item.data.tint_color = p.static_tint_color
 
-            # Clothing Mesh
-            elif item.static == False and item.attach_bone == 'None' or item.static == True and item.attach_bone == 'None':
-                p.clothing_model_active_index += 1
-                m = m_list.add()
+            # Copy the model data
+            new_item.data.male_model_path = item.male_model_path
+            new_item.data.male_alt_model_path = item.male_alt_model_path
+            new_item.data.female_model_path = item.female_model_path
+            new_item.data.female_alt_model_path = item.female_alt_model_path
 
-                m.male_model_path = item.male_model_path
-                m.female_model_path = item.female_model_path
-                m.model_type = item.model_type
+            new_item.data.model_type = item.model_type
 
-                rnd = randint(0, len(item.texture_choices) - 1)
-                m.texture_path = item.texture_choices[rnd].texture_path
-                m.name = item.name
+            # Copy the texture choices
+            for choice in item.texture_choices:
+                new_choice = new_item.data.texture_choices.add()
+                new_choice.texture_path = choice.texture_path
 
-                m.tintable = True
-                if item.tintable:
-                    if p.random_tint_color:
-                        m.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
-                    else:
-                        m.tint_color = p.static_tint_color
+            # Copy the mask settings
+            for i in range(len(item.mask_array)):
+                if item.mask_array[i] == True:
+                    new_item.data.mask_array[i] = True
 
-                for i in range(len(item.mask_array)):
-                    if item.mask_array[i] == True:
-                        m.mask_array[i] = True
+            # Call the specific operators for the appropriate clothing type
+            if new_item.data.clothing_type == 'BODYTEXTURE' and self.create_body_texture:
+                bpy.ops.zomboid.create_body_texture()
 
-                m.hat_category = item.hat_category
-
+            if new_item.data.clothing_type == 'CLOTHINGMODEL':
                 bpy.ops.zomboid.import_clothing_model()
-                bpy.ops.zomboid.check_hat_category()
+                if self.generate_mask:
+                    bpy.ops.zomboid.create_visibility_mask()
 
-            # Accessory Mesh
-            else:
-                p.accessory_model_active_index += 1
-                a = a_list.add()
-
-                a.male_model_path = item.male_model_path
-                a.female_model_path = item.female_model_path
-                a.model_type = item.model_type
-
-                rnd = randint(0, len(item.texture_choices) - 1)
-                a.texture_path = item.texture_choices[rnd].texture_path
-                a.name = item.name
-
-                a.tintable=True
-                if item.tintable:
-                    if p.random_tint_color:
-                        a.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
-                    else:
-                        a.tint_color = p.static_tint_color
-
-                a.attach_bone = item.attach_bone
-
-                a.hat_category = item.hat_category
-
+            if new_item.data.clothing_type == 'ACCESSORY':
                 bpy.ops.zomboid.import_accessory_model()
-                bpy.ops.zomboid.check_hat_category()
 
-            if self.generate_mask:
-                bpy.ops.zomboid.create_visibility_mask()
+            # Check Hat Category Validity
+            bpy.ops.zomboid.check_hat_category()
 
+            # Check Body Location Validity
             bpy.ops.zomboid.check_body_locations(clothing_item_added = item.name, count_self = True)
 
             return ({'FINISHED'})

@@ -34,7 +34,7 @@ class PZ_HumanRig_AssetsPanel(Panel):
             row = column.row(align=True)
 
             row.template_list("PZ_UL_ClothingItemList", "pz_clothing_item_list", addon_prefs,
-                              "pz_human_clothing_item_slots", addon_prefs, "clothing_item_slot_active_index")
+                              "pz_human_clothing_item_references", addon_prefs, "clothing_item_slot_active_index")
 
             column.separator()
 
@@ -42,7 +42,7 @@ class PZ_HumanRig_AssetsPanel(Panel):
 
             if addon_prefs.clothing_item_slot_active_index != -1:
                 row.label(text="Clothing Item Properties")
-                item_prop = addon_prefs.pz_human_clothing_item_slots[
+                item_prop = addon_prefs.pz_human_clothing_item_references[
                     addon_prefs.clothing_item_slot_active_index]
 
                 box = column.box()
@@ -51,6 +51,9 @@ class PZ_HumanRig_AssetsPanel(Panel):
 
                 sub_column.label(
                     text="GUID:                             " + item_prop.guid
+                )
+                sub_column.label(
+                    text="Clothing Type:                             " + item_prop.clothing_type
                 )
                 sub_column.label(
                     text="Male Model Path:         " + item_prop.male_model_path
@@ -69,16 +72,12 @@ class PZ_HumanRig_AssetsPanel(Panel):
                 sub_column.label(
                     text="Tintable:                        " + str(item_prop.tintable))
                 sub_column.label(
-                    text="Body Location:             " + item_prop.body_location.name)
+                    text="Body Location:             " + item_prop.body_location)
 
                 sub_column = split.column()
 
                 sub_column.label(
-                    text="Static:                                         " + str(item_prop.static))
-                sub_column.label(
                     text="Attach Bone:                             " + item_prop.attach_bone)
-                sub_column.label(
-                    text="Is Body Texture:                       " + str(item_prop.is_body_texture))
                 sub_column.label(
                     text="Hat Category:                           " + str(item_prop.hat_category))
                 sub_column.label(

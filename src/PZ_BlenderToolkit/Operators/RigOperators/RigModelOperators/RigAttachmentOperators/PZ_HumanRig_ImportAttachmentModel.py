@@ -14,6 +14,7 @@ class PZ_HumanRig_ImportAttachmentModel(Operator):
     bl_description = "Imports the attachment model"
 
     def execute(self, context):
+        
         # Get all data
         addon_prefs = context.preferences.addons['PZ_BlenderToolkit'].preferences
         p = context.active_object.pz_human_props

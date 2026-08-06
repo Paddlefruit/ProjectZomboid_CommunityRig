@@ -24,7 +24,7 @@ class PZ_HumanRigModelProperties(PropertyGroup):
             # bpy.ops.ed.undo_push(message="Added manual clothing item")
 
             if item != '':
-                for clothing_item in addon_prefs.pz_human_clothing_item_slots:
+                for clothing_item in addon_prefs.pz_human_clothing_item_references:
                     if clothing_item.name == item:
                         bpy.ops.zomboid.add_clothing_item(guid=clothing_item.guid)
                         break
