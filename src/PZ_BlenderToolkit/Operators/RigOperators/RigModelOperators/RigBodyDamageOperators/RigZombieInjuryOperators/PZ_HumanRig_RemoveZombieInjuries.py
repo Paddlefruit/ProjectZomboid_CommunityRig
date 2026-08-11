@@ -10,20 +10,20 @@ class PZ_HumanRig_RemoveAllZombieInjuries(Operator):
     bl_description = "Removes all zombie injuries"
     bl_options = {'REGISTER', 'UNDO'}
 
-    halt_texture_updates: BoolProperty(
+    stop_texture_updates: BoolProperty(
         default=True
     )
 
     def execute(self, context):
-        p = context.active_object.pz_human_props
+        model_properties = context.active_object.pz_model_properties
 
-        if self.halt_texture_updates:
-            p.halt_texture_updates = True
+        if self.stop_texture_updates:
+            model_properties.stop_texture_updates = True
 
-        context.active_object.pz_human_zombie_injuries.clear()
+        context.active_object.pz_zombie_injuries.clear()
 
-        if self.halt_texture_updates:
+        if self.stop_texture_updates:
             bpy.ops.zomboid.create_body_texture()
-            p.halt_texture_updates = False
+            model_properties.stop_texture_updates = False
 
         return ({'FINISHED'})

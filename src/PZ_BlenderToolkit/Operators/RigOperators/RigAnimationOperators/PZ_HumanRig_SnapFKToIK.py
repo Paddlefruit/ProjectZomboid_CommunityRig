@@ -19,8 +19,8 @@ class PZ_HumanRig_SnapFKToIK(Operator):
     ik_fk_prop: StringProperty()
 
     def execute(self, context):
-        p = context.active_object.pz_human_props
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        animation_properties = context.active_object.pz_animation_properties
 
         bones = context.active_object.pose.bones
 
@@ -42,16 +42,16 @@ class PZ_HumanRig_SnapFKToIK(Operator):
             extremity_bone.matrix = ik_control_bone.matrix.copy()
             context.view_layer.update()
 
-            if addon_prefs.auto_switch_kinematics:
-                setattr(p, self.ik_fk_prop, 0.0)
+            if addon_data.auto_switch_kinematics:
+                setattr(animation_properties, self.ik_fk_prop, 0.0)
                 context.active_object.update_tag()
                 context.view_layer.update()
             
-            if addon_prefs.auto_key_snaps:
+            if addon_data.auto_key_snaps:
                 context.active_object.keyframe_insert(data_path='pz_human_props.' + self.ik_fk_prop, frame=context.scene.frame_current)
                 context.scene.frame_set(context.scene.frame_current - 1)
 
-                setattr(p, self.ik_fk_prop, 1.0)
+                setattr(animation_properties, self.ik_fk_prop, 1.0)
                 context.active_object.update_tag()
                 context.view_layer.update()
 

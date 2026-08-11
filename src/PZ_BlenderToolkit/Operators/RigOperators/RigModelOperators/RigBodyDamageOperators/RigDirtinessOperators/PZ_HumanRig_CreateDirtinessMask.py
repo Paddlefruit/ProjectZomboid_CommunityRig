@@ -20,18 +20,18 @@ class PZ_HumanRig_CreateDirtinessMask(Operator):
     dirt_textures = []
 
     def get_dirt_textures(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
-        overlay_masks = addon_prefs.pz_human_overlay_masks
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        injury_properties = context.active_object.pz_injury_properties
+        overlay_masks = addon_data.pz_overlay_mask_references
 
         self.dirt_textures.clear()
 
-        dirt_props = [p.upper_torso_dirtiness, p.lower_torso_dirtiness, p.left_hand_dirtiness,
-                      p.right_hand_dirtiness, p.left_forearm_dirtiness, p.right_forearm_dirtiness,
-                      p.left_upperarm_dirtiness, p.right_upperarm_dirtiness, p.head_dirtiness,
-                      p.neck_dirtiness, p.groin_dirtiness, p.left_thigh_dirtiness,
-                      p.right_thigh_dirtiness, p.left_shin_dirtiness, p.right_shin_dirtiness,
-                      p.left_foot_dirtiness, p.right_foot_dirtiness, p.back_dirtiness]
+        dirt_props = [injury_properties.upper_torso_dirtiness, injury_properties.lower_torso_dirtiness, injury_properties.left_hand_dirtiness,
+                      injury_properties.right_hand_dirtiness, injury_properties.left_forearm_dirtiness, injury_properties.right_forearm_dirtiness,
+                      injury_properties.left_upperarm_dirtiness, injury_properties.right_upperarm_dirtiness, injury_properties.head_dirtiness,
+                      injury_properties.neck_dirtiness, injury_properties.groin_dirtiness, injury_properties.left_thigh_dirtiness,
+                      injury_properties.right_thigh_dirtiness, injury_properties.left_shin_dirtiness, injury_properties.right_shin_dirtiness,
+                      injury_properties.left_foot_dirtiness, injury_properties.right_foot_dirtiness, injury_properties.back_dirtiness]
 
         body_part_dict = {
             0: 'Chest',
@@ -64,22 +64,25 @@ class PZ_HumanRig_CreateDirtinessMask(Operator):
 
     def generate_dirtiness_texture(self, context):
 
-        p = context.active_object.pz_human_props
+        main_properties = context.active_object.pz_main_properties
+        object_pointers = context.active_object.pz_object_pointers
 
-        generated_image = bpy.data.images.get(
-            'MASK-MaskData (' + str(p.rig_instance) + ')')
+        instance_str = main_properties.get_instance_str(context)
+
+        generated_image = object_pointers.mask_data_image
         if generated_image is None:
             generated_image = bpy.data.images.new(
-                name='MASK-MaskData (' + str(p.rig_instance) + ')', 
+                name='MASK-MaskData' + instance_str, 
                 width=256, 
                 height=256, 
                 alpha=True,
                 float_buffer=True
             )
+            object_pointers.mask_data_image = generated_image
 
         # Assign the image to the body material node tree
-        if p.body_mat:
-            p.body_mat.node_tree.nodes.get('NDE-MaskData').image = generated_image
+        if object_pointers.body_material:
+            object_pointers.body_material.node_tree.nodes.get('NDE-MaskData').image = generated_image
 
         num_pixels = generated_image.size[0] * generated_image.size[1]
 
@@ -119,9 +122,9 @@ class PZ_HumanRig_CreateDirtinessMask(Operator):
         return ({'FINISHED'})
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         
-        if addon_prefs.pz_directory != '':
+        if addon_data.pz_directory != '':
             self.get_dirt_textures(context)
             self.generate_dirtiness_texture(context)
             return ({'FINISHED'})

@@ -11,16 +11,16 @@ class PZ_Assets_GetModDirectories(Operator):
 
     @classmethod
     def poll(cls, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        return addon_prefs.pz_directory != ''
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        return addon_data.pz_directory != ''
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        dirs = addon_prefs.pz_human_mod_directory_slots
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        dirs = addon_data.pz_mod_directories
 
         dirs.clear()
 
-        pz_dir = Path(addon_prefs.pz_directory)
+        pz_dir = Path(addon_data.pz_directory)
         steamapps_dir = pz_dir.parent.parent
         mods_dir = steamapps_dir / 'workshop' / 'content' / '108600'
 

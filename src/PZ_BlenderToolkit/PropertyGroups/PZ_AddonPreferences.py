@@ -62,7 +62,7 @@ class PZ_AddonPreferences(AddonPreferences):
 # MISC
 # ============================================================================================
 
-    assets_parsed: BoolProperty(
+    references_obtained: BoolProperty(
         default=False
     )
 
@@ -70,34 +70,34 @@ class PZ_AddonPreferences(AddonPreferences):
 # LIST INDICIES
 # ============================================================================================
 
-    mod_directory_slot_active_index: IntProperty(
+    mod_directory_active_index: IntProperty(
         default=-1
     )
-    clothing_item_slot_active_index: IntProperty(
+    clothing_item_reference_active_index: IntProperty(
         default=-1
     )
-    outfit_slot_active_index: IntProperty(
+    outfit_reference_active_index: IntProperty(
         default=-1
     )
-    skin_texture_active_index: IntProperty(
+    skin_texture_reference_active_index: IntProperty(
         default=-1
     )
-    stubble_texture_active_index: IntProperty(
+    stubble_texture_reference_active_index: IntProperty(
         default=-1
     )
-    visibility_mask_active_index: IntProperty(
+    visibility_mask_reference_active_index: IntProperty(
         default=-1
     )
-    overlay_mask_active_index: IntProperty(
+    overlay_mask_reference_active_index: IntProperty(
         default=-1
     )
-    hair_style_slot_active_index: IntProperty(
+    hair_style_reference_active_index: IntProperty(
         default=-1
     )
-    beard_style_slot_active_index: IntProperty(
+    beard_style_reference_active_index: IntProperty(
         default=-1
     )
-    decal_slot_active_index: IntProperty(
+    decal_reference_active_index: IntProperty(
         default=-1
     )
     body_location_active_index: IntProperty(
@@ -114,23 +114,23 @@ class PZ_AddonPreferences(AddonPreferences):
 # ASSET COLLECTIONS
 # ============================================================================================
 
-    pz_human_mod_directory_slots : CollectionProperty(type=PZ_ModDirectory)
-    pz_human_clothing_item_references : CollectionProperty(type=PZ_ClothingItemReference)
-    pz_human_outfit_slots : CollectionProperty(type=PZ_Outfit)
-    pz_human_hair_style_slots : CollectionProperty(type=PZ_HairStyle)
-    pz_human_male_hair_styles : CollectionProperty(type=PZ_HairStyle)
-    pz_human_female_hair_styles : CollectionProperty(type=PZ_HairStyle)
-    pz_human_beard_styles : CollectionProperty(type=PZ_HairStyle)
-    pz_human_body_injuries : CollectionProperty(type=PZ_BodyInjury)
-    pz_human_zombie_injuries : CollectionProperty(type=PZ_ZombieInjury)
-    pz_human_skin_textures : CollectionProperty(type=PZ_SkinTexture)
-    pz_human_stubble_textures : CollectionProperty(type=PZ_StubbleTexture)
-    pz_human_visibility_masks : CollectionProperty(type=PZ_VisibilityMask)
-    pz_human_overlay_masks : CollectionProperty(type=PZ_OverlayMask)
-    pz_human_imported_animations : CollectionProperty(type=PZ_GameAnimation)
-    pz_human_body_locations : CollectionProperty(type=PZ_BodyLocation)
-    pz_human_attachment_points : CollectionProperty(type=PZ_AttachmentPoint)
-    pz_human_attachments : CollectionProperty(type=PZ_Attachment)
+    pz_mod_directories : CollectionProperty(type=PZ_ModDirectory)
+    pz_clothing_item_references : CollectionProperty(type=PZ_ClothingItemReference)
+    pz_outfit_references : CollectionProperty(type=PZ_Outfit)
+    pz_hair_style_references : CollectionProperty(type=PZ_HairStyle)
+    pz_male_hair_style_references : CollectionProperty(type=PZ_HairStyle)
+    pz_female_hair_style_references : CollectionProperty(type=PZ_HairStyle)
+    pz_beard_style_references : CollectionProperty(type=PZ_HairStyle)
+    pz_body_injury_references : CollectionProperty(type=PZ_BodyInjury)
+    pz_zombie_injury_references : CollectionProperty(type=PZ_ZombieInjury)
+    pz_skin_texture_references : CollectionProperty(type=PZ_SkinTexture)
+    pz_stubble_texture_references : CollectionProperty(type=PZ_StubbleTexture)
+    pz_visibility_mask_references : CollectionProperty(type=PZ_VisibilityMask)
+    pz_overlay_mask_references : CollectionProperty(type=PZ_OverlayMask)
+    pz_game_animation_references : CollectionProperty(type=PZ_GameAnimation)
+    pz_body_locations : CollectionProperty(type=PZ_BodyLocation)
+    pz_attachment_points : CollectionProperty(type=PZ_AttachmentPoint)
+    pz_attachments : CollectionProperty(type=PZ_Attachment)
 
 # ============================================================================================
 # PREFERENCES LAYOUT

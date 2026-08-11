@@ -13,9 +13,9 @@ class PZ_Assets_ParseDecalXMLs(Operator):
     bl_description = "Parse all the decal xmls to get the data needed to import shirt decals into Blender"
 
     def parse_decals(self, context):
-        g = context.scene.pz_human_global_props
+        g = context.scene.pz_scene_properties
 
-        g.decal_slot_active_index = 0
+        g.decal_reference_active_index = 0
 
         decals = context.scene.pz_human_decals
         decals.clear()
@@ -54,7 +54,7 @@ class PZ_Assets_ParseDecalXMLs(Operator):
         return ({'FINISHED'})
 
     def parse_decal_groups(self, context):
-        g = context.scene.pz_human_global_props
+        g = context.scene.pz_scene_properties
         current_groups = context.scene.pz_human_decal_groups
 
         g.decal_group_slot_active_index = 0

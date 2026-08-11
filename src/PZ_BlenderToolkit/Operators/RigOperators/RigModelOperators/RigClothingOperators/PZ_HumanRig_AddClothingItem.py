@@ -23,11 +23,12 @@ class PZ_HumanRig_AddClothingItem(Operator):
     )
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        model_properties = context.active_object.pz_model_properties
+        random_properties = context.active_object.pz_random_properties
 
         # The collection of body location references
-        body_locations = addon_prefs.pz_human_body_locations
+        body_locations = addon_data.pz_body_locations
 
         # The collection of equipped clothing items
         equipped_items = context.active_object.pz_equipped_clothing_items
@@ -36,7 +37,7 @@ class PZ_HumanRig_AddClothingItem(Operator):
         used_locs = context.active_object.pz_used_body_locations
 
         item = None
-        for clothing_item in addon_prefs.pz_human_clothing_item_references:
+        for clothing_item in addon_data.pz_clothing_item_references:
             if clothing_item.guid == self.guid:
                 item = clothing_item
 
@@ -48,16 +49,16 @@ class PZ_HumanRig_AddClothingItem(Operator):
             start_hidden = False
             for used_loc in used_locs:
                 if body_locations.get(item.body_location):
-                    if p.use_body_location_exclusivity:
+                    if model_properties.use_body_location_exclusivity:
                         for ban_loc in body_locations.get(item.body_location).properties.exclusive_locations:
                             if used_loc.name == ban_loc.name:
                                 return({'CANCELLED'})
-                    if p.use_body_location_alt_models:
+                    if model_properties.use_body_location_alt_models:
                         for alt_loc in body_locations.get(item.body_location).properties.alt_locations:
                             if used_loc.name == alt_loc.name:
                                 use_alt_model = True
                                 break
-                    if p.use_body_location_hiding:
+                    if model_properties.use_body_location_hiding:
                         for hide_loc in body_locations.get(item.body_location).properties.hide_locations:
                             if used_loc.name == hide_loc.name:
                                 start_hidden = True
@@ -65,7 +66,7 @@ class PZ_HumanRig_AddClothingItem(Operator):
 
             # Create a new eqipped item entry and increment the index
             new_item = equipped_items.add()
-            p.equipped_clothing_item_active_index += 1
+            model_properties.equipped_clothing_item_active_index += 1
 
             # Copy the general data
             new_item.name = item.name
@@ -87,10 +88,10 @@ class PZ_HumanRig_AddClothingItem(Operator):
             # Copy the tint settings, and get a random or set tint if applicable
             new_item.data.tintable = item.tintable
             if new_item.data.tintable:
-                if p.random_tint_color:
-                    new_item.data.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                if random_properties.random_tint_color:
+                    new_item.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
                 else:
-                    new_item.data.tint_color = p.static_tint_color
+                    new_item.tint_color = random_properties.static_tint_color
 
             # Copy the model data
             new_item.data.male_model_path = item.male_model_path
@@ -106,9 +107,9 @@ class PZ_HumanRig_AddClothingItem(Operator):
                 new_choice.texture_path = choice.texture_path
 
             # Copy the mask settings
-            for i in range(len(item.mask_array)):
-                if item.mask_array[i] == True:
-                    new_item.data.mask_array[i] = True
+            for i in range(len(item.visibility_mask_array)):
+                if item.visibility_mask_array[i] == True:
+                    new_item.data.visibility_mask_array[i] = True
 
             # Call the specific operators for the appropriate clothing type
             if new_item.data.clothing_type == 'BODYTEXTURE' and self.create_body_texture:

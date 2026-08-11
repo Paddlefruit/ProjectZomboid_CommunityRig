@@ -27,10 +27,10 @@ class PZ_Assets_GetInjuries(Operator):
     injury_type_regex = re.compile(injury_type_pattern)
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         
-        body_injuries = addon_prefs.pz_human_body_injuries
-        zombie_injuries = addon_prefs.pz_human_zombie_injuries
+        body_injuries = addon_data.pz_body_injury_references
+        zombie_injuries = addon_data.pz_zombie_injury_references
 
         body_injuries.clear()
         zombie_injuries.clear()

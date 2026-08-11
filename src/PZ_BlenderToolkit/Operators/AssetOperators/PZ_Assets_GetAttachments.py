@@ -10,8 +10,8 @@ class PZ_Assets_GetAttachmentPoints(Operator):
     bl_description = "Get all of the data pertaining to attachments (weapons, held food, etc.) from Project Zomboid"
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        attachments = addon_prefs.pz_human_attachments
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        attachments = addon_data.pz_attachments
 
         attachments.clear()
 

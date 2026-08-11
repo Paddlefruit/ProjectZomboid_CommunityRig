@@ -10,7 +10,7 @@ class PZ_RemoveClothingMesh(Operator):
     bl_label = "Remove Clothing Mesh"
     bl_options = {'REGISTER', 'UNDO'}
 
-    halt_texture_updates: BoolProperty(
+    stop_texture_updates: BoolProperty(
         default=True
     )
 
@@ -47,8 +47,7 @@ class PZ_RemoveClothingMesh(Operator):
                     target = driver.variables[0].targets[0]
 
                     old_path = "pz_clothing_models[" + str(i) + "]"
-                    new_path = "pz_clothing_models[" + str(
-                        i - 1) + "]"
+                    new_path = "pz_clothing_models[" + str(i - 1) + "]"
 
                     target.data_path = target.data_path.replace(
                         old_path, new_path)
@@ -75,8 +74,7 @@ class PZ_RemoveClothingMesh(Operator):
             index_obj = bpy.data.objects.get(
                 'OBJ-MaleClothingMesh' + str(i) + instance_str)
             if index_obj:
-                index_obj.name = 'OBJ-MaleClothingMesh' + \
-                    str(i - 1) + instance_str
+                index_obj.name = 'OBJ-MaleClothingMesh' + str(i - 1) + instance_str
 
         return ({'FINISHED'})
 
@@ -100,8 +98,7 @@ class PZ_RemoveClothingMesh(Operator):
             index_obj = bpy.data.objects.get(
                 'OBJ-FemaleClothingMesh' + str(i) + instance_str)
             if index_obj:
-                index_obj.name = 'OBJ-FemaleClothingMesh' + \
-                    str(i - 1) + instance_str
+                index_obj.name = 'OBJ-FemaleClothingMesh' + str(i - 1) + instance_str
 
         return ({'FINISHED'})
 
@@ -110,20 +107,20 @@ class PZ_RemoveClothingMesh(Operator):
         m_list = context.active_object.pz_clothing_models
         m = m_list[p.clothing_model_active_index]
 
-        if self.halt_texture_updates:
-            p.halt_texture_updates = True
+        if self.stop_texture_updates:
+            p.stop_texture_updates = True
 
-        for i in range(len(p.mask_array)):
+        for i in range(len(p.visibility_mask_array)):
             test = False
             for j in range(len(m_list)):
-                if m_list[j].name != m.name and m_list[j].mask_array[i] == True:
+                if m_list[j].name != m.name and m_list[j].visibility_mask_array[i] == True:
                     test = True
                     break
-            p.mask_array[i] = test
-            p.mask_array[i] = p.mask_array[i]
+            p.visibility_mask_array[i] = test
+            p.visibility_mask_array[i] = p.visibility_mask_array[i]
 
-        if self.halt_texture_updates:
-            p.halt_texture_updates = False
+        if self.stop_texture_updates:
+            p.stop_texture_updates = False
             bpy.ops.zomboid.create_visibility_mask()
 
         return ({'FINISHED'})

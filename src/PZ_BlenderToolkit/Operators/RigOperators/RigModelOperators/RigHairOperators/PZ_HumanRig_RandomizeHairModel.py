@@ -15,21 +15,18 @@ class PZ_RandomizeHairModel(Operator):
     )
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        model_properties = context.active_object.pz_model_properties
 
         match self.hair_type:
             case 'M':
-                rnd = randint(
-                    0, len(addon_prefs.pz_human_male_hair_styles) - 1)
-                p.selected_male_hair_style = addon_prefs.pz_human_male_hair_styles[rnd].name
+                rnd = randint(0, len(addon_data.pz_male_hair_style_references) - 1)
+                model_properties.selected_male_hair_style = addon_data.pz_male_hair_style_references[rnd].name
             case 'F':
-                rnd = randint(
-                    0, len(addon_prefs.pz_human_female_hair_styles) - 1)
-                p.selected_female_hair_style = addon_prefs.pz_human_female_hair_styles[
-                    rnd].name
+                rnd = randint(0, len(addon_data.pz_female_hair_style_references) - 1)
+                model_properties.selected_female_hair_style = addon_data.pz_female_hair_style_references[rnd].name
             case 'B':
-                rnd = randint(0, len(addon_prefs.pz_human_beard_styles) - 1)
-                p.selected_beard_style = addon_prefs.pz_human_beard_styles[rnd].name
+                rnd = randint(0, len(addon_data.pz_beard_style_references) - 1)
+                model_properties.selected_beard_style = addon_data.pz_beard_style_references[rnd].name
 
         return ({'FINISHED'})

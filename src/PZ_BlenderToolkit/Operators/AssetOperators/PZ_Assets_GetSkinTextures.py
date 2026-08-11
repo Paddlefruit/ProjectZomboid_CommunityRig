@@ -15,12 +15,12 @@ class PZ_Assets_GetSkinTextures(Operator):
     bl_description = "Get all the references to the skin and stubble textures so Blender can pull them later"
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
-        skin_textures = addon_prefs.pz_human_skin_textures
-        stubble_textures = addon_prefs.pz_human_stubble_textures
-        visibility_masks = addon_prefs.pz_human_visibility_masks
-        overlay_masks = addon_prefs.pz_human_overlay_masks
+        skin_textures = addon_data.pz_skin_texture_references
+        stubble_textures = addon_data.pz_stubble_texture_references
+        visibility_masks = addon_data.pz_visibility_mask_references
+        overlay_masks = addon_data.pz_overlay_mask_references
 
         skin_textures.clear()
         stubble_textures.clear()
@@ -114,7 +114,7 @@ class PZ_Assets_GetSkinTextures(Operator):
                         if file.stem in human_skin_tex_names + zombie_skin_tex_names + mannequin_tex_names + scarecrow_tex_names + skeleton_tex_names:    
                             overwrite_check = skin_textures.find(file.stem)
                             if overwrite_check != -1:
-                                if addon_prefs.allow_overwriting:
+                                if addon_data.allow_overwriting:
                                     skin_textures.remove(overwrite_check)
                                 else:
                                     continue
@@ -159,7 +159,7 @@ class PZ_Assets_GetSkinTextures(Operator):
                             for subfile in file.iterdir():
                                 overwrite_check = stubble_textures.find(subfile.stem)
                                 if overwrite_check != -1:
-                                    if addon_prefs.allow_overwriting:
+                                    if addon_data.allow_overwriting:
                                         stubble_textures.remove(overwrite_check)
                                     else:
                                         continue
@@ -177,7 +177,7 @@ class PZ_Assets_GetSkinTextures(Operator):
                             for subfile in file.iterdir():
                                 overwrite_check = visibility_masks.find(subfile.stem)
                                 if overwrite_check != -1:
-                                    if addon_prefs.allow_overwriting:
+                                    if addon_data.allow_overwriting:
                                         visibility_masks.remove(overwrite_check)
                                     else:
                                         continue

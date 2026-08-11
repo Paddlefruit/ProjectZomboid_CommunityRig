@@ -15,7 +15,7 @@ class PZ_Assets_ParseOutfitXMLs(Operator):
     outfit_count = 0
 
     def parse_xml(self, context, dir, outfits, origin, lookup):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         
         # Begin parsing the XML contents of the file
         tree = ET.parse(dir)
@@ -26,11 +26,11 @@ class PZ_Assets_ParseOutfitXMLs(Operator):
 
         for outfit in female_outfits:
             # If there is an outfit item with the same name and sex as the outfit we are about to evaluate, remove it and overwrite it
-            overwrite_index = addon_prefs.pz_human_outfit_slots.find(
+            overwrite_index = addon_data.pz_outfit_references.find(
                 outfit.find('m_Name').text)
             if overwrite_index != -1:
-                if addon_prefs.pz_human_outfit_slots.get(outfit.find('m_Name').text).sex == 'FEMALE':
-                    addon_prefs.pz_human_outfit_slots.remove(overwrite_index)
+                if addon_data.pz_outfit_references.get(outfit.find('m_Name').text).sex == 'FEMALE':
+                    addon_data.pz_outfit_references.remove(overwrite_index)
                     female_outfits.remove(outfit)
 
             item = outfits.add()
@@ -81,11 +81,11 @@ class PZ_Assets_ParseOutfitXMLs(Operator):
             self.outfit_count = self.outfit_count + 1
         for outfit in male_outfits:
             # If there is an outfit item with the same name and sex as the outfit we are about to evaluate, remove it and overwrite it
-            overwrite_index = addon_prefs.pz_human_outfit_slots.find(
+            overwrite_index = addon_data.pz_outfit_references.find(
                 outfit.find('m_Name').text)
             if overwrite_index != -1:
-                if addon_prefs.pz_human_outfit_slots.get(outfit.find('m_Name').text).sex == 'MALE':
-                    addon_prefs.pz_human_outfit_slots.remove(overwrite_index)
+                if addon_data.pz_outfit_references.get(outfit.find('m_Name').text).sex == 'MALE':
+                    addon_data.pz_outfit_references.remove(overwrite_index)
                     male_outfits.remove(outfit)
 
             item = outfits.add()
@@ -136,14 +136,14 @@ class PZ_Assets_ParseOutfitXMLs(Operator):
             self.outfit_count = self.outfit_count + 1
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        outfits = addon_prefs.pz_human_outfit_slots
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        outfits = addon_data.pz_outfit_references
 
-        addon_prefs.outfit_slot_active_index = 0
+        addon_data.outfit_reference_active_index = 0
         outfits.clear()
 
         clothing_lookup = {
-            clothing.guid : clothing.name for clothing in addon_prefs.pz_human_clothing_item_references
+            clothing.guid : clothing.name for clothing in addon_data.pz_clothing_item_references
         }
 
         for folder, mod_name in get_zomboid_asset_folders(context, 'clothing'):

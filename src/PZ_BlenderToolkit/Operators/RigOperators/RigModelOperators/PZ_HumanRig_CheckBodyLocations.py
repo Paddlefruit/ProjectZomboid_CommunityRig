@@ -16,18 +16,10 @@ class PZ_CheckBodyLocations(Operator):
 
     def execute(self, context):
         # The addon preferences and data
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
         # All known clothing items
-        clothing_items = addon_prefs.pz_human_clothing_item_references
-
-        # # The model properties of the rig
-        #model_prefs = context.active_object.pz_human_props
-
-        # # The clothing item collections on the rig
-        # clothing_textures = context.active_object.pz_human_body_texture_slots
-        # clothing_models = context.active_object.pz_clothing_models
-        # accessory_models = context.active_object.pz_accessory_models
+        clothing_items = addon_data.pz_clothing_item_references
 
         # The used body locations on the rig
         used_locs = context.active_object.pz_used_body_locations

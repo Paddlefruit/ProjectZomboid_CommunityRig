@@ -19,9 +19,10 @@ class PZ_HumanRig_CreateVisibilityMask(Operator):
     mask_textures = []
 
     def get_mask_textures(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
-        visibility_masks = addon_prefs.pz_human_visibility_masks
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        visibility_masks = addon_data.pz_visibility_mask_references
+
+        model_properties = context.active_object.pz_model_properties
 
         self.mask_textures.clear()
 
@@ -46,7 +47,7 @@ class PZ_HumanRig_CreateVisibilityMask(Operator):
         }
 
         index = 0
-        for hide in p.mask_array:
+        for hide in model_properties.visibility_mask_array:
             if hide:
                 self.mask_textures.append(visibility_masks.get(mask_dict[index]).texture_path)
             index = index + 1
@@ -54,13 +55,14 @@ class PZ_HumanRig_CreateVisibilityMask(Operator):
         return ({'FINISHED'})
 
     def generate_mask_texture(self, context):
-        p = context.active_object.pz_human_props
+        main_properties = context.active_object.pz_main_properties
+        model_properties = context.active_object.pz_model_properties
+        object_pointers = context.active_object.pz_object_pointers
 
-        generated_image = bpy.data.images.get(
-            'MASK-MaskData (' + str(p.rig_instance) + ')')
+        generated_image = bpy.data.images.get('MASK-MaskData' + main_properties.get_instance_str(context))
         if generated_image is None:
             generated_image = bpy.data.images.new(
-                name='MASK-MaskData (' + str(p.rig_instance) + ')', 
+                name='MASK-MaskData' + main_properties.get_instance_str(context), 
                 width=256, 
                 height=256, 
                 alpha=True,
@@ -68,8 +70,8 @@ class PZ_HumanRig_CreateVisibilityMask(Operator):
             )
 
         # Assign the image to the body material node tree
-        if p.body_mat:
-            p.body_mat.node_tree.nodes.get('NDE-MaskData').image = generated_image
+        if object_pointers.body_material:
+            object_pointers.body_material.node_tree.nodes.get('NDE-MaskData').image = generated_image
 
         num_pixels = generated_image.size[0] * generated_image.size[1]
 
@@ -106,9 +108,9 @@ class PZ_HumanRig_CreateVisibilityMask(Operator):
         return ({'FINISHED'})
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         
-        if addon_prefs.pz_directory != '':
+        if addon_data.pz_directory != '':
             self.get_mask_textures(context)
             self.generate_mask_texture(context)
             return ({'FINISHED'})

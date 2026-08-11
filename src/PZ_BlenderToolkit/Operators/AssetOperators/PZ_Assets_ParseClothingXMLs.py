@@ -116,7 +116,7 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                     # Masks
                     masks = root.findall('m_Masks')
                     for m in masks:
-                        item.mask_array[int(m.text)] = True
+                        item.visibility_mask_array[int(m.text)] = True
 
                     # Hat Category
                     m = root.find('m_HatCategory')
@@ -158,8 +158,8 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                     continue
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        clothing_items = addon_prefs.pz_human_clothing_item_references
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        clothing_items = addon_data.pz_clothing_item_references
         for folder in get_zomboid_asset_folders(context, 'clothingItems'):
             self.parse_folder(context, folder[0], clothing_items, folder[1])
 

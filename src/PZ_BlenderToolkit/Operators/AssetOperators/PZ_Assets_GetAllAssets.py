@@ -12,11 +12,11 @@ class PZ_Assets_GetAllAssets(Operator):
 
     @classmethod
     def poll(cls, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        return addon_prefs.pz_directory != ''
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        return addon_data.pz_directory != ''
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
         get_zomboid_asset_folders.cache_clear()
 
@@ -34,6 +34,6 @@ class PZ_Assets_GetAllAssets(Operator):
         bpy.ops.zomboid.get_injuries()
     
 
-        addon_prefs.assets_parsed = True
+        addon_data.references_obtained = True
 
         return ({'FINISHED'})

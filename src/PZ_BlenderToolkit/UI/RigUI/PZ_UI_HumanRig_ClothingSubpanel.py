@@ -1,0 +1,59 @@
+# pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
+
+import bpy
+from bpy.types import UIList
+
+class PZ_UL_EquippedClothingItemsList(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row()
+        row.label(text=item.name)
+
+def draw_clothing_subpanel(context, layout):
+
+    # Get all data
+    addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+    model_properties = context.active_object.pz_model_properties
+
+    # Draw the panel
+    panel, panel_area = layout.panel("clothing_subpanel", default_closed=True)
+    panel.label(text='Clothing')
+
+    if panel_area:
+        panel_area.label(text='Add Clothing Item')
+        panel_area.prop_search(model_properties, 'selected_clothing_item', addon_data, 'pz_clothing_item_references', text='')
+
+        panel_area.label(text='Equipped Clothing Items')
+        panel_area.template_list("PZ_UL_EquippedClothingItemsList", "pz_equipped_clothing_items_list", context.object, "pz_equipped_clothing_items", model_properties, "equipped_clothing_item_active_index")
+
+        if model_properties.equipped_clothing_item_active_index > -1 and model_properties.equipped_clothing_item_active_index < len(context.object.pz_equipped_clothing_items):
+
+            # Show the properties of each equipped item here:
+            current_clothing_item = context.object.pz_equipped_clothing_items[model_properties.equipped_clothing_item_active_index]
+
+            split = panel_area.split()
+            left_column = split.column()
+            right_column = split.column()
+
+            left_column.label(text='Clothing Item Properties')
+            box = left_column.box()
+            box.prop(current_clothing_item, 'tint_color')
+
+            # Show debug pointers
+            if addon_data.debug:
+                subpanel, subpanel_area = box.panel("clothing_pointers_subpanel", default_closed=True)
+                subpanel.label(text='Object Pointers')
+
+                if subpanel_area:
+                    column = subpanel_area.column()
+                    column.prop(current_clothing_item, 'male_model_object')
+                    column.prop(current_clothing_item, 'female_model_object')
+                    column.prop(current_clothing_item, 'material')
+                    column.prop(current_clothing_item, 'image')
+
+            # Operators for the clothing items
+            right_column.label(text='Operators')
+
+            op_column = right_column.column()
+            op_column.scale_y = 2.0
+            op_column.operator('zomboid.remove_clothing_item')
+

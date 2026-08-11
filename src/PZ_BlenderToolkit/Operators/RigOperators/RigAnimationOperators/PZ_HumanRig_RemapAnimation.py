@@ -66,7 +66,7 @@ class PZ_HumanRig_RemapAnimation(Operator):
     target_slot = None
 
     def import_reference_rig(self, context, p, g):
-        selected_anim = context.scene.pz_human_imported_animations[
+        selected_anim = context.scene.pz_game_animation_references[
             g.imported_animation_active_index]
 
         if Path(selected_anim.anim_path).is_file():
@@ -275,7 +275,7 @@ class PZ_HumanRig_RemapAnimation(Operator):
 
     def execute(self, context):
         p = context.active_object.pz_human_props
-        g = context.scene.pz_human_global_props
+        g = context.scene.pz_scene_properties
 
         # Store context to restore later
         prev_mode = context.mode

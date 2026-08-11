@@ -17,18 +17,22 @@ class PZ_ImportAccessoryModel(Operator):
     def execute(self, context):
 
         # Get all data
-        addon_prefs = context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
+        object_pointers = context.active_object.pz_object_pointers
+        main_properties = context.active_object.pz_main_properties
+        model_properties = context.active_object.pz_model_properties
 
-        current_clothing_item = context.active_object.pz_equipped_clothing_items[p.equipped_clothing_item_active_index]
+        current_clothing_item = context.active_object.pz_equipped_clothing_items[model_properties.equipped_clothing_item_active_index]
 
-        instance_str = ' (' + str(p.rig_instance) + ')'
+        instance_str = main_properties.get_instance_str(context)
 
         # Select a random texture from all available texture choices
         texture_path = current_clothing_item.get_texture_path()
 
         # Create the attachment material, and assign it to the clothing item data
         current_clothing_item.material, current_clothing_item.image = create_model_material(context, texture_path, 'ACCESSORY')
+
+        # Rename the image name
+        current_clothing_item.image.name = 'TEX-Attachment' + str(model_properties.equipped_clothing_item_active_index) + instance_str
     
         # Method that will be run for both sex's models
         def import_accessory_model(sex: str, model_path: str):
@@ -37,6 +41,7 @@ class PZ_ImportAccessoryModel(Operator):
 
                     # Get a list of all objects before the import
                     objs_before = set(bpy.context.scene.objects)
+                    mats_before = set(bpy.data.materials)
 
                     # Run the import method for the respective model type
                     match current_clothing_item.data.model_type:
@@ -66,7 +71,13 @@ class PZ_ImportAccessoryModel(Operator):
 
                     # Get a list of all added objects to the scene
                     objs_after = set(bpy.context.scene.objects)
+                    mats_after = set(bpy.data.materials)
+
                     imported_objects = list(objs_after - objs_before)
+                    imported_materials = list(mats_after - mats_before)
+
+                    for mat in imported_materials:
+                        bpy.data.materials.remove(mat)
 
                     # Loop through all added objects, delete unneeded ones, and isolate the model object
                     model_obj = None
@@ -84,7 +95,7 @@ class PZ_ImportAccessoryModel(Operator):
 
                     # Create the name for the new object
                     sex_name = 'OBJ-MaleAccessory' if sex == 'MALE' else 'OBJ-FemaleAccessory'
-                    obj_name = sex_name + str(p.equipped_clothing_item_active_index) + instance_str
+                    obj_name = sex_name + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
                     # Remove pre-existing object with this name, if it exists
                     old_obj = bpy.data.objects.get(obj_name)
@@ -94,13 +105,18 @@ class PZ_ImportAccessoryModel(Operator):
                     # Rename the new object
                     model_obj.name = obj_name
 
+                    # Rename the mesh data on the model object
+                    data = model_obj.data
+                    if data:
+                        sex_name = 'GEO-MaleAccessory' if sex == 'MALE' else 'GEO-FemaleAccessory'
+                        data.name = sex_name + str(model_properties.equipped_clothing_item_active_index) + instance_str
+
                     # Unlink this object from any collections it may have been linked to in the import process
                     for collection in model_obj.users_collection[:]:
                         collection.objects.unlink(model_obj)
 
-                    # Get the rig's clothing collection for the respective sex, and add the model object to it
-                    sex_collection_name = 'COL-PZ_Human_Male_Accessories' if sex == 'MALE' else 'COL-PZ_Human_Female_Accessories'
-                    attachment_collection = bpy.data.collections.get(sex_collection_name + instance_str)
+                    # Get the rig's model collection and add to it
+                    attachment_collection = object_pointers.model_collection
                     attachment_collection.objects.link(model_obj)
 
                     # Apply the material that was created to the model
@@ -158,8 +174,8 @@ class PZ_ImportAccessoryModel(Operator):
                     model_obj["sex"] = 0 if sex == 'MALE' else 1
 
                     # Set initial view paramaters for the model based on the current sex
-                    model_obj.hide_viewport = model_obj['sex'] != p.model_sex_index
-                    model_obj.hide_render = model_obj['sex'] != p.model_sex_index
+                    model_obj.hide_viewport = model_obj['sex'] != model_properties.model_sex_index
+                    model_obj.hide_render = model_obj['sex'] != model_properties.model_sex_index
 
                     return model_obj
 

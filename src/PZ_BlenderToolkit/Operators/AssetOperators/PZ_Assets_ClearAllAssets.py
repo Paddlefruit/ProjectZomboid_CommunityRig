@@ -9,40 +9,40 @@ class PZ_Assets_ClearAllAssets(Operator):
     bl_description = "Clear all the parsed asset entries"
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
-        addon_prefs.clothing_item_slot_active_index = -1
-        addon_prefs.outfit_slot_active_index = -1
-        addon_prefs.skin_texture_active_index = -1
-        addon_prefs.stubble_texture_active_index = -1
-        addon_prefs.visibility_mask_active_index = -1
-        addon_prefs.overlay_mask_active_index = -1
-        addon_prefs.hair_style_slot_active_index = -1
-        addon_prefs.beard_style_slot_active_index = -1
-     #   addon_prefs.decal_slot_active_index = -1
-        addon_prefs.body_location_active_index = -1
-      #   addon_prefs.attachment_point_active_index = -1
-      #   addon_prefs.attachment_active_index = -1
-     #   addon_prefs.imported_animation_active_index = -1
+        addon_data.clothing_item_reference_active_index = -1
+        addon_data.outfit_reference_active_index = -1
+        addon_data.skin_texture_reference_active_index = -1
+        addon_data.stubble_texture_reference_active_index = -1
+        addon_data.visibility_mask_reference_active_index = -1
+        addon_data.overlay_mask_reference_active_index = -1
+        addon_data.hair_style_reference_active_index = -1
+        addon_data.beard_style_reference_active_index = -1
+     #   addon_data.decal_reference_active_index = -1
+        addon_data.body_location_active_index = -1
+      #   addon_data.attachment_point_active_index = -1
+      #   addon_data.attachment_active_index = -1
+     #   addon_data.imported_animation_active_index = -1
 
-        addon_prefs.pz_human_clothing_item_references.clear()
-        addon_prefs.pz_human_outfit_slots.clear()
-        addon_prefs.pz_human_skin_textures.clear()
-        addon_prefs.pz_human_stubble_textures.clear()
-        addon_prefs.pz_human_visibility_masks.clear()
-        addon_prefs.pz_human_overlay_masks.clear()
-        addon_prefs.pz_human_hair_style_slots.clear()
-        addon_prefs.pz_human_male_hair_styles.clear()
-        addon_prefs.pz_human_female_hair_styles.clear()
-        addon_prefs.pz_human_beard_styles.clear()
-     #   addon_prefs.pz_human_decals.clear()
-     #   addon_prefs.pz_human_decal_groups.clear()
-        addon_prefs.pz_human_body_locations.clear()
-      #   addon_prefs.pz_human_attachment_points.clear()
-      #   addon_prefs.pz_human_attachments.clear()
-      #  addon_prefs.pz_human_imported_animations.clear()
+        addon_data.pz_clothing_item_references.clear()
+        addon_data.pz_outfit_references.clear()
+        addon_data.pz_skin_texture_references.clear()
+        addon_data.pz_stubble_texture_references.clear()
+        addon_data.pz_visibility_mask_references.clear()
+        addon_data.pz_overlay_mask_references.clear()
+        addon_data.pz_hair_style_references.clear()
+        addon_data.pz_male_hair_style_references.clear()
+        addon_data.pz_female_hair_style_references.clear()
+        addon_data.pz_beard_style_references.clear()
+     #   addon_data.pz_human_decals.clear()
+     #   addon_data.pz_human_decal_groups.clear()
+        addon_data.pz_body_locations.clear()
+      #   addon_data.pz_attachment_points.clear()
+      #   addon_data.pz_attachments.clear()
+      #  addon_data.pz_game_animation_references.clear()
 
-        addon_prefs.assets_parsed = False
+        addon_data.references_obtained = False
 
        # bpy.ops.zomboid.create_body_texture()
 

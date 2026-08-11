@@ -17,9 +17,9 @@ class PZ_HumanRig_MoveAttachment(Operator):
 
     def execute(self, context):
         # Get all general data
-        addon_prefs = context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = context.preferences.addons['PZ_BlenderToolkit'].preferences
         p = context.active_object.pz_human_props
-        known_attachment_points = addon_prefs.pz_human_attachment_points
+        known_attachment_points = addon_data.pz_attachment_points
         rig_attachments = context.active_object.pz_attachments
         current_attachment = rig_attachments[p.attachment_active_index]
 

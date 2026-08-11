@@ -8,7 +8,7 @@ class PZ_Assets_RemoveModDirectories(Operator):
     bl_description = "Removes all of the loaded mod directories"
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        addon_prefs.pz_human_mod_directory_slots.clear()
-        addon_prefs.mod_directory_slot_active_index = -1
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data.pz_mod_directories.clear()
+        addon_data.mod_directory_active_index = -1
         return ({'FINISHED'})

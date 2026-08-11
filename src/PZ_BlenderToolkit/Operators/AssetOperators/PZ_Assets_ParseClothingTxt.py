@@ -12,9 +12,9 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
     bl_description = "Get all of the data pertaining to BodyLocations from Project Zomboid"
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        body_locations = addon_prefs.pz_human_body_locations
-        clothing_items = addon_prefs.pz_human_clothing_item_references
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        body_locations = addon_data.pz_body_locations
+        clothing_items = addon_data.pz_clothing_item_references
 
         def parse_file(path):
             if path.is_file():

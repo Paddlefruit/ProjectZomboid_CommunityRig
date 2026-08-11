@@ -10,9 +10,12 @@ class PZ_RandomizeHairColor(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        p = context.active_object.pz_human_props
+        model_properties = context.active_object.pz_model_properties
+        random_properties = context.active_object.pz_random_properties
+        object_pointers = context.active_object.pz_object_pointers
+        
         color = (1.0, 1.0, 1.0)
-        if p.natural_hair_color:
+        if random_properties.natural_hair_color:
             hair_color_array = [
                 (0.658, 0.408, 0.060),  # Mustard Yellow
                 (0.397, 0.265, 0.082),  # Coffee
@@ -41,16 +44,16 @@ class PZ_RandomizeHairColor(Operator):
         else:
             color = (random(), random(), random())
 
-        p.hair_color[0] = color[0]
-        p.hair_color[1] = color[1]
-        p.hair_color[2] = color[2]
+        model_properties.hair_color[0] = color[0]
+        model_properties.hair_color[1] = color[1]
+        model_properties.hair_color[2] = color[2]
 
         # Call a tag update on the hair color drivers
-        instance_str = ' (' + str(p.rig_instance) + ')'
         context.active_object.update_tag()
-        hair_mats = ('MAT-MaleHair' + instance_str, 'MAT-FemaleHair' + instance_str, 'MAT-Beard' + instance_str)
-        for hair_mat in hair_mats:
-            mat = bpy.data.materials.get(hair_mat)
+
+        hair_mats = (object_pointers.male_hair_material, object_pointers.female_hair_material, object_pointers.beard_material)
+
+        for mat in hair_mats:
             if mat:
                 mat.node_tree.update_tag()
 

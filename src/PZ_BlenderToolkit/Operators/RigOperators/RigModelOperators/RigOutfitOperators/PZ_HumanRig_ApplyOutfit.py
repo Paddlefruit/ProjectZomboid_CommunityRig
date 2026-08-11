@@ -16,20 +16,23 @@ class PZ_HumanRig_ApplyOutfit(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.active_object.pz_human_props.selected_outfit != ''
+        if context.active_object:
+            if context.active_object.pz_model_properties:
+                return context.active_object.pz_model_properties.selected_outfit != ''
+        return False
 
     def select_guids(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        model_properties = context.active_object.pz_model_properties
 
-        outfit_name = p.selected_outfit.split()[0]
+        outfit_name = model_properties.selected_outfit.split()[0]
         outfit_sex = ''
-        if '(Male)' in p.selected_outfit:
+        if '(Male)' in model_properties.selected_outfit:
             outfit_sex = 'MALE'
-        elif '(Female)' in p.selected_outfit:
+        elif '(Female)' in model_properties.selected_outfit:
             outfit_sex = 'FEMALE'
 
-        for outfit in addon_prefs.pz_human_outfit_slots:
+        for outfit in addon_data.pz_outfit_references:
             if outfit.name == outfit_name and outfit.sex == outfit_sex:
                 # Outfit is found, begin getting GUIDs
                 for outfit_item in outfit.outfit_items:
@@ -44,42 +47,55 @@ class PZ_HumanRig_ApplyOutfit(Operator):
         return ({'CANCELLED'})
 
     def add_clothing_items(self, context):
-        p = context.active_object.pz_human_props
+        model_properties = context.active_object.pz_model_properties
+        random_properties = context.active_object.pz_random_properties
 
         # Select the model sex
-        if '(Male)' in p.selected_outfit:
-            p.model_sex = 'MALE'
+        if '(Male)' in model_properties.selected_outfit:
+            model_properties.model_sex = 'MALE'
 
-            if p.random_hair_style:
+            if random_properties.random_hair_style:
                 bpy.ops.zomboid.randomize_hair_model(hair_type='M')
-            if randint(1, 100) <= p.random_beard_chance:
+            if randint(1, 100) <= random_properties.random_beard_chance:
                 bpy.ops.zomboid.randomize_hair_model(hair_type='B')
             else:
-                p.beard_style = 'None'
-        elif '(Female)' in p.selected_outfit:
-            p.model_sex = 'FEMALE'
+                model_properties.beard_style = 'None'
+        elif '(Female)' in model_properties.selected_outfit:
+            model_properties.model_sex = 'FEMALE'
 
-            if p.random_hair_style:
+            if random_properties.random_hair_style:
                 bpy.ops.zomboid.randomize_hair_model(hair_type='F')
 
-        # Select random body textures, if enabled
-        if p.random_skin_color:
-            p.skin_color = randint(0, 4)
-        if p.random_zombie:
-            p.zombification = randint(1, 3)
+        # Select random skin tone, if enabled
+        if random_properties.random_skin_tone:
+            skin_tone_dict = {
+                0 : 'PORCELAIN',
+                1 : 'PEACH',
+                2 : 'ALMOND',
+                3 : 'AMBER',
+                4 : 'COCOA'
+            }
+            model_properties.skin_tone = skin_tone_dict[randint(0, 4)]
+
+        # Select random zombification, if enabled   
+        zombie_dict = {
+            0 : 'NONE',
+            1 : 'EARLY',
+            2 : 'MID',
+            3 : 'LATE'
+        }
+        if random_properties.random_zombie:   
+            model_properties.zombification = zombie_dict[randint(1, 3)]
         else:
-            p.zombification = 0
+            model_properties.zombification = zombie_dict[0]
 
         # Select random hair color, if enabled
-        if p.random_hair_color:
+        if random_properties.random_hair_color:
             bpy.ops.zomboid.randomize_hair_color()
 
         # Randomize injuries, if enabled
-        if p.randomize_injuries:
-            bpy.ops.zomboid.randomize_body_injuries()
-            bpy.ops.zomboid.randomize_zombie_injuries()
-            bpy.ops.zomboid.randomize_bloodiness()
-            bpy.ops.zomboid.randomize_dirtiness()
+        if random_properties.randomize_outfit_injuries:
+            bpy.ops.zomboid.randomize_body_damage()
 
         if self.random_top:
             match randint(1, 6):
@@ -127,7 +143,7 @@ class PZ_HumanRig_ApplyOutfit(Operator):
         for guid in self.selected_guids:
             bpy.ops.zomboid.add_clothing_item(guid=guid, generate_mask=False, create_body_texture=False)
 
-        if p.use_body_location_sorting:
+        if model_properties.use_body_location_sorting:
             bpy.ops.zomboid.sort_body_clothing_textures()
             
         bpy.ops.zomboid.create_body_texture()

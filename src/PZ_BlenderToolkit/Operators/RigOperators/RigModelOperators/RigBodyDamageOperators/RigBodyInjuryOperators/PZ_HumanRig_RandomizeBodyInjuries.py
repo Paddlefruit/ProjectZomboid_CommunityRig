@@ -13,7 +13,9 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        p = context.active_object.pz_human_props
+        model_properties = context.active_object.pz_model_properties
+        injury_properties = context.active_object.pz_injury_properties
+        random_properties = context.active_object.pz_random_properties
 
         injury_props = ["upper_torso_injury", "lower_torso_injury", "left_hand_injury",
                         "right_hand_injury", "left_forearm_injury", "right_forearm_injury",
@@ -22,17 +24,18 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
                         "right_thigh_injury", "left_shin_injury", "right_shin_injury",
                         "left_foot_injury", "right_foot_injury"]
 
-        p.halt_texture_updates = True
+        model_properties.stop_texture_updates = True
 
         for injury in injury_props:
-            setattr(p, injury, 'NONE')
+            setattr(injury_properties, injury, 'NONE')
 
         options = ['SCRATCH', 'LACERATION', 'BITE']
-        chances = [p.random_scratch_chance,
-                   p.random_laceration_chance, p.random_bite_chance]
+        chances = [random_properties.random_scratch_chance,
+                   random_properties.random_laceration_chance, 
+                   random_properties.random_bite_chance]
 
         injury_num = 0
-        match p.random_injury_intensity:
+        match random_properties.random_injury_intensity:
             case 'MINOR':
                 injury_num = randint(1, 2)
             case 'MODERATE':
@@ -49,8 +52,8 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
         for i in range(1, injury_num):
             selected_injury = injury_props[randint(0, len(injury_props) - 1)]
             final_injury = ''
-            if randint(1, 100) <= p.random_bandage_chance or selected_injury is p.head_injury:
-                if randint(1, 100) <= p.random_bloody_bandage_chance:
+            if randint(1, 100) <= random_properties.random_bandage_chance or selected_injury is injury_properties.head_injury:
+                if randint(1, 100) <= random_properties.random_bloody_bandage_chance:
                     final_injury = 'BANDAGEBLOODY'
                 else:
                     final_injury = 'BANDAGE'
@@ -60,12 +63,12 @@ class PZ_HumanRig_RandomizeBodyInjuries(Operator):
             if selected_injury == 'head_injury' and selected_injury not in ('NONE', 'BANDAGE', 'BANDAGEBLOODY'):
                 continue
 
-            setattr(p, selected_injury, final_injury)
+            setattr(injury_properties, selected_injury, final_injury)
 
             injury_props.remove(selected_injury)
 
         bpy.ops.zomboid.create_body_texture()
 
-        p.halt_texture_updates = False
+        model_properties.stop_texture_updates = False
 
         return ({'FINISHED'})

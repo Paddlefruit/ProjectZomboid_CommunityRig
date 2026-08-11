@@ -13,7 +13,9 @@ class PZ_HumanRig_RandomizeDirtiness(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        p = context.active_object.pz_human_props
+        model_properties = context.active_object.pz_model_properties
+        injury_properties = context.active_object.pz_injury_properties
+        random_properties = context.active_object.pz_random_properties
 
         dirt_props = ["upper_torso_dirtiness", "lower_torso_dirtiness", "left_hand_dirtiness",
                       "right_hand_dirtiness", "left_forearm_dirtiness", "right_forearm_dirtiness",
@@ -22,12 +24,12 @@ class PZ_HumanRig_RandomizeDirtiness(Operator):
                       "right_thigh_dirtiness", "left_shin_dirtiness", "right_shin_dirtiness",
                       "left_foot_dirtiness", "right_foot_dirtiness", "back_dirtiness"]
 
-        p.halt_texture_updates = True
+        model_properties.stop_texture_updates = True
 
         for dirt in dirt_props:
-            setattr(p, dirt, 0)
+            setattr(injury_properties, dirt, 0)
             dirtiness = 0
-            match p.random_dirtiness_intensity:
+            match random_properties.random_dirtiness_intensity:
                 case 'SOME':
                     dirtiness = uniform(0.0, 0.5)
                 case 'MODERATE':
@@ -37,10 +39,10 @@ class PZ_HumanRig_RandomizeDirtiness(Operator):
                 case 'DISGUSTING':
                     dirtiness = uniform(0.0, 2.0)
 
-            setattr(p, dirt, dirtiness)
+            setattr(injury_properties, dirt, dirtiness)
 
         bpy.ops.zomboid.create_dirtiness_mask()
 
-        p.halt_texture_updates = False
+        model_properties.stop_texture_updates = False
 
         return ({'FINISHED'})

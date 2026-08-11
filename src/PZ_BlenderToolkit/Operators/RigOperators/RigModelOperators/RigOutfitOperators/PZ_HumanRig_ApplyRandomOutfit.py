@@ -11,13 +11,16 @@ class PZ_HumanRig_ApplyRandomOutfit(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
-        outfits = addon_prefs.pz_human_outfit_slots
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        model_properties = context.active_object.pz_model_properties
+        outfits = addon_data.pz_outfit_references
 
-        rnd = randint(0, len(outfits)-1)
-        p.selected_outfit = outfits[rnd].search_name
+        if len(outfits) > 0:
+            rnd = randint(0, len(outfits)-1)
+            model_properties.selected_outfit = outfits[rnd].search_name
 
-        bpy.ops.zomboid.apply_outfit()
+            bpy.ops.zomboid.apply_outfit()
 
-        return ({'FINISHED'})
+            return ({'FINISHED'})
+        else:
+            return ({'CANCELLED'})

@@ -10,11 +10,15 @@ class PZ_HumanRig_RemoveZombieInjury(Operator):
 
     def execute(self, context):
 
-        bpy.ops.uilist.entry_remove(
-            list_path="object.pz_human_zombie_injuries",
-            active_index_path="object.pz_human_props.zombie_injury_active_index"
-        )
+        # Get all data
+        injury_properties = context.active_object.pz_injury_properties
+        model_properties = context.active_object.pz_model_properties
 
-        bpy.ops.zomboid.construct_body_texture()
+        # Remove the injury
+        context.active_object.pz_zombie_injuries.remove(injury_properties.zombie_injury_active_index)
+        injury_properties.zombie_injury_active_index -= 1
+
+        if not model_properties.stop_texture_updates:
+            bpy.ops.zomboid.create_body_texture()
 
         return ({'FINISHED'})

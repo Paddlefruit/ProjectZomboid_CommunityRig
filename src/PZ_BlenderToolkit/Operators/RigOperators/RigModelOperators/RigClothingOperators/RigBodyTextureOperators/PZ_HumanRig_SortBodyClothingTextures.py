@@ -10,12 +10,11 @@ class PZ_HumanRig_SortBodyClothingTextures(Operator):
     bl_description = "Sorts the body clothing textures with the same order as Project Zomboid's renderer"
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        props = context.active_object.pz_human_props
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
-        body_locations = addon_prefs.pz_human_body_locations
+        body_locations = addon_data.pz_body_locations
         equipped_clothing = context.active_object.pz_equipped_clothing_items
-        body_clothing_textures = [item for item in equipped_clothing if item.data.clothing_type == 'BODYTEXTURE']
+        body_clothing_textures = [item for item in equipped_clothing if item.data.clothing_type == 'BODYTEXTURE' and item.data.body_location]
 
         # Unfortunately there's not a simple way to reassign a collection, so we have to remake it here
 
@@ -50,7 +49,7 @@ class PZ_HumanRig_SortBodyClothingTextures(Operator):
         for i in range(len(equipped_clothing) - 1, -1, -1):
             clothing = equipped_clothing[i]
 
-            if clothing.data.clothing_type == 'BODYTEXTURE':
+            if clothing.data.clothing_type == 'BODYTEXTURE' and item.data.body_location:
                 equipped_clothing.remove(i)
 
         # Recreate the body clothing textures

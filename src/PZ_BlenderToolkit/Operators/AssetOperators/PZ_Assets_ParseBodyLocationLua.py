@@ -12,11 +12,11 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
     bl_description = "Get all of the data pertaining to BodyLocations from Project Zomboid"
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        body_locations = addon_prefs.pz_human_body_locations
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        body_locations = addon_data.pz_body_locations
 
         body_locations.clear()
-        addon_prefs.body_location_active_index = -1
+        addon_data.body_location_active_index = -1
 
         for folder, origin in get_zomboid_asset_folders(context, 'NPCs'):
             if (folder / 'BodyLocations.lua').is_file():

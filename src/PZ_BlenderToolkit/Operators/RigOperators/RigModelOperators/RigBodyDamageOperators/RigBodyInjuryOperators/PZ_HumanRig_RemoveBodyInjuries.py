@@ -10,12 +10,13 @@ class PZ_HumanRig_RemoveAllBodyInjuries(Operator):
     bl_description = "Removes all body injuries"
     bl_options = {'REGISTER', 'UNDO'}
 
-    halt_texture_updates: BoolProperty(
+    stop_texture_updates: BoolProperty(
         default=True
     )
 
     def execute(self, context):
-        p = context.active_object.pz_human_props
+        model_properties = context.active_object.pz_model_properties
+        injury_properties = context.active_object.pz_injury_properties
 
         injury_props = ["upper_torso_injury", "lower_torso_injury", "left_hand_injury",
                         "right_hand_injury", "left_forearm_injury", "right_forearm_injury",
@@ -24,14 +25,14 @@ class PZ_HumanRig_RemoveAllBodyInjuries(Operator):
                         "right_thigh_injury", "left_shin_injury", "right_shin_injury",
                         "left_foot_injury", "right_foot_injury"]
 
-        if self.halt_texture_updates:
-            p.halt_texture_updates = True
+        if self.stop_texture_updates:
+            model_properties.stop_texture_updates = True
 
         for injury in injury_props:
-            setattr(p, injury, 'NONE')
+            setattr(injury_properties, injury, 'NONE')
 
-        if self.halt_texture_updates:
+        if self.stop_texture_updates:
             bpy.ops.zomboid.create_body_texture()
-            p.halt_texture_updates = False
+            model_properties.stop_texture_updates = False
 
         return ({'FINISHED'})

@@ -16,7 +16,7 @@ class PZ_HumanRig_ImportAttachmentModel(Operator):
     def execute(self, context):
         
         # Get all data
-        addon_prefs = context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = context.preferences.addons['PZ_BlenderToolkit'].preferences
         p = context.active_object.pz_human_props
         current_attachment = context.active_object.pz_attachments[p.attachment_active_index]
         instance_str = ' (' + str(p.rig_instance) + ')'
@@ -87,7 +87,7 @@ class PZ_HumanRig_ImportAttachmentModel(Operator):
                 collection.objects.unlink(model_obj)
 
             # Get the rig's attachment collection, and add the model object to it
-            attachment_collection = bpy.data.collections.get('COL-PZ_Human_Attachments' + instance_str)
+            attachment_collection = bpy.data.collections.get('COL-pz_attachments' + instance_str)
             attachment_collection.objects.link(model_obj)
 
             # Create the attachment material, and assign it to this attachment data

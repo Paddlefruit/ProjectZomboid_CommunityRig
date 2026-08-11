@@ -12,9 +12,13 @@ class PZ_HairStyleHatStyle(PropertyGroup):
 
 class PZ_HairStyle(PropertyGroup):
     name: StringProperty()
-    model_path: StringProperty()
+    model_path: StringProperty(
+        subtype='FILE_PATH'
+    )
     model_type: StringProperty()
-    texture_path: StringProperty()
+    texture_path: StringProperty(
+        subtype='FILE_PATH'
+    )
     sex: StringProperty()
     level: IntProperty()
     hat_styles: CollectionProperty(type=PZ_HairStyleHatStyle)

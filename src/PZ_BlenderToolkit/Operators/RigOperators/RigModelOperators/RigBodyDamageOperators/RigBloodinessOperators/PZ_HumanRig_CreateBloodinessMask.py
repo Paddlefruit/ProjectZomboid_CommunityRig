@@ -20,18 +20,18 @@ class PZ_HumanRig_CreateBloodinessMask(Operator):
     blood_textures = []
 
     def get_blood_textures(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
-        overlay_masks = addon_prefs.pz_human_overlay_masks
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        injury_properties = context.active_object.pz_injury_properties
+        overlay_masks = addon_data.pz_overlay_mask_references
 
         self.blood_textures.clear()
 
-        blood_props = [p.upper_torso_bloodiness, p.lower_torso_bloodiness, p.left_hand_bloodiness,
-                       p.right_hand_bloodiness, p.left_forearm_bloodiness, p.right_forearm_bloodiness,
-                       p.left_upperarm_bloodiness, p.right_upperarm_bloodiness, p.head_bloodiness,
-                       p.neck_bloodiness, p.groin_bloodiness, p.left_thigh_bloodiness,
-                       p.right_thigh_bloodiness, p.left_shin_bloodiness, p.right_shin_bloodiness,
-                       p.left_foot_bloodiness, p.right_foot_bloodiness, p.back_bloodiness]
+        blood_props = [injury_properties.upper_torso_bloodiness, injury_properties.lower_torso_bloodiness, injury_properties.left_hand_bloodiness,
+                       injury_properties.right_hand_bloodiness, injury_properties.left_forearm_bloodiness, injury_properties.right_forearm_bloodiness,
+                       injury_properties.left_upperarm_bloodiness, injury_properties.right_upperarm_bloodiness, injury_properties.head_bloodiness,
+                       injury_properties.neck_bloodiness, injury_properties.groin_bloodiness, injury_properties.left_thigh_bloodiness,
+                       injury_properties.right_thigh_bloodiness, injury_properties.left_shin_bloodiness, injury_properties.right_shin_bloodiness,
+                       injury_properties.left_foot_bloodiness, injury_properties.right_foot_bloodiness, injury_properties.back_bloodiness]
 
         body_part_dict = {
             0: 'Chest',
@@ -63,23 +63,25 @@ class PZ_HumanRig_CreateBloodinessMask(Operator):
         return ({'FINISHED'})
 
     def generate_bloodiness_texture(self, context):
+        main_properties = context.active_object.pz_main_properties
+        object_pointers = context.active_object.pz_object_pointers
 
-        p = context.active_object.pz_human_props
+        instance_str = main_properties.get_instance_str(context)
 
-        generated_image = bpy.data.images.get(
-            'MASK-MaskData (' + str(p.rig_instance) + ')')
+        generated_image = object_pointers.mask_data_image
         if generated_image is None:
             generated_image = bpy.data.images.new(
-                name='MASK-MaskData (' + str(p.rig_instance) + ')', 
+                name='MASK-MaskData' + instance_str, 
                 width=256, 
                 height=256, 
                 alpha=True,
                 float_buffer=True
             )
+            object_pointers.mask_data_image = generated_image
 
         # Assign the image to the body material node tree
-        if p.body_mat:
-            p.body_mat.node_tree.nodes.get('NDE-MaskData').image = generated_image
+        if object_pointers.body_material:
+            object_pointers.body_material.node_tree.nodes.get('NDE-MaskData').image = generated_image
 
         num_pixels = generated_image.size[0] * generated_image.size[1]
 
@@ -119,9 +121,9 @@ class PZ_HumanRig_CreateBloodinessMask(Operator):
         return ({'FINISHED'})
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
-        if addon_prefs.pz_directory != '':
+        if addon_data.pz_directory != '':
             self.get_blood_textures(context)
             self.generate_bloodiness_texture(context)
 

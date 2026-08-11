@@ -10,23 +10,23 @@ class PZ_HumanRig_RemoveAllBodyDamage(Operator):
     bl_description = "Removes all body damage"
     bl_options = {'REGISTER', 'UNDO'}
 
-    halt_texture_updates: BoolProperty(
+    stop_texture_updates: BoolProperty(
         default=True
     )
 
     def execute(self, context):
-        p = context.active_object.pz_human_props
+        model_properties = context.active_object.pz_model_properties
 
-        if self.halt_texture_updates:
-            p.halt_texture_updates = True
+        if self.stop_texture_updates:
+            model_properties.stop_texture_updates = True
 
-        bpy.ops.zomboid.remove_body_bloodiness(halt_texture_updates=self.halt_texture_updates)
-        bpy.ops.zomboid.remove_body_dirtiness(halt_texture_updates=self.halt_texture_updates)
-        bpy.ops.zomboid.remove_all_body_injuries(halt_texture_updates=self.halt_texture_updates)
-        bpy.ops.zomboid.remove_all_zombie_injuries(halt_texture_updates=self.halt_texture_updates)
+        bpy.ops.zomboid.remove_body_bloodiness(stop_texture_updates=self.stop_texture_updates)
+        bpy.ops.zomboid.remove_body_dirtiness(stop_texture_updates=self.stop_texture_updates)
+        bpy.ops.zomboid.remove_all_body_injuries(stop_texture_updates=self.stop_texture_updates)
+        bpy.ops.zomboid.remove_all_zombie_injuries(stop_texture_updates=self.stop_texture_updates)
 
-        if self.halt_texture_updates:
+        if self.stop_texture_updates:
             bpy.ops.zomboid.create_body_texture()
-            p.halt_texture_updates = False
+            model_properties.stop_texture_updates = False
 
         return ({'FINISHED'})

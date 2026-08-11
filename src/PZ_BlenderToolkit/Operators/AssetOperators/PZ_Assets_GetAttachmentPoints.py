@@ -10,8 +10,8 @@ class PZ_Assets_GetAttachmentPoints(Operator):
     bl_description = "Get all of the data pertaining to attachment locations on the body from Project Zomboid"
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        attachment_points = addon_prefs.pz_human_attachment_points
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        attachment_points = addon_data.pz_attachment_points
 
         attachment_points.clear()
 

@@ -59,7 +59,7 @@ class PZ_ClothingItemReference(PropertyGroup):
 
     # The array of boolean toggles for each mask.
     # Clothing model objects use these to obscur body geometry that would otherwise clip through the clothing
-    mask_array: BoolVectorProperty(
+    visibility_mask_array: BoolVectorProperty(
         name='Mask Array',
         description='Array of toggles for each mesh mask',
         size=17,
@@ -81,10 +81,6 @@ class PZ_ClothingItemReference(PropertyGroup):
     # What body location does this clothing item use? 
     # This is used for things like body clothing texture sorting and making sure you can't put an apron on over a hazmat suit
     body_location: StringProperty()
-
-    # When sorting the body textures on the rig, this value will be used as the sorting weight
-    # It comes from the BodyLocations.lua file, and is based on when the body location this item uses is created
-    render_order: IntProperty()
 
     # Whether this clothing item should be able to have hole texture overlays on it
     can_have_holes: BoolProperty(default=True)

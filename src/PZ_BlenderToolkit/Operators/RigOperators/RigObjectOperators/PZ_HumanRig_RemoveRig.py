@@ -11,18 +11,22 @@ class PZ_HumanRig_RemoveRig(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        rigs = context.scene.pz_human_rigs
-        rig_to_remove = rigs[context.scene.pz_human_global_props.human_rig_active_index]
-        rig_obj = rig_to_remove.obj
-        rig_col = rig_obj.pz_human_props.rig_collection
 
-        with bpy.context.temp_override(active_object=rig_obj):
+        # Get all data
+        rigs = context.scene.pz_human_rigs
+        rig_to_remove = rigs[context.scene.pz_scene_properties.human_rig_active_index]
+        
+        object_pointers = rig_to_remove.rig_object.pz_object_pointers
+
+        # Begin removing everything
+        with bpy.context.temp_override(active_object=object_pointers.rig_object):
             bpy.ops.zomboid.reset_model()
 
-        bpy.data.images.remove(rig_obj.pz_human_props.mask_tex, do_unlink=True)
-        bpy.data.images.remove(rig_obj.pz_human_props.body_tex, do_unlink=True)
-        bpy.data.materials.remove(rig_obj.pz_human_props.body_mat, do_unlink=True)
+        bpy.data.images.remove(object_pointers.mask_data_image, do_unlink=True)
+        bpy.data.images.remove(object_pointers.body_texture_image, do_unlink=True)
+        bpy.data.materials.remove(object_pointers.body_material, do_unlink=True)
 
+        # Remove all objects and collections recursively
         def remove_collection_recursive(col : Collection):
             if not col:
                 return
@@ -32,9 +36,9 @@ class PZ_HumanRig_RemoveRig(Operator):
                 bpy.data.objects.remove(obj, do_unlink=True)
             bpy.data.collections.remove(col, do_unlink=True)
 
-        remove_collection_recursive(rig_col)
+        remove_collection_recursive(object_pointers.rig_collection)
 
-        rigs.remove(context.scene.pz_human_global_props.human_rig_active_index)
-        context.scene.pz_human_global_props.human_rig_active_index -= 1
+        rigs.remove(context.scene.pz_scene_properties.human_rig_active_index)
+        context.scene.pz_scene_properties.human_rig_active_index -= 1
         
         return ({'FINISHED'})

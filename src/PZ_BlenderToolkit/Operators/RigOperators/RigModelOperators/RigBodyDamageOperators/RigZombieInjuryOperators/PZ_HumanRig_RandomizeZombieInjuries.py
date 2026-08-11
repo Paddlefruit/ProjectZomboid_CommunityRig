@@ -13,19 +13,20 @@ class PZ_HumanRig_RandomizeZombieInjuries(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        model_properties = context.active_object.pz_model_properties
+        random_properties = context.active_object.pz_randoom_properties
 
         injury_choices = filter_zombie_injuries(self, context)
 
-        zombie_injuries = context.active_object.pz_human_zombie_injuries
+        zombie_injuries = context.active_object.pz_zombie_injury_references
 
-        p.halt_texture_updates = True
+        model_properties.stop_texture_updates = True
 
         zombie_injuries.clear()
 
         injury_num = 0
-        match p.random_zombie_injury_intensity:
+        match random_properties.random_zombie_injury_intensity:
             case 'INTACT':
                 injury_num = randint(1, 3)
             case 'DAMAGED':
@@ -49,13 +50,13 @@ class PZ_HumanRig_RandomizeZombieInjuries(Operator):
 
             new_injury = zombie_injuries.add()
             new_injury.name = selected_injury[0]
-            new_injury.texture_path = addon_prefs.pz_human_zombie_injuries.get(
+            new_injury.texture_path = addon_data.pz_zombie_injury_references.get(
                 selected_injury[0]).texture_path
 
             injury_choices.remove(selected_injury)
 
         bpy.ops.zomboid.create_body_texture()
 
-        p.halt_texture_updates = False
+        model_properties.stop_texture_updates = False
 
         return ({'FINISHED'})

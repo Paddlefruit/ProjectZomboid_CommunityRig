@@ -10,12 +10,13 @@ class PZ_HumanRig_RemoveBodyDirtiness(Operator):
     bl_description = "Sets all dirtiness on the body to zero"
     bl_options = {'REGISTER', 'UNDO'}
 
-    halt_texture_updates: BoolProperty(
+    stop_texture_updates: BoolProperty(
         default=True
     )
 
     def execute(self, context):
-        p = context.active_object.pz_human_props
+        model_properties = context.active_object.pz_model_properties
+        injury_properties = context.active_object.pz_injury_properties
 
         dirt_props = ["upper_torso_dirtiness", "lower_torso_dirtiness", "left_hand_dirtiness",
                       "right_hand_dirtiness", "left_forearm_dirtiness", "right_forearm_dirtiness",
@@ -24,14 +25,14 @@ class PZ_HumanRig_RemoveBodyDirtiness(Operator):
                       "right_thigh_dirtiness", "left_shin_dirtiness", "right_shin_dirtiness",
                       "left_foot_dirtiness", "right_foot_dirtiness", "back_dirtiness"]
 
-        if self.halt_texture_updates:
-            p.halt_texture_updates = True
+        if self.stop_texture_updates:
+            model_properties.stop_texture_updates = True
 
         for dirt in dirt_props:
-            setattr(p, dirt, 0)
+            setattr(injury_properties, dirt, 0)
 
-        if self.halt_texture_updates:
+        if self.stop_texture_updates:
             bpy.ops.zomboid.create_dirtiness_mask()
-            p.halt_texture_updates = False
+            model_properties.stop_texture_updates = False
 
         return ({'FINISHED'})

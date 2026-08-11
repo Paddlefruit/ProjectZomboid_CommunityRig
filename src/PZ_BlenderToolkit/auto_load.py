@@ -7,6 +7,7 @@ import importlib
 import inspect
 
 from bpy.types import Operator, Panel, UIList, PropertyGroup, AddonPreferences
+from .PropertyGroups.General.PZ_HumanRig import PZ_HumanRig
 
 modules = []
 ordered_classes = []
@@ -56,16 +57,18 @@ def get_classes_to_register(module_list):
 
     def get_registration_order(cls):
         if issubclass(cls, PropertyGroup):
+            if issubclass(cls, PZ_HumanRig):
+                return 1
             return 0
         if issubclass(cls, (Operator, UIList)):
-            return 1
+            return 2
         if issubclass(cls, Panel):
             if hasattr(cls, 'bl_parent_id'):
-                return 3
-            return 2
+                return 4
+            return 3
         if issubclass(cls, AddonPreferences):
-            return 4
-        return 5
+            return 5
+        return 6
 
     classes.sort(key=get_registration_order)
     return classes

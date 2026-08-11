@@ -15,25 +15,29 @@ class PZ_ImportClothingModel(Operator):
     bl_idname = "zomboid.import_clothing_model"
     bl_label = "Import Clothing Model"
 
-    halt_texture_updates: BoolProperty(
+    stop_texture_updates: BoolProperty(
         default=True
     )
 
     def execute(self, context):
 
         # Get all data
-        addon_prefs = context.preferences.addons['PZ_BlenderToolkit'].preferences
-        p = context.active_object.pz_human_props
+        object_pointers = context.active_object.pz_object_pointers
+        main_properties = context.active_object.pz_main_properties
+        model_properties = context.active_object.pz_model_properties
 
-        current_clothing_item = context.active_object.pz_equipped_clothing_items[p.equipped_clothing_item_active_index]
+        current_clothing_item = context.active_object.pz_equipped_clothing_items[model_properties.equipped_clothing_item_active_index]
 
-        instance_str = ' (' + str(p.rig_instance) + ')'
+        instance_str = main_properties.get_instance_str(context)
 
         # Select a random texture from all available texture choices
         texture_path = current_clothing_item.get_texture_path()
 
         # Create the attachment material, and assign it to the clothing item data
         current_clothing_item.material, current_clothing_item.image = create_model_material(context, texture_path, 'CLOTHING')
+
+        # Rename the image name
+        current_clothing_item.image.name = 'TEX-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
         # Method that will be run for both sex's models
         def import_clothing_model(sex: str, model_path: str):
@@ -42,6 +46,7 @@ class PZ_ImportClothingModel(Operator):
 
                     # Get a list of all objects before the import
                     objs_before = set(bpy.context.scene.objects)
+                    mats_before = set(bpy.data.materials)
 
                     # Run the import method for the respective model type
                     match current_clothing_item.data.model_type:
@@ -69,9 +74,15 @@ class PZ_ImportClothingModel(Operator):
                                 disable_bone_shape=True
                             )
 
-                    # Get a list of all added objects to the scene
+                   # Get a list of all added objects to the scene
                     objs_after = set(bpy.context.scene.objects)
+                    mats_after = set(bpy.data.materials)
+
                     imported_objects = list(objs_after - objs_before)
+                    imported_materials = list(mats_after - mats_before)
+
+                    for mat in imported_materials:
+                        bpy.data.materials.remove(mat)
 
                     # Method that checks edge cases where a model file has two meshes instead of one
                     def check_multi_model(wanted_model_name, delete_model_name):
@@ -83,8 +94,11 @@ class PZ_ImportClothingModel(Operator):
                             elif obj.name == delete_model_name:
                                 y = obj
                         if x is not None and y is not None:
+                            data = y.data
                             imported_objects.remove(y)
                             bpy.data.objects.remove(y, do_unlink=True)
+                            if data:
+                                bpy.data.meshes.remove(data, do_unlink=True)
 
                     check_multi_model('Bob_Trousers', 'Bob_LongShorts')
                     check_multi_model('F_HydrationBackpack', 'F_ALICE_PackODD')
@@ -105,7 +119,7 @@ class PZ_ImportClothingModel(Operator):
 
                     # Create the name for the new object
                     sex_name = 'OBJ-MaleClothingModel' if sex == 'MALE' else 'OBJ-FemaleClothingModel'
-                    obj_name = sex_name + str(p.equipped_clothing_item_active_index) + instance_str
+                    obj_name = sex_name + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
                     # Remove pre-existing object with this name, if it exists
                     old_obj = bpy.data.objects.get(obj_name)
@@ -115,13 +129,18 @@ class PZ_ImportClothingModel(Operator):
                     # Rename the new object
                     model_obj.name = obj_name
 
+                    # Rename the mesh data on the model object
+                    data = model_obj.data
+                    if data:
+                        sex_name = 'GEO-MaleClothing' if sex == 'MALE' else 'GEO-FemaleClothing'
+                        data.name = sex_name + str(model_properties.equipped_clothing_item_active_index) + instance_str
+
                     # Unlink this object from any collections it may have been linked to in the import process
                     for collection in model_obj.users_collection[:]:
                         collection.objects.unlink(model_obj)
 
-                    # Get the rig's clothing collection for the respective sex, and add the model object to it
-                    sex_collection_name = 'COL-PZ_Human_Male_Clothes' if sex == 'MALE' else 'COL-PZ_Human_Female_Clothes'
-                    attachment_collection = bpy.data.collections.get(sex_collection_name + instance_str)
+                    # Get the rig's model collection and add to it
+                    attachment_collection = object_pointers.model_collection
                     attachment_collection.objects.link(model_obj)
 
                     # Apply the material that was created to the model
@@ -158,8 +177,8 @@ class PZ_ImportClothingModel(Operator):
                     model_obj["sex"] = 0 if sex == 'MALE' else 1
 
                     # Set initial view paramaters for the model based on the current sex
-                    model_obj.hide_viewport = model_obj['sex'] != p.model_sex_index
-                    model_obj.hide_render = model_obj['sex'] != p.model_sex_index
+                    model_obj.hide_viewport = model_obj['sex'] != model_properties.model_sex_index
+                    model_obj.hide_render = model_obj['sex'] != model_properties.model_sex_index
 
                     return model_obj
 
@@ -176,17 +195,17 @@ class PZ_ImportClothingModel(Operator):
             current_clothing_item.female_model_object = import_clothing_model('FEMALE', current_clothing_item.data.female_model_path)
 
         # Temporarily pause texture updates if indicated
-        if self.halt_texture_updates:
-            p.halt_texture_updates = True
+        if self.stop_texture_updates:
+            model_properties.stop_texture_updates = True
 
         # Add the masks from this clothing item to the main rig masks array
-        for i in range(len(current_clothing_item.data.mask_array)):
-            if current_clothing_item.data.mask_array[i] == True:
-                p.mask_array[i] = True
+        for i in range(len(current_clothing_item.data.visibility_mask_array)):
+            if current_clothing_item.data.visibility_mask_array[i] == True:
+                model_properties.visibility_mask_array[i] = True
 
         # Resume texture updates
-        if self.halt_texture_updates:
-            p.halt_texture_updates = False
+        if self.stop_texture_updates:
+            model_properties.stop_texture_updates = False
 
         return ({'FINISHED'})
                 

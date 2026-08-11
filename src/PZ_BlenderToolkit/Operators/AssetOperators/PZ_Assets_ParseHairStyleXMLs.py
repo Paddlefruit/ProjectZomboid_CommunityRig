@@ -197,14 +197,14 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
             self.beard_count = self.beard_count + 1
 
     def execute(self, context):
-        addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
-        hair_styles = addon_prefs.pz_human_hair_style_slots
-        male_styles = addon_prefs.pz_human_male_hair_styles
-        female_styles = addon_prefs.pz_human_female_hair_styles
-        beard_styles = addon_prefs.pz_human_beard_styles
+        hair_styles = addon_data.pz_hair_style_references
+        male_styles = addon_data.pz_male_hair_style_references
+        female_styles = addon_data.pz_female_hair_style_references
+        beard_styles = addon_data.pz_beard_style_references
 
-        addon_prefs.hair_style_slot_active_index = 0
+        addon_data.hair_style_reference_active_index = 0
         hair_styles.clear()
         male_styles.clear()
         female_styles.clear()

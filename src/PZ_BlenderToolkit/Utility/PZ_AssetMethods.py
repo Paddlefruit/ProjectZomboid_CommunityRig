@@ -15,12 +15,12 @@ def directx_import_available():
 
 @functools.lru_cache(maxsize=256)
 def get_zomboid_asset_folders(context, parent_path):
-    addon_prefs = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
-    mods = addon_prefs.pz_human_mod_directory_slots
+    addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
+    mods = addon_data.pz_mod_directories
 
     results = []
 
-    vanilla_results = [dir for dir in Path(addon_prefs.pz_directory).rglob(
+    vanilla_results = [dir for dir in Path(addon_data.pz_directory).rglob(
         parent_path, case_sensitive=False) if dir.is_dir()]
     for path in vanilla_results:
         results.append((path, 'Project Zomboid'))
@@ -52,5 +52,7 @@ def get_zomboid_asset(context, item_path, allowed_types=[]):
                 else:
                     return file, file.suffix.lower()
 
-    print('Could not find ' + item_path)
+    if 'bk/' not in item_path:
+        print('Could not find ' + item_path)
+        
     return (None, None)
