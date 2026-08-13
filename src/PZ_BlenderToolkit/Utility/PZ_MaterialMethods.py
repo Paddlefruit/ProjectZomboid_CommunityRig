@@ -98,16 +98,25 @@ def create_model_material(context, texture_path, category, hair_type=None):
 
     # Dirt Overlay
     dirt_image_name = 'TEX-GrimeOverlay'
-    with bpy.data.libraries.load(str(mat_blend_path)) as (data_from, data_to):
-        if dirt_image_name in data_from.images:
-            data_to.images.append(dirt_image_name)
+    dirt_image = bpy.data.images.get(dirt_image_name)
+
+    if not dirt_image:
+        with bpy.data.libraries.load(str(mat_blend_path)) as (data_from, data_to):
+            if dirt_image_name in data_from.images:
+                data_to.images.append(dirt_image_name)
+
     dirt_tex_node.image = bpy.data.images.get(dirt_image_name)
 
     # Blood Overlay
     blood_image_name = 'TEX-BloodOverlay'
-    with bpy.data.libraries.load(str(mat_blend_path)) as (data_from, data_to):
-        if blood_image_name in data_from.images:
-            data_to.images.append(blood_image_name)
+    blood_image = bpy.data.images.get(blood_image_name)
+
+    if not blood_image:
+        with bpy.data.libraries.load(str(mat_blend_path)) as (data_from, data_to):
+            if blood_image_name in data_from.images:
+                data_to.images.append(blood_image_name)
+
+    
     blood_tex_node.image = bpy.data.images.get(blood_image_name)
 
     # Interpolation Driver
@@ -238,8 +247,18 @@ def create_model_material(context, texture_path, category, hair_type=None):
     mat.node_tree.update_tag()
 
     ### Set the custom shader node properties ###
-    selected_group = bpy.data.node_groups.get(context.active_object.pz_shading_properties.custom_shading_group_name)
-    
+    group_name = context.active_object.pz_shading_properties.custom_shading_group_name
+    if group_name == 'SHD-Placeholder':
+        searched_group = bpy.data.node_groups.get(group_name)
+        if searched_group:
+            selected_group = bpy.data.node_groups.get(group_name)
+        else:
+            with bpy.data.libraries.load(str(mat_blend_path)) as (data_from, data_to):
+                if blood_image_name in data_from.node_groups:
+                    data_to.node_groups.append(group_name)
+    else:
+        selected_group = bpy.data.node_groups.get(group_name)
+
     if selected_group:
         custom_shader_node.node_tree = selected_group
 
@@ -248,6 +267,10 @@ def create_model_material(context, texture_path, category, hair_type=None):
 
         if custom_shader_node.outputs.get('Shader') is not None:
             links.new(custom_shader_node.outputs['Shader'], mix_custom_shader_node.inputs[2])
+
+    # Delete extra imported SHD-Placeholder node groups
+    for group in [group for group in bpy.data.node_groups if 'SHD-Placeholder.' in group.name]:
+        bpy.data.node_groups.remove(group, do_unlink=True)
 
     # Make sure that the links are correct
 
@@ -314,55 +337,3 @@ def create_model_material(context, texture_path, category, hair_type=None):
                 links.remove(link)
 
     return (mat, tex_node.image)
-
-
-def remove_model_material(context, category):
-    pass
-    # p = context.active_object.pz_human_props
-    # instance_str = ' (' + str(p.rig_instance) + ')'
-
-    # index = -1
-    # a_list = None
-
-    # mat_name = ''
-    # match category:
-    #     case 'ACCESSORY':
-    #         mat_name = 'MAT-AccessoryMaterial' + str(index) + instance_str
-    #         a_list = context.active_object.pz_accessory_models
-    #         index = p.accessory_model_active_index
-    #     case 'CLOTHING':
-    #         mat_name = 'MAT-ClothingMaterial' + str(index) + instance_str
-    #         a_list = context.active_object.pz_clothing_models
-    #         index = p.clothing_model_active_index
-
-    # old_mat = bpy.data.materials.get(mat_name)
-    # if old_mat:
-
-    #     drivers = old_mat.node_tree.animation_data.drivers
-    #     for i in range(len(drivers) - 1, -1, -1):
-    #         drivers.remove(drivers[i])
-
-    #     bpy.data.materials.remove(old_mat, do_unlink=True)
-
-    # for i in range(index, len(a_list)):
-    #     index_mat = bpy.data.materials.get(mat_name)
-    #     if index_mat:
-    #         match category:
-    #             case 'ACCESSORY':
-    #                 index_mat.name = 'MAT-AccessoryMaterial' + str(i - 1) + instance_str
-    #             case 'CLOTHING':
-    #                 index_mat.name = 'MAT-ClothingMaterial' + str(i - 1) + instance_str
-
-    #         for fcurve in index_mat.node_tree.animation_data.drivers:
-    #             driver = fcurve.driver
-    #             target = driver.variables[0].targets[0]
-
-    #             match category:
-    #                 case 'ACCESSORY':
-    #                     old_path = "pz_accessory_models[" + str(i) + "]"
-    #                     new_path = "pz_accessory_models[" + str(i - 1) + "]"
-    #                 case 'CLOTHING':
-    #                     old_path = "pz_clothing_models[" + str(i) + "]"
-    #                     new_path = "pz_clothing_models[" + str(i - 1) + "]"
-
-    #             target.data_path = target.data_path.replace(old_path, new_path)

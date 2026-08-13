@@ -5,8 +5,14 @@ from bpy.types import UIList
 
 class PZ_UL_EquippedClothingItemsList(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         row = layout.row()
         row.label(text=item.name)
+
+        if addon_data.debug:
+            row.label(text=item.data.clothing_type)
+            row.label(text=str(index))
+
 
 def draw_clothing_subpanel(context, layout):
 
@@ -19,8 +25,15 @@ def draw_clothing_subpanel(context, layout):
     panel.label(text='Clothing')
 
     if panel_area:
-        panel_area.label(text='Add Clothing Item')
-        panel_area.prop_search(model_properties, 'selected_clothing_item', addon_data, 'pz_clothing_item_references', text='')
+        split = panel_area.split()
+        left_column = split.column()
+        right_column = split.column()
+
+        left_column.label(text='Add Clothing Item')
+        left_column.prop_search(model_properties, 'selected_clothing_item', addon_data, 'pz_clothing_item_references', text='')
+
+        right_column.scale_y = 2.0
+        right_column.operator('zomboid.remove_all_clothing_items', text='Remove All')
 
         panel_area.label(text='Equipped Clothing Items')
         panel_area.template_list("PZ_UL_EquippedClothingItemsList", "pz_equipped_clothing_items_list", context.object, "pz_equipped_clothing_items", model_properties, "equipped_clothing_item_active_index")
@@ -40,15 +53,16 @@ def draw_clothing_subpanel(context, layout):
 
             # Show debug pointers
             if addon_data.debug:
-                subpanel, subpanel_area = box.panel("clothing_pointers_subpanel", default_closed=True)
-                subpanel.label(text='Object Pointers')
+                if current_clothing_item.data.clothing_type != 'BODYTEXTURE':
+                    subpanel, subpanel_area = box.panel("clothing_pointers_subpanel", default_closed=True)
+                    subpanel.label(text='Object Pointers')
 
-                if subpanel_area:
-                    column = subpanel_area.column()
-                    column.prop(current_clothing_item, 'male_model_object')
-                    column.prop(current_clothing_item, 'female_model_object')
-                    column.prop(current_clothing_item, 'material')
-                    column.prop(current_clothing_item, 'image')
+                    if subpanel_area:
+                        column = subpanel_area.column()
+                        column.prop(current_clothing_item, 'male_model_object')
+                        column.prop(current_clothing_item, 'female_model_object')
+                        column.prop(current_clothing_item, 'image')
+                        column.prop(current_clothing_item, 'material')
 
             # Operators for the clothing items
             right_column.label(text='Operators')

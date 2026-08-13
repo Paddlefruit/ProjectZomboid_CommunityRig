@@ -25,7 +25,7 @@ class PZ_HumanRigShadingProperties(PropertyGroup):
             ('PBR', "PBR", "The model will have shading, which is good for more high graphical fidelity renders", 1),
             ('CUSTOM', "Custom", "The model will use a specified shading node group using the generated color and alpha from the main material. Make sure the group has 'Color' as the first input, 'Alpha' as the second, and 'Shader' as the only output", 2)
         ],
-        default='UNSHADED',
+        default='PBR',
         update=update_shading_type_index,
         override={"LIBRARY_OVERRIDABLE"}
     )

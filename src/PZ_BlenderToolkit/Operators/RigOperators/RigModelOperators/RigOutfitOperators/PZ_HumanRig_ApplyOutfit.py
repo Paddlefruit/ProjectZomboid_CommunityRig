@@ -145,7 +145,7 @@ class PZ_HumanRig_ApplyOutfit(Operator):
 
         if model_properties.use_body_location_sorting:
             bpy.ops.zomboid.sort_body_clothing_textures()
-            
+
         bpy.ops.zomboid.create_body_texture()
         bpy.ops.zomboid.create_visibility_mask()
 

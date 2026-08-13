@@ -19,47 +19,49 @@ def draw_outfits_subpanel(context, layout):
 
     if panel_area:
 
-        # Random Outfit Box
-        panel_area.label(text='Outfit Settings')
         subbox = panel_area.box()
+        subbox.label(text='Selected Outfit')
+        subbox.prop_search(model_properties, 'selected_outfit', addon_data, 'pz_outfit_references', item_search_property='search_name', text='')
 
-        subbox.prop(random_properties, 'random_skin_tone', text='Random Skin Tone')
-        subbox.prop(random_properties, 'random_zombie', text='Zombie')
+        # Subpanel for outfit settings
+        subpanel, subpanel_area = subbox.panel("outfit_settings_subpanel", default_closed=True)
+        subpanel.label(text='Outfit Settings')
 
-        # Random Injury Properties
-        subbox.label(text='Injuries')
-        injury_box = subbox.box()
-        injury_box.prop(random_properties, 'randomize_outfit_injuries', text='Randomize Injuries')
-        injury_box.popover(panel='VIEW3D_PT_pz_human_rig_random_injury_popover', text='Options', icon_value=pz_icons["pz_random_icon"].icon_id)
+        if subpanel_area:
 
-        # Random Hair Properties
-        subbox.label(text='Hair')
-        hair_box = subbox.box()
-        hair_box.prop(random_properties, 'random_hair_style')
-        hair_box.prop(random_properties, 'random_beard_chance')
+            # Random Outfit Box
+            subbox = subpanel_area.box()
 
-        hair_box.separator(type='LINE')
-        subsplit = hair_box.split()
-        subsplit.prop(random_properties, 'random_hair_color')
-        subrow = subsplit.row()
-        subrow.prop(random_properties, 'natural_hair_color')
-        subrow.enabled = random_properties.random_hair_color
+            subbox.prop(random_properties, 'random_skin_tone', text='Random Skin Tone')
+            subbox.prop(random_properties, 'random_zombie', text='Zombie')
 
-        # Random Tint Properties
-        subbox.label(text='Tinting')
-        tint_box = subbox.box()
-        subsplit = tint_box.split()
-        subsplit.prop(random_properties, 'random_tint_color')
-        subrow = subsplit.row()
-        subrow.prop(random_properties, 'static_tint_color')
-        subrow.enabled = not random_properties.random_tint_color
-    
-        # Selected Outfit Box
-        panel_area.label(text='Selected Outfit')
+            # Random Injury Properties
+            subbox.label(text='Injuries')
+            injury_box = subbox.box()
+            injury_box.prop(random_properties, 'randomize_outfit_injuries', text='Randomize Injuries')
+            injury_box.popover(panel='VIEW3D_PT_pz_human_rig_random_injury_popover', text='Options', icon_value=pz_icons["pz_random_icon"].icon_id)
 
-        subbox = panel_area.box()
-        subbox.label(text='Outfit Name')
-        subbox.prop(model_properties, 'selected_outfit', text='')
+            # Random Hair Properties
+            subbox.label(text='Hair')
+            hair_box = subbox.box()
+            hair_box.prop(random_properties, 'random_hair_style')
+            hair_box.prop(random_properties, 'random_beard_chance')
+
+            hair_box.separator(type='LINE')
+            subsplit = hair_box.split()
+            subsplit.prop(random_properties, 'random_hair_color')
+            subrow = subsplit.row()
+            subrow.prop(random_properties, 'natural_hair_color')
+            subrow.enabled = random_properties.random_hair_color
+
+            # Random Tint Properties
+            subbox.label(text='Tinting')
+            tint_box = subbox.box()
+            subsplit = tint_box.split()
+            subsplit.prop(random_properties, 'random_tint_color')
+            subrow = subsplit.row()
+            subrow.prop(random_properties, 'static_tint_color')
+            subrow.enabled = not random_properties.random_tint_color
 
         subcolumn = subbox.column(align=True)
         op_row = subcolumn.row()

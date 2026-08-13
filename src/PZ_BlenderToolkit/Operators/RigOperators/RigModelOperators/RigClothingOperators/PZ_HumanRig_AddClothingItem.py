@@ -85,14 +85,6 @@ class PZ_HumanRig_AddClothingItem(Operator):
             # Copy the body location (in name)
             new_item.data.body_location = item.body_location
 
-            # Copy the tint settings, and get a random or set tint if applicable
-            new_item.data.tintable = item.tintable
-            if new_item.data.tintable:
-                if random_properties.random_tint_color:
-                    new_item.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
-                else:
-                    new_item.tint_color = random_properties.static_tint_color
-
             # Copy the model data
             new_item.data.male_model_path = item.male_model_path
             new_item.data.male_alt_model_path = item.male_alt_model_path
@@ -106,6 +98,16 @@ class PZ_HumanRig_AddClothingItem(Operator):
                 new_choice = new_item.data.texture_choices.add()
                 new_choice.texture_path = choice.texture_path
 
+            # Copy the tint settings, and get a random or set tint if applicable
+            new_item.data.tintable = item.tintable
+            if new_item.data.tintable:
+                model_properties.stop_texture_updates = True
+                if random_properties.random_tint_color:
+                    new_item.tint_color = ((uniform(0.15, 1.0), uniform(0.15, 1.0), uniform(0.15, 1.0)))
+                else:
+                    new_item.tint_color = random_properties.static_tint_color
+                model_properties.stop_texture_updates = False
+
             # Copy the mask settings
             for i in range(len(item.visibility_mask_array)):
                 if item.visibility_mask_array[i] == True:
@@ -113,7 +115,12 @@ class PZ_HumanRig_AddClothingItem(Operator):
 
             # Call the specific operators for the appropriate clothing type
             if new_item.data.clothing_type == 'BODYTEXTURE' and self.create_body_texture:
-                bpy.ops.zomboid.create_body_texture()
+                
+                # Sort body textures
+                if model_properties.use_body_location_sorting:
+                    bpy.ops.zomboid.sort_body_clothing_textures()
+                else:
+                    bpy.ops.zomboid.create_body_texture()
 
             if new_item.data.clothing_type == 'CLOTHINGMODEL':
                 bpy.ops.zomboid.import_clothing_model()

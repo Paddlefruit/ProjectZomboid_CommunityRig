@@ -3,7 +3,7 @@
 import bpy
 from bpy.types import PropertyGroup, Object, Material, Image
 from bpy.props import StringProperty, BoolProperty, FloatProperty, IntProperty, FloatVectorProperty, CollectionProperty, PointerProperty, BoolVectorProperty, EnumProperty
-from random import randint
+from random import randint, choice
 
 from ...Utility.PZ_UpdateMethods import *
 
@@ -90,23 +90,29 @@ class PZ_ClothingItemReference(PropertyGroup):
 
 class PZ_EquippedClothingItem(PropertyGroup):
 
-    # Method that will grab a random texture path from one of the texture choices
-    def get_texture_path(self):
-        return self.data.texture_choices[randint(0, len(self.data.texture_choices) - 1)].texture_path
-
     # The reference data that this property group should reference
     data: PointerProperty(
         type=PZ_ClothingItemReference
     )
 
+    # Method that will grab a random texture path from one of the texture choices
+    def get_texture_path(self):
+        return choice(self.data.texture_choices).texture_path
+
     # The color that this clothing item texture will multiply itself with.
     # The default value of white means that the color will be unchanged.
+    def update_tint_color(self, context):
+        model_properties = context.active_object.pz_model_properties
+        if not model_properties.stop_texture_updates:
+            bpy.ops.zomboid.create_body_texture()
+
     tint_color: FloatVectorProperty(
         name="Tint Color",
         subtype='COLOR',
         default=(1.0, 1.0, 1.0),
         max=1.0,
-        min=0.0
+        min=0.0,
+        update=update_tint_color
     )
 
     # The toggle of whether this clothing item should use an alternate mode

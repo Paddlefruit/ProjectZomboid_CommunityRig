@@ -7,6 +7,7 @@ from bpy.utils import previews
 from pathlib import Path
 
 from . import auto_load
+
 from .PropertyGroups.General.PZ_ClothingItem import PZ_EquippedClothingItem
 from .PropertyGroups.General.PZ_Injuries import PZ_ZombieInjury
 from .PropertyGroups.General.PZ_BodyLocation import PZ_BodyLocation

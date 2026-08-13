@@ -48,14 +48,14 @@ class PZ_HumanRig_SnapFKToIK(Operator):
                 context.view_layer.update()
             
             if addon_data.auto_key_snaps:
-                context.active_object.keyframe_insert(data_path='pz_human_props.' + self.ik_fk_prop, frame=context.scene.frame_current)
+                context.active_object.keyframe_insert(data_path='pz_animation_properties.' + self.ik_fk_prop, frame=context.scene.frame_current)
                 context.scene.frame_set(context.scene.frame_current - 1)
 
                 setattr(animation_properties, self.ik_fk_prop, 1.0)
                 context.active_object.update_tag()
                 context.view_layer.update()
 
-                context.active_object.keyframe_insert(data_path='pz_human_props.' + self.ik_fk_prop, frame=context.scene.frame_current)
+                context.active_object.keyframe_insert(data_path='pz_animation_properties.' + self.ik_fk_prop, frame=context.scene.frame_current)
                 context.scene.frame_set(context.scene.frame_current + 1)
 
             return ({'FINISHED'})

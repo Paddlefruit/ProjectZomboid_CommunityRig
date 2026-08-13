@@ -25,6 +25,8 @@ class PZ_HumanRig_RemoveAllClothingItems(Operator):
         for i in range(len(equipped_clothing)):
             bpy.ops.zomboid.remove_clothing_item(stop_texture_updates=self.stop_texture_updates)
 
+        bpy.ops.zomboid.create_body_texture()
+
         #TEMP
         context.active_object.pz_used_body_locations.clear()
 
