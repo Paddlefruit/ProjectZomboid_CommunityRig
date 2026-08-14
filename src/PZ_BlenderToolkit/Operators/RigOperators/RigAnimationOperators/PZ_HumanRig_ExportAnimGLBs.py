@@ -59,6 +59,26 @@ class PZ_HumanRig_ExportAnimGLBs(Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
 
+            # Temporarily disable the visibility driver on the male body object
+            for driver in mesh.animation_data.drivers:
+                if driver.data_path == 'hide_viewport':
+                    viewport_driver = driver
+                    break
+            viewport_driver.mute = True
+
+            # Temporarily enable selectability and visibility on the relevant objects
+            dummy01.hide_select = False
+            dummy01.hide_viewport = False
+
+            bip01.hide_select = False
+            bip01.hide_viewport = False
+
+            mesh.hide_select = False
+            mesh.hide_viewport = False
+
+            translation_data.hide_select = False
+            translation_data.hide_viewport = False
+
             # Select the objects that will be exported
             dummy01.select_set(True)
             bip01.select_set(True)
@@ -108,10 +128,22 @@ class PZ_HumanRig_ExportAnimGLBs(Operator):
             translation_data.animation_data.nla_tracks.remove(
                 translation_data_track)
 
-        # Restore Object Names
-        dummy01.name = prev_dummy01_name
-        bip01.name = prev_bip01_name
-        translation_data.name = prev_translation_data_name
+            # Re-enable the mesh visibility driver
+            viewport_driver.mute = False
+
+            # Restore the previous selection and visibility properties
+            dummy01.hide_select = True
+
+            mesh.hide_select = True
+            mesh.hide_viewport = True
+
+            translation_data.hide_select = True
+            translation_data.hide_viewport = True
+
+            # Restore Object Names
+            dummy01.name = prev_dummy01_name
+            bip01.name = prev_bip01_name
+            translation_data.name = prev_translation_data_name
 
         context.scene.render.fps = 30
 

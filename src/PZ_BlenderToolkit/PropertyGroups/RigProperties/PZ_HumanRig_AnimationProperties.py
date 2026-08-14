@@ -45,7 +45,7 @@ class PZ_HumanRigAnimationProperties(PropertyGroup):
     # These factors dictate how much a limb will use IK instead of FK
     arm_ik_l: FloatProperty(
         name="Left Arm IK",
-        default=0.0,
+        default=1.0,
         min=0.0,
         max=1.0,
         subtype="FACTOR",
@@ -53,7 +53,7 @@ class PZ_HumanRigAnimationProperties(PropertyGroup):
     )
     arm_ik_r: FloatProperty(
         name="Right Arm IK",
-        default=0.0,
+        default=1.0,
         min=0.0,
         max=1.0,
         subtype="FACTOR",
