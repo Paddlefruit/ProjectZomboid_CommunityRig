@@ -3,6 +3,7 @@
 import bpy
 import numpy as np
 from bpy.types import Operator
+from pathlib import Path
 
 class PZ_CreateBodyTexture(Operator):
     bl_idname = "zomboid.create_body_texture"
@@ -202,10 +203,19 @@ class PZ_CreateBodyTexture(Operator):
         model_properties = context.active_object.pz_model_properties
         object_pointers = context.active_object.pz_object_pointers
 
+        mat_blend_path = Path(__file__).parent.parent.parent.parent.parent.parent / 'Assets' / 'Blend' / 'PZ_Materials.blend'
+
         # Assign the default image to the body material node tree
         if object_pointers.body_material:
-            img = bpy.data.images.get('TEX-DefaultMale') if model_properties.model_sex == 'MALE' else bpy.data.images.get('TEX-DefaultFemale')
-            object_pointers.body_material.node_tree.nodes.get('NDE-TexSlot').image = img
+            image_name = 'TEX-DefaultMale' if model_properties.model_sex == 'MALE' else 'TEX-DefaultFemale'
+            image = bpy.data.images.get(image_name)
+            if image:
+                object_pointers.body_material.node_tree.nodes.get('NDE-TexSlot').image = image
+            else:
+                with bpy.data.libraries.load(str(mat_blend_path)) as (data_from, data_to):
+                    if image_name in data_from.images:
+                        data_to.images.append(image_name)
+                object_pointers.body_material.node_tree.nodes.get('NDE-TexSlot').image = bpy.data.images.get(image_name)
 
     # -------------------------------------------------------------#
     # Execute

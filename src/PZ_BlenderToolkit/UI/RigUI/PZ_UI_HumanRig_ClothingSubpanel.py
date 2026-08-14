@@ -2,6 +2,7 @@
 
 import bpy
 from bpy.types import UIList
+from ...Utility.PZ_AssetMethods import directx_import_available
 
 class PZ_UL_EquippedClothingItemsList(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -25,6 +26,8 @@ def draw_clothing_subpanel(context, layout):
     panel.label(text='Clothing')
 
     if panel_area:
+        panel_area.enabled = directx_import_available() and addon_data.references_obtained
+
         split = panel_area.split()
         left_column = split.column()
         right_column = split.column()

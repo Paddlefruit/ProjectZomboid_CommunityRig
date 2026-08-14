@@ -1,6 +1,7 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 
 import bpy
+from ...Utility.PZ_AssetMethods import directx_import_available
 
 def draw_hair_subpanel(context, layout):
 
@@ -15,7 +16,8 @@ def draw_hair_subpanel(context, layout):
     panel.label(text='Hair')
 
     if panel_area:
-
+        panel_area.enabled = directx_import_available() and addon_data.references_obtained
+        
         # The stubble properties
         panel_area.prop(model_properties, 'hair_stubble')
         if model_properties.model_sex == 'MALE':

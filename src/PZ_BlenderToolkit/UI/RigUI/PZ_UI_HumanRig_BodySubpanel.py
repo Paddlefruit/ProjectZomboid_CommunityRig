@@ -1,6 +1,7 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 
 import bpy
+from ...Utility.PZ_AssetMethods import directx_import_available
 
 def draw_body_subpanel(context, layout):
 
@@ -20,6 +21,7 @@ def draw_body_subpanel(context, layout):
         sex_row.prop(model_properties, 'model_sex', expand=True)
 
         split = panel_area.split()
+        split.enabled = directx_import_available() and addon_data.references_obtained
         left_column = split.column()
         right_column = split.column()
 

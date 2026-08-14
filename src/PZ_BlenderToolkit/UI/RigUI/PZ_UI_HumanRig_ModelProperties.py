@@ -10,6 +10,8 @@ from .PZ_UI_HumanRig_OutfitsSubpanel import draw_outfits_subpanel
 from .PZ_UI_HumanRig_ShadingSubpanel import draw_shading_subpanel
 from .PZ_UI_HumanRig_DebugSubpanel import draw_debug_subpanel
 
+from ...Utility.PZ_AssetMethods import directx_import_available
+
 class PZ_UI_HumanRig_RigPropertiesPanel(Panel):
     bl_idname = "VIEW3D_PT_pz_human_rig_model_panel"
     bl_label = "Rig Model"
@@ -31,14 +33,28 @@ class PZ_UI_HumanRig_RigPropertiesPanel(Panel):
         # Get all data
         addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         model_properties = context.active_object.pz_model_properties
-        shading_properties = context.active_object.pz_shading_properties
-        injury_properties = context.active_object.pz_injury_properties
 
         # Get the initial layout
         layout = self.layout
 
         # The operator for resetting the model
         layout.operator('zomboid.reset_model')
+
+        # Warning if the DirectX importer is not enabled/installed
+        sub_column = layout.column(align=True)
+        sub_column.scale_y = 0.7
+        if not directx_import_available():
+            sub_column.label(text='The .x importer extension is not installed or enabled.', icon='WARNING_LARGE')
+            sub_column.label(text='         The link to it is on the rig GitHub.')
+            sub_column.separator(factor=2.0)
+
+        # Warning if the asset references have not been obtained
+        if not addon_data.references_obtained:
+            sub_column.label(text='Zomboid\'s asset references have not been', icon='WARNING_LARGE')
+            sub_column.label(text='         obtained yet. In the \'Assets\' panel in the')
+            sub_column.label(text='         \'Zomboid\' tab, assign your PZ directory and')
+            sub_column.label(text='         press \'Get References\'.')
+            sub_column.separator(factor=2.0)
 
         # Draw the various sub panels
         draw_body_subpanel(context, layout)

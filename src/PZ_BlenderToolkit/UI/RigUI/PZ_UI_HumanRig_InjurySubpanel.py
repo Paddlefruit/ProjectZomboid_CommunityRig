@@ -22,6 +22,7 @@ def draw_injury_subpanel(context, layout):
     panel.label(text='Injuries')
 
     if panel_area:
+        panel_area.enabled = addon_data.references_obtained
 
         panel_area.operator('zomboid.remove_all_body_damage', text='Remove All')
         
@@ -70,6 +71,7 @@ def draw_injury_subpanel(context, layout):
         subpanel.label(text='Zombie Injuries')
 
         if subpanel_area:
+            subpanel_area.enabled = addon_data.references_obtained
 
             subpanel_area.prop(injury_properties, 'selected_zombie_injury')
             subpanel_area.template_list("PZ_UL_ZombieInjuryList", "pz_zombie_injury_list", context.object, "pz_zombie_injuries", injury_properties, "zombie_injury_active_index")
@@ -81,6 +83,7 @@ def draw_injury_subpanel(context, layout):
 
         # The randomization popover
         subrow = layout.row()
+        subrow.enabled = addon_data.references_obtained
         subrow.scale_y = 2.0
         subrow.popover(panel='VIEW3D_PT_pz_human_rig_random_injury_popover', text='Randomization', icon_value=pz_icons["pz_random_icon"].icon_id)
 

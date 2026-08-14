@@ -1,8 +1,8 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 
 import bpy
-
 from bpy.types import Panel
+from ...Utility.PZ_AssetMethods import directx_import_available
 
 def draw_outfits_subpanel(context, layout):
 
@@ -18,6 +18,7 @@ def draw_outfits_subpanel(context, layout):
     panel.label(text='Outfits')
 
     if panel_area:
+        panel_area.enabled = directx_import_available() and addon_data.references_obtained
 
         subbox = panel_area.box()
         subbox.label(text='Selected Outfit')
