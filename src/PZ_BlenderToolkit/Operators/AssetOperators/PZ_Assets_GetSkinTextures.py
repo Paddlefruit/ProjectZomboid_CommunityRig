@@ -120,7 +120,7 @@ class PZ_Assets_GetSkinTextures(Operator):
                         item = skin_textures.add()
 
                         item.name = file.stem
-                        item.texture_path = str(file)
+                        item.texture_path = os.fspath(file)
                         item.origin = mod_name
 
                         if file.stem in human_skin_tex_names:

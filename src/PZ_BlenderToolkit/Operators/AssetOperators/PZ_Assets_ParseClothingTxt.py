@@ -24,7 +24,7 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                 current_body_location = ''
                 can_have_holes = True
 
-                with open(str(path), 'r', encoding='utf-8') as file:
+                with path.open('r', encoding='utf-8') as file:
                     # TODO: Replace with albion's more sophisticated parser
                     for line in file:
                         txt_line = line.strip()

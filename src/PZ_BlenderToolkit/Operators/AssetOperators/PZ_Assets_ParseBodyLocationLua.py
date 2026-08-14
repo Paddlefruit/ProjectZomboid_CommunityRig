@@ -21,7 +21,7 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
         file, _ = get_zomboid_asset(context, Path("media/lua/shared/NPCs/BodyLocations.lua"))
         
         if file is not None:
-            with open(file, 'r', encoding='utf-8') as file:
+            with file.open('r', encoding='utf-8') as file:
 
                 counter = 0
                 

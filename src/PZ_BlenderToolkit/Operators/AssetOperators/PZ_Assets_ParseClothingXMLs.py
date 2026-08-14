@@ -59,7 +59,7 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                             
                             path = Path(path.replace("\\", "/"))
                             if not path.full_match("media/models_X/**", case_sensitive=False):
-                                path = Path('media/models_X') / Path(path)
+                                path = Path('media/models_X') / path
                             
                             x, y = get_zomboid_asset(context, path, allowed_types=[".x", ".fbx", ".glb"])
                             if y is not None:
