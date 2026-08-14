@@ -2,7 +2,7 @@
 import bpy
 
 from bpy.types import Operator
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
+from ...Utility.PZ_AssetMethods import get_zomboid_asset
 
 class PZ_Assets_GetAttachmentPoints(Operator):
     bl_idname = "zomboid.get_attachment_points"
@@ -97,7 +97,6 @@ class PZ_Assets_GetAttachmentPoints(Operator):
 
                                 continue
 
-        for folder, origin in get_zomboid_asset_folders(context, 'generated'):
-            parse_file(folder / 'models_characters.txt')
+        parse_file(get_zomboid_asset(context, 'media/scripts/generated/models_characters.txt'))
 
         return ({'FINISHED'})

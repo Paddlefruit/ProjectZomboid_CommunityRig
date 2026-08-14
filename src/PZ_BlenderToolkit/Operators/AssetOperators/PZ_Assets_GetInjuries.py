@@ -1,4 +1,5 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
+import os
 import bpy
 import re
 
@@ -35,13 +36,13 @@ class PZ_Assets_GetInjuries(Operator):
         body_injuries.clear()
         zombie_injuries.clear()
 
-        for folder, mod_name in get_zomboid_asset_folders(context, 'BodyDmg'):
+        for folder, _ in get_zomboid_asset_folders(context, 'media/textures/BodyDmg'):
             for file in folder.iterdir():
                 if file.is_file() and file.suffix == '.png':
                     if 'M_ZedDmg' in file.name:
                         injury = zombie_injuries.add()
                         injury.name = file.name
-                        injury.texture_path = str(file)
+                        injury.texture_path = os.fspath(file)
                         continue
 
                 injury = body_injuries.add()
@@ -66,6 +67,6 @@ class PZ_Assets_GetInjuries(Operator):
                                 injury.damage_type = 'BANDAGEBLOODY'
                             else:
                                 injury.damage_type = 'BANDAGE'
-                injury.texture_path = str(file)
+                injury.texture_path = os.fspath(file)
 
         return ({'FINISHED'})

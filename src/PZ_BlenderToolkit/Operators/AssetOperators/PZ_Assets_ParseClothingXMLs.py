@@ -57,9 +57,9 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                             else:
                                 path = path[start:end]
                             if 'media\\models_X' not in path:
-                                path = str(Path('media') /
+                                path = os.fspath(Path('media') /
                                            'models_X' / Path(path))
-                            x, y = get_zomboid_asset(context, path)
+                            x, y = get_zomboid_asset(context, path, allowed_types=[".x", ".fbx", ".glb"])
                             if y is not None:
                                 return (str(x), y, False)
                             else:
@@ -99,11 +99,11 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                     textures = root.findall('textureChoices')
                     if base_texture is not None:
                         tex = item.texture_choices.add()
-                        x = get_zomboid_asset(context, base_texture.text)
+                        x = get_zomboid_asset(context, "media/textures/" + base_texture.text, allowed_types=[".png"])
                         tex.texture_path = str(x[0])
                     for t in textures:
                         tex = item.texture_choices.add()
-                        x = get_zomboid_asset(context, t.text)
+                        x = get_zomboid_asset(context, "media/textures/" + t.text, allowed_types=[".png"])
                         tex.texture_path = str(x[0])
 
                     # Tintable
@@ -160,8 +160,8 @@ class PZ_Assets_ParseClothingXMLs(Operator):
     def execute(self, context):
         addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         clothing_items = addon_data.pz_clothing_item_references
-        for folder in get_zomboid_asset_folders(context, 'clothingItems'):
-            self.parse_folder(context, folder[0], clothing_items, folder[1])
+        for folder, source in get_zomboid_asset_folders(context, 'media/clothing/clothingItems'):
+            self.parse_folder(context, folder, clothing_items, source)
 
         self.report({'INFO'}, "Parsed " + str(self.item_count) + " Clothing Item XMLs")
 

@@ -1,10 +1,9 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 import bpy
-import re
-import sys
 
+from pathlib import Path
 from bpy.types import Operator
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
+from ...Utility.PZ_AssetMethods import get_zomboid_asset
 
 class PZ_Assets_ParseBodyLocationTxt(Operator):
     bl_idname = "zomboid.parse_body_location_txt"
@@ -75,8 +74,12 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                                 current_body_location = ''
                                 can_have_holes = True
 
-        for folder, origin in get_zomboid_asset_folders(context, 'items'):
-            parse_file(folder / 'clothing.txt')
-            parse_file(folder / 'container.txt')
-
+        file = get_zomboid_asset(context, "media/scripts/generated/items/clothing.txt")
+        if file[0] is not None:
+            parse_file(Path(file[0]))
+        
+        file = get_zomboid_asset(context, "media/scripts/generated/items/container.txt")
+        if file[0] is not None:
+            parse_file(Path(file[0]))
+        
         return ({'FINISHED'})

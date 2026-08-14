@@ -2,7 +2,7 @@
 import bpy
 
 from bpy.types import Operator
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders, get_zomboid_asset
+from ...Utility.PZ_AssetMethods import get_zomboid_asset
 
 class PZ_Assets_GetAttachmentPoints(Operator):
     bl_idname = "zomboid.get_attachments"
@@ -74,15 +74,15 @@ class PZ_Assets_GetAttachmentPoints(Operator):
 
                                     new_attachment.name = current_item
 
-                                    x = get_zomboid_asset(context, 'models_X/' + current_model_path, allowed_types=['.x', '.fbx', '.glb'])
+                                    x = get_zomboid_asset(context, 'media/models_X/' + current_model_path, allowed_types=['.x', '.fbx', '.glb'])
                                     print(x)
                                     new_attachment.model_path = str(x[0])
                                     new_attachment.model_type = x[1]
 
                                     if current_texture_path == '':
-                                        new_attachment.texture_path = str(get_zomboid_asset(context, 'textures/' + current_model_path, allowed_types=['.png'])[0])
+                                        new_attachment.texture_path = str(get_zomboid_asset(context, 'media/textures/' + current_model_path, allowed_types=['.png'])[0])
                                     else:
-                                        new_attachment.texture_path = str(get_zomboid_asset(context, 'textures/' + current_texture_path, allowed_types=['.png'])[0])
+                                        new_attachment.texture_path = str(get_zomboid_asset(context, 'media/textures/' + current_texture_path, allowed_types=['.png'])[0])
 
                                     # for item in attachment_stack:
                                     #     new_attachment_group = new_attachment.attachment_groups.add()
@@ -127,7 +127,6 @@ class PZ_Assets_GetAttachmentPoints(Operator):
 
                                 continue
 
-        for folder, origin in get_zomboid_asset_folders(context, 'generated'):
-            parse_file(folder / 'models_weapons.txt')
+        parse_file(get_zomboid_asset(context, "media/scripts/generated/models_weapons.txt"))
 
         return ({'FINISHED'})

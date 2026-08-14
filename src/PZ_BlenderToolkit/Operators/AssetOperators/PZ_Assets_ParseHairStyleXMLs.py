@@ -1,10 +1,11 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
+import os
 import bpy 
 import xml.etree.ElementTree as ET
 
 from bpy.types import Operator 
 
-from ...Utility.PZ_AssetMethods import get_zomboid_asset, get_zomboid_asset_folders
+from ...Utility.PZ_AssetMethods import get_zomboid_asset, get_file_all_sources
 
 class PZ_Assets_ParseHairStyleXMLs(Operator):
     bl_idname = "zomboid.parse_hair_style_xmls"
@@ -44,12 +45,12 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
 
             texture = hair.find('texture')
             if texture is not None:
-                x = get_zomboid_asset(context, 'textures/' + texture.text)
+                x = get_zomboid_asset(context, 'media/textures/' + texture.text, allowed_types=[".png"])
                 item.texture_path = str(x[0])
 
             model = hair.find('model')
             if model is not None and model.text:
-                x = get_zomboid_asset(context, 'models_X/' + model.text)
+                x = get_zomboid_asset(context, 'media/models_X/' + model.text, allowed_types=[".fbx", ".x", ".glb"])
                 item.model_path = str(x[0])
                 item.model_type = x[1]
             else:
@@ -114,12 +115,12 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
 
             texture = hair.find('texture')
             if texture is not None:
-                x = get_zomboid_asset(context, 'textures/' + texture.text)
+                x = get_zomboid_asset(context, 'media/textures/' + texture.text, allowed_types=[".png"])
                 item.texture_path = str(x[0])
 
             model = hair.find('model')
             if model is not None and model.text:
-                x = get_zomboid_asset(context, 'models_X/' + model.text)
+                x = get_zomboid_asset(context, 'media/models_X/' + model.text, allowed_types=[".x", ".fbx", ".glb"])
                 item.model_path = str(x[0])
                 item.model_type = x[1]
             else:
@@ -182,12 +183,12 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
 
             texture = beard.find('texture')
             if texture is not None:
-                x = get_zomboid_asset(context, 'textures/' + texture.text)
+                x = get_zomboid_asset(context, 'media/textures/' + texture.text, allowed_types=[".png"])
                 item.texture_path = str(x[0])
 
             model = beard.find('model')
             if model is not None and model.text:
-                x = get_zomboid_asset(context, 'models_X/' + model.text)
+                x = get_zomboid_asset(context, 'media/models_X/' + model.text, allowed_types=[".x", ".fbx", ".glb"])
                 item.model_path = str(x[0])
                 item.model_type = x[1]
             else:
@@ -216,11 +217,11 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
         item.model_path = 'None'
         item.level = 0
 
-        for folder, mod_name in get_zomboid_asset_folders(context, 'hairStyles'):
-            if (folder / 'hairStyles.xml').is_file():
-                self.parse_hair_xml(context, str(folder / 'hairStyles.xml'), hair_styles, male_styles, female_styles, mod_name)
-            if (folder / 'beardStyles.xml').is_file():
-                self.parse_beard_xml(context, str(folder / 'beardStyles.xml'), beard_styles, mod_name)
+        for file, mod_name in get_file_all_sources("media/hairStyles/hairStyles.xml"):
+            self.parse_hair_xml(context, os.fspath(file), hair_styles, male_styles, female_styles, mod_name)
+        
+        for file, mod_name in get_file_all_sources("media/hairStyles/beardStyles.xml"):
+            self.parse_beard_xml(context, os.fspath(file), beard_styles, mod_name)
 
         self.report({'INFO'}, "Parsed " + str(self.hair_count) +
                     " Hair Styles & " + str(self.beard_count) + " Beard Styles")
