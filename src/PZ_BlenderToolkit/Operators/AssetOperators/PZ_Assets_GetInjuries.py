@@ -3,6 +3,7 @@ import os
 import bpy
 import re
 
+from pathlib import Path
 from bpy.types import Operator
 
 from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
@@ -36,7 +37,7 @@ class PZ_Assets_GetInjuries(Operator):
         body_injuries.clear()
         zombie_injuries.clear()
 
-        for folder, _ in get_zomboid_asset_folders(context, 'media/textures/BodyDmg'):
+        for folder, _ in get_zomboid_asset_folders(context, Path("media/textures/BodyDmg")):
             for file in folder.iterdir():
                 if file.is_file() and file.suffix == '.png':
                     if 'M_ZedDmg' in file.name:

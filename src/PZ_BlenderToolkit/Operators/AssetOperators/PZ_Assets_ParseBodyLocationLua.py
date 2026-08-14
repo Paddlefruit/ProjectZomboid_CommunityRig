@@ -2,6 +2,7 @@
 import bpy
 import re
 
+from pathlib import Path
 from bpy.types import Operator
 from ...Utility.PZ_AssetMethods import get_zomboid_asset
 
@@ -17,7 +18,7 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
         body_locations.clear()
         addon_data.body_location_active_index = -1
 
-        file, _ = get_zomboid_asset(context, "media/lua/shared/NPCs/BodyLocations.lua")
+        file, _ = get_zomboid_asset(context, Path("media/lua/shared/NPCs/BodyLocations.lua"))
         
         if file is not None:
             with open(file, 'r', encoding='utf-8') as file:

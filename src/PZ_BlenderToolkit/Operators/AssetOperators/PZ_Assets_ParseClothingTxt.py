@@ -74,12 +74,12 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                                 current_body_location = ''
                                 can_have_holes = True
 
-        file = get_zomboid_asset(context, "media/scripts/generated/items/clothing.txt")
-        if file[0] is not None:
-            parse_file(Path(file[0]))
+        file, _ = get_zomboid_asset(context, Path("media/scripts/generated/items/clothing.txt"))
+        if file is not None:
+            parse_file(file)
         
-        file = get_zomboid_asset(context, "media/scripts/generated/items/container.txt")
-        if file[0] is not None:
-            parse_file(Path(file[0]))
+        file, _ = get_zomboid_asset(context, Path("media/scripts/generated/items/container.txt"))
+        if file is not None:
+            parse_file(file)
         
         return ({'FINISHED'})

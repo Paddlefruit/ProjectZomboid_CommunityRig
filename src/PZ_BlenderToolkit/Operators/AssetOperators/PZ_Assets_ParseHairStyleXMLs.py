@@ -3,6 +3,7 @@ import os
 import bpy 
 import xml.etree.ElementTree as ET
 
+from pathlib import Path
 from bpy.types import Operator 
 
 from ...Utility.PZ_AssetMethods import get_zomboid_asset, get_file_all_sources
@@ -45,13 +46,15 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
 
             texture = hair.find('texture')
             if texture is not None:
-                x = get_zomboid_asset(context, 'media/textures/' + texture.text, allowed_types=[".png"])
-                item.texture_path = str(x[0])
+                x = get_zomboid_asset(context, Path('media/textures') / Path(texture.text.replace("\\", "/")), allowed_types=[".png"])
+                assert x[0] is not None
+                item.texture_path = os.fspath(x[0])
 
             model = hair.find('model')
             if model is not None and model.text:
-                x = get_zomboid_asset(context, 'media/models_X/' + model.text, allowed_types=[".fbx", ".x", ".glb"])
-                item.model_path = str(x[0])
+                x = get_zomboid_asset(context, Path('media/models_X/') / Path(model.text.replace("\\", "/")), allowed_types=[".fbx", ".x", ".glb"])
+                assert x[0] is not None
+                item.model_path = os.fspath(x[0])
                 item.model_type = x[1]
             else:
                 item.model_path = 'None'
@@ -115,13 +118,15 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
 
             texture = hair.find('texture')
             if texture is not None:
-                x = get_zomboid_asset(context, 'media/textures/' + texture.text, allowed_types=[".png"])
-                item.texture_path = str(x[0])
+                x = get_zomboid_asset(context, Path('media/textures') / Path(texture.text.replace("\\", "/")), allowed_types=[".png"])
+                assert x[0] is not None
+                item.texture_path = os.fspath(x[0])
 
             model = hair.find('model')
             if model is not None and model.text:
-                x = get_zomboid_asset(context, 'media/models_X/' + model.text, allowed_types=[".x", ".fbx", ".glb"])
-                item.model_path = str(x[0])
+                x = get_zomboid_asset(context, Path('media/models_X') / Path(model.text.replace("\\", "/")), allowed_types=[".x", ".fbx", ".glb"])
+                assert x[0] is not None
+                item.model_path = os.fspath(x[0])
                 item.model_type = x[1]
             else:
                 item.model_path = 'None'
@@ -183,13 +188,15 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
 
             texture = beard.find('texture')
             if texture is not None:
-                x = get_zomboid_asset(context, 'media/textures/' + texture.text, allowed_types=[".png"])
-                item.texture_path = str(x[0])
+                x = get_zomboid_asset(context, Path('media/textures') / Path(texture.text.replace("\\", "/")), allowed_types=[".png"])
+                assert x[0] is not None
+                item.texture_path = os.fspath(x[0])
 
             model = beard.find('model')
             if model is not None and model.text:
-                x = get_zomboid_asset(context, 'media/models_X/' + model.text, allowed_types=[".x", ".fbx", ".glb"])
-                item.model_path = str(x[0])
+                x = get_zomboid_asset(context, Path('media/models_X') / Path(model.text.replace("\\", "/")), allowed_types=[".x", ".fbx", ".glb"])
+                assert x[0] is not None
+                item.model_path = os.fspath(x[0])
                 item.model_type = x[1]
             else:
                 item.model_path = 'None'

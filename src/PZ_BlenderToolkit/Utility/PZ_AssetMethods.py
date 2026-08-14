@@ -117,7 +117,7 @@ def get_file_all_sources(path: str) -> Iterable[tuple[Path, str]]:
     return [(source.root / path, source.name) for source in asset_sources if (source.root / path).is_file()]
 
 
-def get_zomboid_asset_folders(context, parent_path: str | Path) -> Iterable[tuple[Path, str]]:
+def get_zomboid_asset_folders(context, parent_path: Path) -> Iterable[tuple[Path, str]]:
     """
     Returns an iterable of a specific directory from every source that contains it.
     
@@ -125,7 +125,7 @@ def get_zomboid_asset_folders(context, parent_path: str | Path) -> Iterable[tupl
     """
     return [(source.root / parent_path, source.name) for source in asset_sources if (source.root / parent_path).is_dir()]
 
-def get_zomboid_asset(context, item_path: str, allowed_types: list[str] = []) -> tuple[str | None, str | None]:
+def get_zomboid_asset(context, path: Path, allowed_types: list[str] = []) -> tuple[Path, str] | tuple[None, None]:
     """
     Returns a zomboid asset by its path, respecting overrides by mods.
 
@@ -133,10 +133,6 @@ def get_zomboid_asset(context, item_path: str, allowed_types: list[str] = []) ->
     @param allowed_types: Optional list of acceptable suffixes. Suffixes should be lowercase and include the leading '.'.
     @return: The asset and source. Both will be None if the asset does not exist.
     """
-    # pz loves to have \s in their paths which is interpeted as part of the filename when appended because our internal paths use /s
-    item_path = item_path.replace("\\", "/")
-    path = Path(item_path)
-
     # optimisation: if only one suffix is allowed, just set the suffix so we can look it up without loops and stuff
     if len(allowed_types) == 1:
         path = path.parent / (path.name + allowed_types[0])
@@ -144,21 +140,21 @@ def get_zomboid_asset(context, item_path: str, allowed_types: list[str] = []) ->
 
     if path.suffix == "":
         if len(allowed_types) < 0:
-            print(f"Cannot check the cache for file '{item_path}' without a suffix and no allowed_types.")
+            print(f"Cannot check the cache for file '{path}' without a suffix and no allowed_types.")
         
         for type in allowed_types:
             with_suffix = sanitise_path(path.parent / (path.stem + type))
             if with_suffix in asset_cache:
                 path = asset_cache[with_suffix]
-                return os.fspath(path), type.lower()
+                return path, type.lower()
     else:
         sanitised_path: VirtualPath = sanitise_path(path)
         if sanitised_path in asset_cache:
             path = asset_cache[sanitised_path]
-            return os.fspath(path), path.suffix.lower()
+            return path, path.suffix.lower()
 
-    if 'bk/' not in item_path:
-        print(f"Asset '{item_path}'/'{sanitise_path(path)}' is not in cache, falling back to search. If the asset exists the cache patterns may need to be updated.")
+    if 'bk/' not in path.as_posix():
+        print(f"Asset '{path}'/'{sanitise_path(path)}' is not in cache, falling back to search. If the asset exists the cache patterns may need to be updated.")
 
     for source in asset_sources:
         found_file: Path | None = None
@@ -175,9 +171,9 @@ def get_zomboid_asset(context, item_path: str, allowed_types: list[str] = []) ->
                     
         if found_file is not None:
             asset_cache[sanitise_path(found_file.relative_to(source.root))] = found_file
-            return os.fspath(found_file), found_file.suffix.lower()
+            return found_file, found_file.suffix.lower()
 
-    if 'bk/' not in item_path:
-        print('Could not find ' + item_path)
+    if 'bk/' not in path.as_posix():
+        print('Could not find ' + path.as_posix())
         
     return (None, None)

@@ -105,7 +105,7 @@ class PZ_Assets_GetSkinTextures(Operator):
         overlay_mask_pattern = r'(?<=BloodMask).*'
         overlay_mask_regex = re.compile(overlay_mask_pattern)
 
-        for folder, mod_name in get_zomboid_asset_folders(context, 'media/textures/Body'):
+        for folder, mod_name in get_zomboid_asset_folders(context, Path("media/textures/Body")):
             # Skin Textures
             for file in folder.iterdir():
                 if file.is_file():
