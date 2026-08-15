@@ -86,10 +86,6 @@ class PZ_HumanRigControlProperties(PropertyGroup):
         default=2
     )
 
-    def update_left_prop_parent_object(self, context):
-        # update_left_prop_parent_object(self, context)
-        pass
-
     left_prop_parent_object: PointerProperty(
         name="Left Prop Parent Object",
         type=Object,
@@ -117,10 +113,6 @@ class PZ_HumanRigControlProperties(PropertyGroup):
     right_prop_parent_index: IntProperty(
         default=2
     )
-
-    def update_right_prop_parent_object(self, context):
-        #   update_right_prop_parent_object(self, context)
-        pass
 
     right_prop_parent_object: PointerProperty(
         name="Right Prop Parent Object",

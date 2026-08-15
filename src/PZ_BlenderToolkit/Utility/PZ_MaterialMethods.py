@@ -1,12 +1,20 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 
 import bpy
+from bpy.types import Image, Context
 
 from pathlib import Path
 
-def resolve_image_users(img_name):
-    target_img = bpy.data.images.get(img_name)
-    real_img = bpy.data.images.get(img_name.split('.001')[0])
+def resolve_image_users(img_name: str) -> None:
+    """
+    Check if the original version of this image exists without the .001 pattern.
+    If it does, replace all usages of the duplicated image with the real one, and 
+    delete the duplicated image.
+
+    @arg img_name: The name of the image we want to check duplications of.
+    """
+    target_img: Image = bpy.data.images.get(img_name)
+    real_img: Image = bpy.data.images.get(img_name.split('.001')[0])
 
     if real_img:
         # Loop through all materials and nodes to see if this image is used there, and replace it if so
@@ -18,8 +26,22 @@ def resolve_image_users(img_name):
 
     bpy.data.images.remove(target_img)
 
-def create_model_material(context, texture_path, category, hair_type=None):
+def create_model_material(context: Context, texture_path: str, category: str, hair_type:str=None):
+    '''
+    Create a new material for every imported model that is a part of the rig ecosystem.
 
+    @arg context: The current Blender context.
+    @arg texture_path: The filepath to the main texture that this material will use.
+    @arg category: What type of model this material is designed for. 
+        - 'BODY'
+        - 'ACCESSORY'
+        - 'CLOTHING'
+        - 'HAIR'
+    @arg hair_type: Optionally chose which hair type this material is designed for, if 'HAIR' is chosen for the category.
+        -'M' (Male)
+        -'F' (Female)
+        -'B' (Beard)
+    '''
     # Get all data
     main_properties = context.active_object.pz_main_properties
     model_properties = context.active_object.pz_model_properties
@@ -324,7 +346,6 @@ def create_model_material(context, texture_path, category, hair_type=None):
     target.data_path = "pz_shading_properties.texture_interpolation_index"
 
     # Skip overlay links if this is an accessory or hair
-
     if category == 'ACCESSORY' or category == 'HAIR':
         links.new(tint_node.outputs['Result'], emission_node.inputs['Color'])
         links.new(tint_node.outputs['Result'], pbr_node.inputs['Base Color'])
