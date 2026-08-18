@@ -4,7 +4,7 @@ import bpy
 
 from pathlib import Path
 from bpy.types import Operator
-from ...Utility.PZ_AssetMethods import get_zomboid_asset
+from ...Utility.PZ_AssetMethods import get_zomboid_asset, parse_path
 
 class PZ_Assets_GetAttachmentPoints(Operator):
     bl_idname = "zomboid.get_attachments"
@@ -76,16 +76,16 @@ class PZ_Assets_GetAttachmentPoints(Operator):
 
                                     new_attachment.name = current_item
 
-                                    x = get_zomboid_asset(context, Path('media/models_X') / Path(current_model_path.replace("\\", "/")), allowed_types=['.x', '.fbx', '.glb'])
+                                    x = get_zomboid_asset(context, Path('media/models_X') / parse_path(current_model_path), allowed_types=['.x', '.fbx', '.glb'])
                                     assert x[0] is not None
                                     print(x)
                                     new_attachment.model_path = os.fspath(x[0])
                                     new_attachment.model_type = x[1]
 
                                     if current_texture_path == '':
-                                        new_attachment.texture_path = os.fspath(get_zomboid_asset(context, Path('media/textures') / Path(current_model_path.replace("\\", "/")), allowed_types=['.png'])[0])
+                                        new_attachment.texture_path = os.fspath(get_zomboid_asset(context, Path('media/textures') / parse_path(current_model_path), allowed_types=['.png'])[0])
                                     else:
-                                        new_attachment.texture_path = os.fspath(get_zomboid_asset(context, Path('media/textures') / Path(current_texture_path.replace("\\", "/")), allowed_types=['.png'])[0])
+                                        new_attachment.texture_path = os.fspath(get_zomboid_asset(context, Path('media/textures') / parse_path(current_texture_path), allowed_types=['.png'])[0])
 
                                     # for item in attachment_stack:
                                     #     new_attachment_group = new_attachment.attachment_groups.add()

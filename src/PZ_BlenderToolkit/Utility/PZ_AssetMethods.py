@@ -50,18 +50,23 @@ asset_sources: list[AssetSource] = []
 """All asset sources."""
 
 
-def sanitise_path(path: Path | str) -> VirtualPath:
+def sanitise_path(path: Path) -> VirtualPath:
     """
     Returns the corresponding VirtualPath to a string path.
 
     @arg path: Path to sanitise.
     @return: Sanitised path.
     """
-    if isinstance(path, str):
-        path = Path(path)
-    
     return VirtualPath(path.as_posix().lower())
 
+def parse_path(path: str) -> Path:
+    """
+    Returns a path from a string in the format expected by the game.
+
+    @arg path: Path to parse
+    @return: Parsed path
+    """
+    return Path(path.replace("\\", "/"))
 
 def build_asset_sources(pz_directory: str, mod_directories: list[PZ_ModDirectory]) -> None:
     """
