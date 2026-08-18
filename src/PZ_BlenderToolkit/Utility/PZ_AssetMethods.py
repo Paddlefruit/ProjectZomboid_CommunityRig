@@ -1,7 +1,5 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
-import os
 import bpy
-import functools
 
 from pathlib import Path
 from typing import NewType
@@ -34,6 +32,9 @@ cache_globs: list[str] = [
 
 asset_cache: dict[VirtualPath, Path] = {}
 """Cached asset paths by their virutal path."""
+
+ADDON_ROOT: Path = Path(__file__).parent.parent
+"""Root path of the addon."""
 
 @dataclass(slots=True)
 class AssetSource:
