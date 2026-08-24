@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from bpy.types import Operator 
 from pathlib import Path
 
-from ...Utility.PZ_AssetMethods import get_zomboid_asset, get_zomboid_asset_folders, parse_path
+from ...Utility.PZ_AssetMethods import get_zomboid_asset, get_zomboid_texture, get_zomboid_asset_folders, parse_path
 
 class PZ_Assets_ParseClothingXMLs(Operator):
     bl_idname = "zomboid.parse_clothing_xmls"
@@ -102,18 +102,12 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                     textures = root.findall('textureChoices')
                     if base_texture is not None:
                         tex = item.texture_choices.add()
-                        x = get_zomboid_asset(context, Path("media/textures") / parse_path(base_texture.text), allowed_types=[".png"])
-                        if x[0] is not None:
-                            tex.texture_path = os.fspath(x[0])
-                        else:
-                            tex.texture_path = ""
+                        x = get_zomboid_texture(context, Path("media/textures") / parse_path(base_texture.text))
+                        tex.texture_path = os.fspath(x[0])
                     for t in textures:
                         tex = item.texture_choices.add()
-                        x = get_zomboid_asset(context, Path("media/textures") / parse_path(t.text), allowed_types=[".png"])
-                        if x[0] is not None:
-                            tex.texture_path = os.fspath(x[0])
-                        else:
-                            tex.texture_path = ""
+                        x = get_zomboid_texture(context, Path("media/textures") / parse_path(t.text))
+                        tex.texture_path = os.fspath(x[0])
 
                     # Tintable
                     m = root.find('m_AllowRandomTint')

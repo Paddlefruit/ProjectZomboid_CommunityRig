@@ -36,6 +36,9 @@ asset_cache: dict[VirtualPath, Path] = {}
 ADDON_ROOT: Path = Path(__file__).parent.parent
 """Root path of the addon."""
 
+ERROR_TEXTURE: Path = ADDON_ROOT / "Assets/Textures/Error.png"
+"""Texture used to indicate that an error has occured relating to textures."""
+
 @dataclass(slots=True)
 class AssetSource:
     name: str
@@ -183,3 +186,15 @@ def get_zomboid_asset(context, path: Path, allowed_types: list[str] = []) -> tup
         print('Could not find ' + path.as_posix())
         
     return (None, None)
+
+def get_zomboid_texture(context, path: Path) -> tuple[Path, str]:
+    """
+    Returns a texture, respecting mod overrides.
+    If a texture does not exist, ERROR_TEXTURE will be returned instead.
+    """
+    texture = get_zomboid_asset(context, path, [".png"])
+
+    if texture[0] is not None:
+        return texture
+    
+    return (ERROR_TEXTURE, "Community rig")
