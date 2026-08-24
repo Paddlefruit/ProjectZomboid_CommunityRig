@@ -4,7 +4,6 @@ import bpy
 from bpy.types import Scene, Object, WindowManager
 from bpy.props import CollectionProperty, PointerProperty
 from bpy.utils import previews
-from pathlib import Path
 
 from . import auto_load
 
@@ -23,6 +22,8 @@ from .PropertyGroups.RigProperties.PZ_HumanRig_ModelProperties import PZ_HumanRi
 from .PropertyGroups.RigProperties.PZ_HumanRig_InjuryProperties import PZ_HumanRigInjuryProperties
 from .PropertyGroups.RigProperties.PZ_HumanRig_ShadingProperties import PZ_HumanRigShadingProperties
 from .PropertyGroups.RigProperties.PZ_HumanRig_RandomProperties import PZ_HumanRigRandomProperties
+
+from .Utility.PZ_AssetMethods import ADDON_ROOT
 
 bl_info = {
     "name": "Project Zomboid Blender Toolkit",
@@ -134,7 +135,7 @@ def register():
     custom_icons = previews.new()
 
     # Get the icon paths
-    random_icon_path = Path(__file__).parent / 'Assets' / 'Icons' / 'ICON-Random.svg'
+    random_icon_path = ADDON_ROOT / 'Assets' / 'Icons' / 'ICON-Random.svg'
 
     # Load the icons
     custom_icons.load('pz_random_icon', str(random_icon_path), 'IMAGE')

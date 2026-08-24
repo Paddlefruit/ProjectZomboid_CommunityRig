@@ -1,10 +1,9 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 import bpy
-import re
-import sys
 
+from pathlib import Path
 from bpy.types import Operator
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
+from ...Utility.PZ_AssetMethods import get_zomboid_asset
 
 class PZ_Assets_ParseBodyLocationTxt(Operator):
     bl_idname = "zomboid.parse_body_location_txt"
@@ -25,7 +24,7 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                 current_body_location = ''
                 can_have_holes = True
 
-                with open(str(path), 'r', encoding='utf-8') as file:
+                with path.open('r', encoding='utf-8') as file:
                     # TODO: Replace with albion's more sophisticated parser
                     for line in file:
                         txt_line = line.strip()
@@ -75,8 +74,12 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
                                 current_body_location = ''
                                 can_have_holes = True
 
-        for folder, origin in get_zomboid_asset_folders(context, 'items'):
-            parse_file(folder / 'clothing.txt')
-            parse_file(folder / 'container.txt')
-
+        file, _ = get_zomboid_asset(context, Path("media/scripts/generated/items/clothing.txt"))
+        if file is not None:
+            parse_file(file)
+        
+        file, _ = get_zomboid_asset(context, Path("media/scripts/generated/items/container.txt"))
+        if file is not None:
+            parse_file(file)
+        
         return ({'FINISHED'})

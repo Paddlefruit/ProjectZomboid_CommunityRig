@@ -3,7 +3,7 @@ import bpy
 
 from bpy.types import Operator
 
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
+from ...Utility.PZ_AssetMethods import build_asset_cache
 
 class PZ_Assets_GetAllAssets(Operator):
     bl_idname = "zomboid.get_all_assets"
@@ -18,7 +18,7 @@ class PZ_Assets_GetAllAssets(Operator):
     def execute(self, context):
         addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
 
-        get_zomboid_asset_folders.cache_clear()
+        build_asset_cache(addon_data.pz_directory, addon_data.pz_mod_directories)
 
         bpy.ops.zomboid.clear_all_assets()
 

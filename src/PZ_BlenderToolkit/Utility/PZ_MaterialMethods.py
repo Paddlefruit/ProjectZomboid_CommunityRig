@@ -3,7 +3,7 @@
 import bpy
 from bpy.types import Image, Context
 
-from pathlib import Path
+from ..Utility.PZ_AssetMethods import ADDON_ROOT
 
 def resolve_image_users(img_name: str) -> None:
     """
@@ -50,7 +50,7 @@ def create_model_material(context: Context, texture_path: str, category: str, ha
     instance_str = main_properties.get_instance_str(context)
 
     # Get the path to the materials Blend file
-    mat_blend_path = Path(__file__).parent.parent / 'Assets' / 'Blend' / 'PZ_Materials.blend'
+    mat_blend_path = ADDON_ROOT / 'Assets' / 'Blend' / 'PZ_Materials.blend'
 
 
     mat_name = ''
