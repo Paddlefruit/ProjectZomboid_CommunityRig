@@ -6,7 +6,7 @@ from typing import NewType
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from PZ_BlenderToolkit.PropertyGroups.General.PZ_ModDirectory import PZ_ModDirectory
+from ..PropertyGroups.General.PZ_ModDirectory import PZ_ModDirectory
 
 def directx_import_available():
     checks = ['bl_ext.blender_org.io_directx_x',

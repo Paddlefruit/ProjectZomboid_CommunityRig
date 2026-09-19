@@ -29,7 +29,6 @@ class PZ_Assets_GetAllAssets(Operator):
         bpy.ops.zomboid.parse_clothing_xmls()
         bpy.ops.zomboid.parse_body_location_txt()
         bpy.ops.zomboid.parse_outfit_xmls()
-        bpy.ops.zomboid.get_skin_textures()
         bpy.ops.zomboid.parse_hair_style_xmls()
         bpy.ops.zomboid.get_injuries()
     
