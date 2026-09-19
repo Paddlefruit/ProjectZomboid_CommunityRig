@@ -26,8 +26,7 @@ class PZ_HumanRig_CreateRig(Operator):
         rigs = context.scene.pz_human_rigs
 
         # Get the path to the PZ_HumanRig Blend file
-        rig_blend_path = ADDON_ROOT / 'Assets' / 'Blend' / 'CH-PZ_HumanRig.blend'
-        rig_blend_path = Path(__file__).parent.parent.parent.parent / 'Assets' / 'Blend' / 'CH-PZ_HumanRig_Vanilla.blend'
+        rig_blend_path = ADDON_ROOT / 'Assets' / 'Blend' / 'CH-PZ_HumanRig_Vanilla.blend'
         rig_col_name = 'CH-PZ_Human ([INSTANCE])'
 
         # Capture all images in data before

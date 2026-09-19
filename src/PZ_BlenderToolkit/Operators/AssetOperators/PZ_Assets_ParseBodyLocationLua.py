@@ -18,10 +18,10 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
         body_locations.clear()
         addon_data.body_location_active_index = -1
 
-        file, _ = get_zomboid_asset(context, Path("media/lua/shared/NPCs/BodyLocations.lua"))
-        
-        if file is not None:
-            with file.open('r', encoding='utf-8') as file:
+        lua, _ = get_zomboid_asset(context, Path("media/lua/shared/NPCs/BodyLocations.lua"))
+
+        if lua is not None:
+            with lua.open('r', encoding='utf-8') as file:
 
                 counter = 0
                 
@@ -31,19 +31,12 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
                     # Line creates a new body location
                     if 'getOrCreateLocation' in lua_line:
                         pattern = r'\.(.*?)\)'
-                        body_location = body_locations.add()
-                        body_location.name = re.findall(pattern, lua_line)[0]
-                        body_location.order = counter
-                        counter += 1
-                        # Line creates a new body location
-                        if 'getOrCreateLocation' in lua_line:
-                            pattern = r'\.(.*?)\)'
-                            matches = re.findall(pattern, lua_line)[0]
-                            if matches:
-                                body_location = body_locations.add()
-                                body_location.name = matches[0]
-                                body_location.order = counter
-                                counter += 1
+                        matches = re.findall(pattern, lua_line)[0]
+                        if matches:
+                            body_location = body_locations.add()
+                            body_location.name = matches
+                            body_location.order = counter
+                            counter += 1
 
                     elif 'setExclusive' in lua_line:
                         pattern = r'ItemBodyLocation\.([A-Z_]+)'
