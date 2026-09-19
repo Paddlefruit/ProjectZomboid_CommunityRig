@@ -23,11 +23,9 @@ class PZ_HumanRig_RemoveAllClothingItems(Operator):
         # Set the pointer to the top of the clothing items, then call the remove operator for each one
         model_properties.equipped_clothing_item_active_index = len(equipped_clothing) - 1
         for i in range(len(equipped_clothing)):
-            bpy.ops.zomboid.remove_clothing_item(stop_texture_updates=self.stop_texture_updates)
+            bpy.ops.zomboid.remove_clothing_item(is_batch_remove=self.stop_texture_updates)
 
         bpy.ops.zomboid.create_body_texture()
-
-        #TEMP
         context.active_object.pz_used_body_locations.clear()
 
         return ({'FINISHED'})

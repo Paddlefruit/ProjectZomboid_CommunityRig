@@ -37,6 +37,9 @@ class PZ_UI_HumanRig_RigPropertiesPanel(Panel):
         # Get the initial layout
         layout = self.layout
 
+        # Toggle for allowing the user to select the model in the viewport
+        layout.prop(model_properties, 'models_selectable')
+
         # The operator for resetting the model
         layout.operator('zomboid.reset_model')
 

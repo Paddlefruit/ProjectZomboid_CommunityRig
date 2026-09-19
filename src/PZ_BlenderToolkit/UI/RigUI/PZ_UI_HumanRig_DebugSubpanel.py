@@ -27,6 +27,12 @@ def draw_debug_subpanel(context, layout):
         box.prop(model_properties, 'use_skeleton')
         box.prop(model_properties, 'stop_texture_updates')
 
+        # Properties around body locations
+        box.prop(model_properties, 'use_body_location_exclusivity')
+        box.prop(model_properties, 'use_body_location_hiding')
+        box.prop(model_properties, 'use_body_location_alt_models')
+        box.prop(model_properties, 'use_body_location_sorting')
+
         # Show the properties for the visibility masks if debug is enabled
         if model_properties.human_subtype != 'SKELETON':
             panel_area.separator()

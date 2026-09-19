@@ -34,7 +34,7 @@ class PZ_HumanRig_AddClothingItem(Operator):
         equipped_items = context.active_object.pz_equipped_clothing_items
 
         # Collection of the list of used body locations
-        used_locs = context.active_object.pz_used_body_locations
+        used_body_locations = context.active_object.pz_used_body_locations
 
         item = None
         for clothing_item in addon_data.pz_clothing_item_references:
@@ -47,20 +47,20 @@ class PZ_HumanRig_AddClothingItem(Operator):
             # Also check if alternate models need to be used, or if this model needs to be hidden
             use_alt_model = False
             start_hidden = False
-            for used_loc in used_locs:
+            for used_body_location in used_body_locations:
                 if body_locations.get(item.body_location):
                     if model_properties.use_body_location_exclusivity:
                         for ban_loc in body_locations.get(item.body_location).properties.exclusive_locations:
-                            if used_loc.name == ban_loc.name:
+                            if used_body_location.name == ban_loc.name:
                                 return({'CANCELLED'})
                     if model_properties.use_body_location_alt_models:
                         for alt_loc in body_locations.get(item.body_location).properties.alt_locations:
-                            if used_loc.name == alt_loc.name:
+                            if used_body_location.name == alt_loc.name:
                                 use_alt_model = True
                                 break
                     if model_properties.use_body_location_hiding:
                         for hide_loc in body_locations.get(item.body_location).properties.hide_locations:
-                            if used_loc.name == hide_loc.name:
+                            if used_body_location.name == hide_loc.name:
                                 start_hidden = True
                                 break
 
@@ -119,8 +119,8 @@ class PZ_HumanRig_AddClothingItem(Operator):
                 # Sort body textures
                 if model_properties.use_body_location_sorting:
                     bpy.ops.zomboid.sort_body_clothing_textures()
-                else:
-                    bpy.ops.zomboid.create_body_texture()
+                    
+                bpy.ops.zomboid.create_body_texture()
 
             if new_item.data.clothing_type == 'CLOTHINGMODEL':
                 bpy.ops.zomboid.import_clothing_model()
@@ -133,8 +133,12 @@ class PZ_HumanRig_AddClothingItem(Operator):
             # Check Hat Category Validity
             bpy.ops.zomboid.check_hat_category()
 
-            # Check Body Location Validity
-            bpy.ops.zomboid.check_body_locations(clothing_item_added = item.name, count_self = True)
+            # Add the body location to the list of used body locations
+            new_used_location = used_body_locations.add()
+            new_used_location.name = item.body_location
+
+            # # Check Body Location Validity
+            # bpy.ops.zomboid.check_body_locations(clothing_item_added = item.name, count_self = True)
 
             return ({'FINISHED'})
         else:

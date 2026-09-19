@@ -6,6 +6,7 @@ from bpy.types import Operator, Object
 from bpy.props import StringProperty, BoolProperty
 from ....Utility.PZ_MaterialMethods import resolve_image_users
 from ....Utility.PZ_AssetMethods import ADDON_ROOT
+from ....Utility.PZ_UpdateMethods import update_model_selectability
 
 class PZ_HumanRig_CreateRig(Operator):
     bl_idname = "zomboid.create_rig"
@@ -26,6 +27,7 @@ class PZ_HumanRig_CreateRig(Operator):
 
         # Get the path to the PZ_HumanRig Blend file
         rig_blend_path = ADDON_ROOT / 'Assets' / 'Blend' / 'CH-PZ_HumanRig.blend'
+        rig_blend_path = Path(__file__).parent.parent.parent.parent / 'Assets' / 'Blend' / 'CH-PZ_HumanRig_Vanilla.blend'
         rig_col_name = 'CH-PZ_Human ([INSTANCE])'
 
         # Capture all images in data before
@@ -101,6 +103,9 @@ class PZ_HumanRig_CreateRig(Operator):
             obj.select_set(False)
         object_pointers.rig_object.select_set(True)
         context.view_layer.objects.active = object_pointers.rig_object
+
+        # Call the update operation that changes the selection properties of the models
+        update_model_selectability(self, context)
 
         # Apply an initial outfit if indicated
         if addon_data.references_obtained:

@@ -6,7 +6,6 @@ from bpy.types import PropertyGroup
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, FloatVectorProperty, BoolVectorProperty
 
 from ...Utility.PZ_UpdateMethods import *
-from ...Utility.PZ_FilterMethods import filter_zombie_injuries
 
 '''
 This property group contains all properties relating to a rig's model
@@ -338,4 +337,12 @@ class PZ_HumanRigModelProperties(PropertyGroup):
     )
     used_body_location_active_index: IntProperty(
         default=-1
+    )
+
+    ### MISC ###
+    models_selectable: BoolProperty(
+        name='Selectable Models',
+        description='Whether you can select the individual models of this rig in the viewport',
+        default=False,
+        update=update_model_selectability
     )

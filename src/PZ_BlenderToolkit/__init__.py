@@ -1,7 +1,7 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 
 import bpy
-from bpy.types import Scene, Object, WindowManager
+from bpy.types import Scene, Object, WindowManager, VIEW3D_MT_add
 from bpy.props import CollectionProperty, PointerProperty
 from bpy.utils import previews
 
@@ -32,6 +32,11 @@ bl_info = {
     "version": (1, 0, 0),
     "blender": (5, 2, 0)
 }
+
+# Helper method for getting the custom add menu submenu
+def add_menu_submenu(self, context):
+    self.layout.separator(type='LINE')
+    self.layout.menu('PZ_MT_add_menu_submenu')
 
 def register():
     auto_load.init()
@@ -140,12 +145,21 @@ def register():
     # Load the icons
     custom_icons.load('pz_random_icon', str(random_icon_path), 'IMAGE')
 
-    # Store the icons in the WindowManager
+    # Store our custom icons in the WindowManager
     WindowManager.pz_icons = custom_icons
 
+    # Add our custom add menu submenu to the Shift+A menu
+    VIEW3D_MT_add.append(add_menu_submenu)
+
 def unregister():
+
+    # Remove our custom add menu submenu from the Shift+A menu
+    VIEW3D_MT_add.remove(add_menu_submenu)
+
+    # Unregister all classes
     auto_load.unregister()
 
+    # Remove all property group pointers from objects
     del Object.pz_object_pointers
     del Object.pz_main_properties
     del Object.pz_model_properties
@@ -155,10 +169,12 @@ def unregister():
     del Object.pz_control_properties
     del Object.pz_export_properties
 
+    # Remove custom data structures from objects
     del Object.pz_equipped_clothing_items
     del Object.pz_zombie_injuries
     del Object.pz_used_body_locations
 
+    # Remove the list of rigs from the scene
     del Scene.pz_human_rigs
 
     # Remove our custom icons from the WindowManager

@@ -120,6 +120,11 @@ class PZ_EquippedClothingItem(PropertyGroup):
         default=False
     )
 
+    # The toggle of whether this clothing item should be hidden
+    hide_model: BoolProperty(
+        default=False
+    )
+
     # The model objects that this clothing item uses, if they exist
     male_model_object: PointerProperty(
         type=Object

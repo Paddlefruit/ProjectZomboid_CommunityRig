@@ -67,3 +67,32 @@ def update_right_prop_parent_object(self, context):
     copy_constraint = prop.constraints.get('Copy Location')
 
     copy_constraint.target = control_properties.right_prop_parent_object
+
+def update_model_selectability(self, context):
+    object_pointers = context.active_object.pz_object_pointers
+    model_properties = context.active_object.pz_model_properties
+    equipped_clothing = context.active_object.pz_equipped_clothing_items
+
+    # The specific non-clothing models
+    rig_models = [
+        object_pointers.male_body_object,
+        object_pointers.female_body_object,
+        object_pointers.male_skeleton_object,
+        object_pointers.female_skeleton_object,
+        object_pointers.male_dress_object,
+        object_pointers.female_dress_object,
+        object_pointers.male_hair_object,
+        object_pointers.female_hair_object,
+        object_pointers.beard_object
+    ]
+
+    # The clothing models on equipped clothing items
+    male_clothing_models = [obj.male_model_object for obj in equipped_clothing if obj.data.clothing_type != 'BODYTEXTURE' and obj.male_model_object]
+    female_clothing_models = [obj.female_model_object for obj in equipped_clothing if obj.data.clothing_type != 'BODYTEXTURE' and obj.female_model_object]
+
+    # The whole collection
+    model_objects = rig_models + male_clothing_models + female_clothing_models
+
+    for model in model_objects:
+        if model:
+            model.hide_select = not model_properties.models_selectable

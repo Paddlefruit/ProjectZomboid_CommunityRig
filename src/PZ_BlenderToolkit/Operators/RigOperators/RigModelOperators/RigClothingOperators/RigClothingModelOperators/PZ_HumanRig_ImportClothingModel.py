@@ -64,6 +64,7 @@ class PZ_ImportClothingModel(Operator):
                                 use_import_collection=False
                             )
                         case '.fbx':
+                            print('test???')
                             bpy.ops.import_scene.fbx(
                                 filepath=model_path,
                                 global_scale=100.0
@@ -156,11 +157,12 @@ class PZ_ImportClothingModel(Operator):
                             model_obj.scale[0] *= -1
                             model_obj.scale *= 100
                         case '.fbx':
+                            print('test')
+                            model_obj.rotation_euler[0] += math.pi / 2
                             model_obj.scale[0] = 100.0
                             model_obj.scale[1] = 100.0
                             model_obj.scale[2] = 100.0
                             model_obj.data.materials.clear()
-                            model_obj.rotation_euler[0] += math.pi / 2
                         case '.glb':
                             model_obj.scale[0] = 1.0
                             model_obj.scale[1] = 1.0
@@ -180,6 +182,9 @@ class PZ_ImportClothingModel(Operator):
                     model_obj.hide_viewport = model_obj['sex'] != model_properties.model_sex_index
                     model_obj.hide_render = model_obj['sex'] != model_properties.model_sex_index
 
+                    # Set initial selection properties
+                    model_obj.hide_select = not model_properties.models_selectable
+                    
                     return model_obj
 
         # Call the import method for both the male and female model

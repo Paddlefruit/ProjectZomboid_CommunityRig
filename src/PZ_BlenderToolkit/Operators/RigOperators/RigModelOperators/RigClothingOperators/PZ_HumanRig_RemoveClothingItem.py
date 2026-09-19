@@ -5,6 +5,8 @@ import bpy
 from bpy.types import Operator
 from bpy.props import BoolProperty
 
+from .....Utility.PZ_CheckBodyLocations import check_body_location_eligibility, check_body_location_properties
+
 class PZ_HumanRig_RemoveClothingItem(Operator):
     bl_idname = "zomboid.remove_clothing_item"
     bl_label = "Remove Clothing Item"
@@ -12,6 +14,10 @@ class PZ_HumanRig_RemoveClothingItem(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     stop_texture_updates: BoolProperty(
+        default=False
+    )
+
+    is_batch_remove: BoolProperty(
         default=False
     )
 
@@ -55,7 +61,7 @@ class PZ_HumanRig_RemoveClothingItem(Operator):
         if clothing_type == 'CLOTHINGMODEL':
 
             # Temporarily pause automatic updating of the visibility mask, if toggle is enabled
-            if self.stop_texture_updates:
+            if self.is_batch_remove:
                 model_properties.stop_texture_updates = True
 
             # Update masks on rig
@@ -68,12 +74,12 @@ class PZ_HumanRig_RemoveClothingItem(Operator):
                 model_properties.visibility_mask_array[i] = test
                 model_properties.visibility_mask_array[i] = model_properties.visibility_mask_array[i]
     
-            if self.stop_texture_updates:
+            if self.is_batch_remove:
                 model_properties.stop_texture_updates = False
                 bpy.ops.zomboid.create_visibility_mask()
 
         # Recreate the body texture if the toggle is enabled, and the clothing removed was a body texture
-        if clothing_type == 'BODYTEXTURE' and not self.stop_texture_updates:
+        if clothing_type == 'BODYTEXTURE' and not self.is_batch_remove:
             bpy.ops.zomboid.create_body_texture()
         
         # If this clothing item wasn't the last in the list, adjust the indicies of all higher clothing items
@@ -122,7 +128,12 @@ class PZ_HumanRig_RemoveClothingItem(Operator):
 
                         context.active_object.update_tag()
 
+        # Check Body Locations to see if we need to remove the used location that this clothing item used
+        if not self.is_batch_remove:
+           print(check_body_location_eligibility(self, context))
+           #check_body_location_properties(self, context)
 
+        # Deincrement the active index
         model_properties.equipped_clothing_item_active_index -= 1
 
         return({'FINISHED'})

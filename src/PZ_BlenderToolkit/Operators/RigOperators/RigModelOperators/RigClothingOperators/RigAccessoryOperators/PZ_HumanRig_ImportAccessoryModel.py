@@ -177,6 +177,9 @@ class PZ_ImportAccessoryModel(Operator):
                     model_obj.hide_viewport = model_obj['sex'] != model_properties.model_sex_index
                     model_obj.hide_render = model_obj['sex'] != model_properties.model_sex_index
 
+                    # Set initial selection properties
+                    model_obj.hide_select = not model_properties.models_selectable
+
                     return model_obj
 
         # Call the import method for both the male and female model

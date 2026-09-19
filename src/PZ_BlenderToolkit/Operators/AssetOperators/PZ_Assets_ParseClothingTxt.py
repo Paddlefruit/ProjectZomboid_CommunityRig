@@ -43,7 +43,8 @@ class PZ_Assets_ParseBodyLocationTxt(Operator):
 
                         if in_main_portion and in_item_block:
                             if 'BodyLocation' in txt_line or 'CanBeEquipped' in txt_line:
-                                current_body_location = txt_line.split(':')[1].split(',')[0].upper()
+                                if ':' in txt_line:
+                                    current_body_location = txt_line.split(':')[1].split(',')[0].upper()
 
                             if 'ClothingItem ' in txt_line:
                                 current_clothing_item = txt_line.split('= ')[1].split(',')[0]

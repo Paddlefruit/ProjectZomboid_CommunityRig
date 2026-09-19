@@ -66,6 +66,9 @@ def draw_clothing_subpanel(context, layout):
                         column.prop(current_clothing_item, 'female_model_object')
                         column.prop(current_clothing_item, 'image')
                         column.prop(current_clothing_item, 'material')
+                        
+                    subpanel_area.prop(current_clothing_item, 'hide_model')
+                    subpanel_area.prop(current_clothing_item, 'use_alt_model')
 
             # Operators for the clothing items
             right_column.label(text='Operators')

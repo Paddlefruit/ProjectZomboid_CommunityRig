@@ -1,13 +1,89 @@
-<?xml version="1.0" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN" "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- Created using Krita: https://krita.org -->
-<svg xmlns="http://www.w3.org/2000/svg" 
-    xmlns:xlink="http://www.w3.org/1999/xlink"
-    xmlns:krita="http://krita.org/namespaces/svg/krita"
-    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-    width="480pt"
-    height="480pt"
-    viewBox="0 0 480 480">
-<defs/>
-<rect id="shape0" transform="translate(45, 45)" fill="none" stroke="#ffffff" stroke-width="30" stroke-linecap="square" stroke-linejoin="bevel" width="390" height="390" rx="51.7500211957015" ry="51.7500211957015"/><circle id="shape1" transform="translate(221.4, 221.4)" r="18.6" cx="18.6" cy="18.6" fill="#ffffff" fill-rule="evenodd" stroke="#ffffff" stroke-width="24" stroke-linecap="square" stroke-linejoin="bevel"/><circle id="shape01" transform="translate(116.4, 326.4)" r="18.6" cx="18.6" cy="18.6" fill="#ffffff" fill-rule="evenodd" stroke="#ffffff" stroke-width="24" stroke-linecap="square" stroke-linejoin="bevel"/><circle id="shape02" transform="translate(326.4, 116.4)" r="18.6" cx="18.6" cy="18.6" fill="#ffffff" fill-rule="evenodd" stroke="#ffffff" stroke-width="24" stroke-linecap="square" stroke-linejoin="bevel"/>
+
+<svg
+   width="480pt"
+   height="480pt"
+   viewBox="0 0 480 480"
+   version="1.1"
+   id="svg270"
+   sodipodi:docname="ICON-Random.svg"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview272"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="pt"
+     showgrid="false"
+     inkscape:zoom="0.48503106"
+     inkscape:cx="500.99885"
+     inkscape:cy="375.2337"
+     inkscape:window-width="1920"
+     inkscape:window-height="1048"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg270" />
+  <defs
+     id="defs264" />
+  <rect
+     id="shape0"
+     transform="translate(45, 45)"
+     fill="none"
+     stroke="#ffffff"
+     stroke-width="30"
+     stroke-linecap="square"
+     stroke-linejoin="bevel"
+     width="390"
+     height="390"
+     rx="51.7500211957015"
+     ry="51.7500211957015" />
+  <circle
+     id="shape1"
+     fill="#ffffff"
+     fill-rule="evenodd"
+     stroke="#ffffff"
+     stroke-width="24"
+     stroke-linecap="square"
+     stroke-linejoin="bevel"
+     transform="translate(221.4,221.4)"
+     style="opacity:0.65"
+     cy="18.6"
+     cx="18.6"
+     r="28" />
+  <circle
+     id="shape01"
+     transform="translate(116.4,326.4)"
+     cx="18.6"
+     cy="18.6"
+     fill="#ffffff"
+     fill-rule="evenodd"
+     stroke="#ffffff"
+     stroke-width="24"
+     stroke-linecap="square"
+     stroke-linejoin="bevel"
+     style="opacity:0.65"
+     r="28" />
+  <circle
+     id="shape02"
+     transform="translate(326.4,116.4)"
+     cx="18.6"
+     cy="18.6"
+     fill="#ffffff"
+     fill-rule="evenodd"
+     stroke="#ffffff"
+     stroke-width="24"
+     stroke-linecap="square"
+     stroke-linejoin="bevel"
+     style="opacity:0.65"
+     r="28" />
 </svg>

@@ -35,6 +35,15 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
                         body_location.name = re.findall(pattern, lua_line)[0]
                         body_location.order = counter
                         counter += 1
+                        # Line creates a new body location
+                        if 'getOrCreateLocation' in lua_line:
+                            pattern = r'\.(.*?)\)'
+                            matches = re.findall(pattern, lua_line)[0]
+                            if matches:
+                                body_location = body_locations.add()
+                                body_location.name = matches[0]
+                                body_location.order = counter
+                                counter += 1
 
                     elif 'setExclusive' in lua_line:
                         pattern = r'ItemBodyLocation\.([A-Z_]+)'

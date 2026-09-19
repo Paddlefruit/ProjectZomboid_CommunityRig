@@ -2,12 +2,10 @@
 
 import bpy
 import os
-import sys
 import importlib
 import inspect
 
-from bpy.types import Operator, Panel, UIList, PropertyGroup, AddonPreferences
-from .PropertyGroups.General.PZ_HumanRig import PZ_HumanRig
+from bpy.types import Operator, Panel, UIList, PropertyGroup, AddonPreferences, Menu
 
 modules = []
 ordered_classes = []
@@ -38,7 +36,7 @@ def get_all_submodules(directory):
 def get_classes_to_register(module_list):
     classes = []
 
-    blender_bases = (Operator, Panel, UIList, PropertyGroup, AddonPreferences)
+    blender_bases = (Operator, Panel, UIList, Menu, PropertyGroup, AddonPreferences)
 
     # Order it so that classes are grabbed from the top to the bottom of each python file
     # Load the AddonPreferences class last
@@ -57,18 +55,16 @@ def get_classes_to_register(module_list):
 
     def get_registration_order(cls):
         if issubclass(cls, PropertyGroup):
-            if issubclass(cls, PZ_HumanRig):
-                return 1
             return 0
-        if issubclass(cls, (Operator, UIList)):
-            return 2
+        if issubclass(cls, (Operator, UIList, Menu)):
+            return 1
         if issubclass(cls, Panel):
             if hasattr(cls, 'bl_parent_id'):
-                return 4
-            return 3
+                return 3
+            return 2
         if issubclass(cls, AddonPreferences):
-            return 5
-        return 6
+            return 4
+        return 5
 
     classes.sort(key=get_registration_order)
     return classes
