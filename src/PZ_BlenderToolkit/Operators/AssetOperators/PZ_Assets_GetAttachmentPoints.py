@@ -1,8 +1,9 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
 import bpy
 
+from pathlib import Path
 from bpy.types import Operator
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
+from ...Utility.PZ_AssetMethods import get_zomboid_asset
 
 class PZ_Assets_GetAttachmentPoints(Operator):
     bl_idname = "zomboid.get_attachment_points"
@@ -28,7 +29,7 @@ class PZ_Assets_GetAttachmentPoints(Operator):
                 rotation_vals = [0, 0, 0]
                 bone_name = ''
 
-                with open(str(path), 'r', encoding='utf-8') as file:
+                with path.open('r', encoding='utf-8') as file:
                     # TODO: Replace with albion's more sophisticated parser
                     for line in file:
                         txt_line = line.strip()
@@ -97,7 +98,6 @@ class PZ_Assets_GetAttachmentPoints(Operator):
 
                                 continue
 
-        for folder, origin in get_zomboid_asset_folders(context, 'generated'):
-            parse_file(folder / 'models_characters.txt')
+        parse_file(get_zomboid_asset(context, Path("media/scripts/generated/models_characters.txt"))[0])
 
         return ({'FINISHED'})

@@ -1,11 +1,12 @@
 # pyright: reportInvalidTypeForm=false,reportMissingModuleSource=false
+import os
 import bpy 
 import xml.etree.ElementTree as ET
 
 from bpy.types import Operator 
 from pathlib import Path
 
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
+from ...Utility.PZ_AssetMethods import get_file_all_sources
 
 class PZ_Assets_ParseOutfitXMLs(Operator):
     bl_idname = "zomboid.parse_outfit_xmls"
@@ -146,9 +147,8 @@ class PZ_Assets_ParseOutfitXMLs(Operator):
             clothing.guid : clothing.name for clothing in addon_data.pz_clothing_item_references
         }
 
-        for folder, mod_name in get_zomboid_asset_folders(context, 'clothing'):
-            if (folder / 'clothing.xml').is_file():
-                self.parse_xml(context, str(folder / 'clothing.xml'), outfits, mod_name, clothing_lookup)
+        for file, mod_name in get_file_all_sources('media/clothing/clothing.xml'):
+            self.parse_xml(context, os.fspath(file), outfits, mod_name, clothing_lookup)
 
         self.report({'INFO'}, "Parsed " + str(self.outfit_count) + " Outfits")
         return {'FINISHED'}
