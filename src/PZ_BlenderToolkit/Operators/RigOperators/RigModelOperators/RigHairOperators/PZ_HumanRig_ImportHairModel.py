@@ -52,9 +52,9 @@ class PZ_ImportHairModel(Operator):
             prev_obj = None
             match self.hair_type:
                 case 'M':
-                    prev_obj = object_pointers.male_hair_object
+                    prev_obj = object_pointers.hair_object
                 case 'F':
-                    prev_obj = object_pointers.female_hair_object
+                    prev_obj = object_pointers.hair_object
                 case 'B':
                     prev_obj = object_pointers.beard_object
 
@@ -111,23 +111,17 @@ class PZ_ImportHairModel(Operator):
                     elif obj.type == 'MESH':
                         match self.hair_type:
                             case 'M':
-                                obj.name = 'OBJ-MaleHair' + instance_str
+                                obj.name = 'OBJ-Hair' + instance_str
                                 if obj.data:
-                                    obj.data.name = 'GEO-MaleHair' + instance_str
-                                obj["sex"] = 0
+                                    obj.data.name = 'GEO-Hair' + instance_str
                             case 'F':
-                                obj.name = 'OBJ-FemaleHair' + instance_str
+                                obj.name = 'OBJ-Hair' + instance_str
                                 if obj.data:
-                                    obj.data.name = 'GEO-FemaleHair' + instance_str
-                                obj["sex"] = 1
+                                    obj.data.name = 'GEO-Hair' + instance_str
                             case 'B':
                                 obj.name = 'OBJ-Beard' + instance_str
                                 if obj.data:
                                     obj.data.name = 'GEO-Beard' + instance_str
-                                obj["sex"] = 0
-
-                        obj.hide_viewport = obj['sex'] != model_properties.model_sex_index
-                        obj.hide_render = obj['sex'] != model_properties.model_sex_index
 
                         obj.parent = context.active_object
 
@@ -163,22 +157,22 @@ class PZ_ImportHairModel(Operator):
 
                         match self.hair_type:
                             case 'M':
-                                object_pointers.male_hair_object = obj
+                                object_pointers.hair_object = obj
                             case 'F':
-                                object_pointers.female_hair_object = obj
+                                object_pointers.hair_object = obj
                             case 'B':
                                 object_pointers.beard_object = obj
 
                         if hair_style.texture_path:
                             match self.hair_type:
                                 case 'M':
-                                    object_pointers.male_hair_material, object_pointers.male_hair_image = create_model_material(context, hair_style.texture_path, 'HAIR', hair_type=self.hair_type)
-                                    object_pointers.male_hair_image.name = 'TEX-MaleHair' + instance_str
-                                    obj.active_material = object_pointers.male_hair_material
+                                    object_pointers.hair_material, object_pointers.hair_image = create_model_material(context, hair_style.texture_path, 'HAIR', hair_type=self.hair_type)
+                                    object_pointers.hair_image.name = 'TEX-Hair' + instance_str
+                                    obj.active_material = object_pointers.hair_material
                                 case 'F':
-                                    object_pointers.female_hair_material, object_pointers.female_hair_image = create_model_material(context, hair_style.texture_path, 'HAIR', hair_type=self.hair_type)
-                                    object_pointers.female_hair_image.name = 'TEX-FemaleHair' + instance_str
-                                    obj.active_material = object_pointers.female_hair_material
+                                    object_pointers.hair_material, object_pointers.hair_image = create_model_material(context, hair_style.texture_path, 'HAIR', hair_type=self.hair_type)
+                                    object_pointers.hair_image.name = 'TEX-Hair' + instance_str
+                                    obj.active_material = object_pointers.hair_material
                                 case 'B':
                                     object_pointers.beard_material, object_pointers.beard_image = create_model_material(context, hair_style.texture_path, 'HAIR', hair_type=self.hair_type)
                                     object_pointers.beard_image.name = 'TEX-Beard' + instance_str

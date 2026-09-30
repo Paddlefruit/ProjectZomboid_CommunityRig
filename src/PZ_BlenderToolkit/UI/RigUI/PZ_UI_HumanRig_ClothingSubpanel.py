@@ -62,13 +62,12 @@ def draw_clothing_subpanel(context, layout):
 
                     if subpanel_area:
                         column = subpanel_area.column()
-                        column.prop(current_clothing_item, 'male_model_object')
-                        column.prop(current_clothing_item, 'female_model_object')
+                        column.prop(current_clothing_item, 'model_object')
                         column.prop(current_clothing_item, 'image')
                         column.prop(current_clothing_item, 'material')
                         
-                    subpanel_area.prop(current_clothing_item, 'hide_model')
-                    subpanel_area.prop(current_clothing_item, 'use_alt_model')
+                        subpanel_area.prop(current_clothing_item, 'hide_model')
+                        subpanel_area.prop(current_clothing_item, 'use_alt_model')
 
             # Operators for the clothing items
             right_column.label(text='Operators')

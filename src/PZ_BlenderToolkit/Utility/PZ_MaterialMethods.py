@@ -64,9 +64,9 @@ def create_model_material(context: Context, texture_path: str, category: str, ha
         case 'HAIR':
             match hair_type:
                 case 'M':
-                    mat_name = 'MAT-MaleHair' + instance_str
+                    mat_name = 'MAT-Hair' + instance_str
                 case 'F':
-                    mat_name = 'MAT-FemaleHair' + instance_str
+                    mat_name = 'MAT-Hair' + instance_str
                 case 'B':
                     mat_name = 'MAT-Beard' + instance_str
         # case 'ATTACHMENT':
@@ -75,6 +75,7 @@ def create_model_material(context: Context, texture_path: str, category: str, ha
 
     old_mat = bpy.data.materials.get(mat_name)
     if old_mat:
+        
         bpy.data.materials.remove(old_mat, do_unlink=True)
 
     # Get the boilerplace material from the blend file

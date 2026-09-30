@@ -36,7 +36,7 @@ asset_cache: dict[VirtualPath, Path] = {}
 ADDON_ROOT: Path = Path(__file__).parent.parent
 """Root path of the addon."""
 
-ERROR_TEXTURE: Path = ADDON_ROOT / "Assets/Textures/Error.png"
+ERROR_TEXTURE: Path = ADDON_ROOT / "Assets/Textures/TEX-Error.png"
 """Texture used to indicate that an error has occured relating to textures."""
 
 @dataclass(slots=True)
@@ -80,7 +80,7 @@ def build_asset_sources(pz_directory: str, mod_directories: list[PZ_ModDirectory
     global asset_sources
 
     asset_sources = [
-        AssetSource("pz-vanilla", Path(pz_directory))
+        AssetSource("Project Zomboid", Path(pz_directory))
     ]
 
     for mod in mod_directories:
@@ -197,4 +197,4 @@ def get_zomboid_texture(context, path: Path) -> tuple[Path, str]:
     if texture[0] is not None:
         return texture
     
-    return (ERROR_TEXTURE, "Community rig")
+    return (ERROR_TEXTURE, "Community Rig")

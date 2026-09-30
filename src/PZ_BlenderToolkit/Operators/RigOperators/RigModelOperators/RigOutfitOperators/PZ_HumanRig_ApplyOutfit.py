@@ -51,20 +51,33 @@ class PZ_HumanRig_ApplyOutfit(Operator):
         random_properties = context.active_object.pz_random_properties
 
         # Select the model sex
-        if '(Male)' in model_properties.selected_outfit:
-            model_properties.model_sex = 'MALE'
+        # if '(Male)' in model_properties.selected_outfit:
+        #     model_properties.model_sex = 'MALE'
 
-            if random_properties.random_hair_style:
-                bpy.ops.zomboid.randomize_hair_model(hair_type='M')
+        #     if random_properties.random_hair_style:
+        #         bpy.ops.zomboid.randomize_hair_model(hair_type='M')
+        #     if randint(1, 100) <= random_properties.random_beard_chance:
+        #         bpy.ops.zomboid.randomize_hair_model(hair_type='B')
+        #     else:
+        #         model_properties.beard_style = 'None'
+        # elif '(Female)' in model_properties.selected_outfit:
+        #     model_properties.model_sex = 'FEMALE'
+
+        #     if random_properties.random_hair_style:
+        #         bpy.ops.zomboid.randomize_hair_model(hair_type='F')
+
+        if random_properties.random_hair_style:
+            bpy.ops.zomboid.randomize_hair_model(hair_type='M')
+            bpy.ops.zomboid.randomize_hair_model(hair_type='F')
             if randint(1, 100) <= random_properties.random_beard_chance:
                 bpy.ops.zomboid.randomize_hair_model(hair_type='B')
             else:
                 model_properties.beard_style = 'None'
+
+        if '(Male)' in model_properties.selected_outfit:
+            model_properties.model_sex = 'MALE'
         elif '(Female)' in model_properties.selected_outfit:
             model_properties.model_sex = 'FEMALE'
-
-            if random_properties.random_hair_style:
-                bpy.ops.zomboid.randomize_hair_model(hair_type='F')
 
         # Select random skin tone, if enabled
         if random_properties.random_skin_tone:

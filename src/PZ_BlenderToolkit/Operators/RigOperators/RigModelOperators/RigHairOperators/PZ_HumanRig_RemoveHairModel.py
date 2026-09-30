@@ -17,29 +17,29 @@ class PZ_RemoveHairMesh(Operator):
 
         match self.hair_type:
             case 'M':
-                if object_pointers.male_hair_object:
-                    data = object_pointers.male_hair_object.data
-                    bpy.data.objects.remove(object_pointers.male_hair_object, do_unlink=True)
+                if object_pointers.hair_object:
+                    data = object_pointers.hair_object.data
+                    bpy.data.objects.remove(object_pointers.hair_object, do_unlink=True)
                     if data:
                         bpy.data.meshes.remove(data, do_unlink=True)
 
-                if object_pointers.male_hair_material:
-                    bpy.data.materials.remove(object_pointers.male_hair_material, do_unlink=True)
+                if object_pointers.hair_material:
+                    bpy.data.materials.remove(object_pointers.hair_material, do_unlink=True)
 
-                if object_pointers.male_hair_image:
-                    bpy.data.images.remove(object_pointers.male_hair_image, do_unlink=True)
+                if object_pointers.hair_image:
+                    bpy.data.images.remove(object_pointers.hair_image, do_unlink=True)
             case 'F':
-                if object_pointers.female_hair_object:
-                    data = object_pointers.female_hair_object.data
-                    bpy.data.objects.remove(object_pointers.female_hair_object, do_unlink=True)
+                if object_pointers.hair_object:
+                    data = object_pointers.hair_object.data
+                    bpy.data.objects.remove(object_pointers.hair_object, do_unlink=True)
                     if data:
                         bpy.data.meshes.remove(data, do_unlink=True)
 
-                    if object_pointers.female_hair_material:
-                        bpy.data.materials.remove(object_pointers.female_hair_material, do_unlink=True)
-    
-                    if object_pointers.female_hair_image:
-                        bpy.data.images.remove(object_pointers.female_hair_image, do_unlink=True)
+                if object_pointers.hair_material:
+                    bpy.data.materials.remove(object_pointers.hair_material, do_unlink=True)
+
+                if object_pointers.hair_image:
+                    bpy.data.images.remove(object_pointers.hair_image, do_unlink=True)
             case 'B':
                 if object_pointers.beard_object:
                     data = object_pointers.beard_object.data

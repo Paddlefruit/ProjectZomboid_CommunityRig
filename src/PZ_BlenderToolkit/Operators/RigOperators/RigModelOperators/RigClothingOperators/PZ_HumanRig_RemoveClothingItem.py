@@ -35,14 +35,9 @@ class PZ_HumanRig_RemoveClothingItem(Operator):
         clothing_type = clothing_to_remove.data.clothing_type
             
         # Remove the model objects, if they exist
-        if clothing_to_remove.male_model_object:
-            data = clothing_to_remove.male_model_object.data
-            bpy.data.objects.remove(clothing_to_remove.male_model_object, do_unlink=True)
-            if data:
-                bpy.data.meshes.remove(data, do_unlink=True)
-        if clothing_to_remove.female_model_object:
-            data = clothing_to_remove.female_model_object.data
-            bpy.data.objects.remove(clothing_to_remove.female_model_object, do_unlink=True)
+        if clothing_to_remove.model_object:
+            data = clothing_to_remove.model_object.data
+            bpy.data.objects.remove(clothing_to_remove.model_object, do_unlink=True)
             if data:
                 bpy.data.meshes.remove(data, do_unlink=True)
 
@@ -88,14 +83,10 @@ class PZ_HumanRig_RemoveClothingItem(Operator):
 
             # Change the names of the data objects if applicable
             if clothing.data.clothing_type != 'BODYTEXTURE':
-                if clothing.male_model_object:
-                    clothing.male_model_object.name = 'OBJ-MaleClothing' + str(model_properties.equipped_clothing_item_active_index + index) + instance_str
-                    if clothing.male_model_object.data:
-                        clothing.male_model_object.data.name = 'GEO-MaleClothing' + str(model_properties.equipped_clothing_item_active_index + index) + instance_str
-                if clothing.female_model_object:
-                    clothing.female_model_object.name = 'OBJ-FemaleClothing' + str(model_properties.equipped_clothing_item_active_index + index) + instance_str
-                    if clothing.female_model_object.data:
-                        clothing.female_model_object.data.name = 'GEO-FemaleClothing' + str(model_properties.equipped_clothing_item_active_index + index) + instance_str
+                if clothing.model_object:
+                    clothing.model_object.name = 'OBJ-Clothing' + str(model_properties.equipped_clothing_item_active_index + index) + instance_str
+                    if clothing.model_object.data:
+                        clothing.model_object.data.name = 'GEO-Clothing' + str(model_properties.equipped_clothing_item_active_index + index) + instance_str
 
                 if clothing.image:
                     if clothing.data.clothing_type == 'CLOTHINGMODEL':

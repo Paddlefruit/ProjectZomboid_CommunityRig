@@ -19,6 +19,10 @@ class PZ_ImportClothingModel(Operator):
         default=True
     )
 
+    replace_material: BoolProperty(
+        default=True
+    )
+
     def execute(self, context):
 
         # Get all data
@@ -34,13 +38,14 @@ class PZ_ImportClothingModel(Operator):
         texture_path = current_clothing_item.get_texture_path()
 
         # Create the attachment material, and assign it to the clothing item data
-        current_clothing_item.material, current_clothing_item.image = create_model_material(context, texture_path, 'CLOTHING')
-
+        if self.replace_material:
+            current_clothing_item.material, current_clothing_item.image = create_model_material(context, texture_path, 'CLOTHING')
+        
         # Rename the image name
         current_clothing_item.image.name = 'TEX-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
         # Method that will be run for both sex's models
-        def import_clothing_model(sex: str, model_path: str):
+        def import_clothing_model(model_path: str):
             if Path(model_path).is_file():
                 with bpy.context.temp_override(active_object=context.active_object):
 
@@ -64,7 +69,6 @@ class PZ_ImportClothingModel(Operator):
                                 use_import_collection=False
                             )
                         case '.fbx':
-                            print('test???')
                             bpy.ops.import_scene.fbx(
                                 filepath=model_path,
                                 global_scale=100.0
@@ -119,8 +123,7 @@ class PZ_ImportClothingModel(Operator):
                         return ({'CANCELLED'})
 
                     # Create the name for the new object
-                    sex_name = 'OBJ-MaleClothingModel' if sex == 'MALE' else 'OBJ-FemaleClothingModel'
-                    obj_name = sex_name + str(model_properties.equipped_clothing_item_active_index) + instance_str
+                    obj_name = 'OBJ-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
                     # Remove pre-existing object with this name, if it exists
                     old_obj = bpy.data.objects.get(obj_name)
@@ -133,8 +136,7 @@ class PZ_ImportClothingModel(Operator):
                     # Rename the mesh data on the model object
                     data = model_obj.data
                     if data:
-                        sex_name = 'GEO-MaleClothing' if sex == 'MALE' else 'GEO-FemaleClothing'
-                        data.name = sex_name + str(model_properties.equipped_clothing_item_active_index) + instance_str
+                        data.name = 'GEO-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
                     # Unlink this object from any collections it may have been linked to in the import process
                     for collection in model_obj.users_collection[:]:
@@ -175,29 +177,28 @@ class PZ_ImportClothingModel(Operator):
                     armature_mod = model_obj.modifiers.new(name="Armature", type='ARMATURE')
                     armature_mod.object = context.active_object
 
-                    # Add a custom property to indicate which sex this model is
-                    model_obj["sex"] = 0 if sex == 'MALE' else 1
-
-                    # Set initial view paramaters for the model based on the current sex
-                    model_obj.hide_viewport = model_obj['sex'] != model_properties.model_sex_index
-                    model_obj.hide_render = model_obj['sex'] != model_properties.model_sex_index
-
                     # Set initial selection properties
                     model_obj.hide_select = not model_properties.models_selectable
                     
                     return model_obj
 
-        # Call the import method for both the male and female model
-        if current_clothing_item.use_alt_model:
-            if current_clothing_item.data.male_alt_model_path != '' and current_clothing_item.data.female_alt_model_path != '':
-                current_clothing_item.male_model_object = import_clothing_model('MALE', current_clothing_item.data.male_alt_model_path)
-                current_clothing_item.female_model_object = import_clothing_model('FEMALE', current_clothing_item.data.female_alt_model_path)
+        # Call the import method for the current sex
+        if model_properties.model_sex == 'MALE':
+            if current_clothing_item.use_alt_model:
+                if current_clothing_item.data.male_alt_model_path != '':
+                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_alt_model_path)
+                else:
+                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_model_path)
             else:
-                current_clothing_item.male_model_object = import_clothing_model('MALE', current_clothing_item.data.male_model_path)
-                current_clothing_item.female_model_object = import_clothing_model('FEMALE', current_clothing_item.data.female_model_path)
+                current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_model_path)
         else:
-            current_clothing_item.male_model_object = import_clothing_model('MALE', current_clothing_item.data.male_model_path)
-            current_clothing_item.female_model_object = import_clothing_model('FEMALE', current_clothing_item.data.female_model_path)
+            if current_clothing_item.use_alt_model:
+                if current_clothing_item.data.female_alt_model_path != '':
+                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_alt_model_path)
+                else:
+                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_model_path)
+            else:
+                current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_model_path)
 
         # Temporarily pause texture updates if indicated
         if self.stop_texture_updates:

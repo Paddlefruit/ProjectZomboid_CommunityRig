@@ -3,6 +3,7 @@
 import bpy
 import math
 
+from bpy.props import BoolProperty
 from bpy.types import Operator
 from pathlib import Path
 from random import randint
@@ -13,6 +14,10 @@ from ......Utility.PZ_MaterialMethods import create_model_material
 class PZ_ImportAccessoryModel(Operator):
     bl_idname = "zomboid.import_accessory_model"
     bl_label = "Import Accessory Model"
+
+    replace_material: BoolProperty(
+        default=True
+    )
 
     def execute(self, context):
 
@@ -29,7 +34,8 @@ class PZ_ImportAccessoryModel(Operator):
         texture_path = current_clothing_item.get_texture_path()
 
         # Create the attachment material, and assign it to the clothing item data
-        current_clothing_item.material, current_clothing_item.image = create_model_material(context, texture_path, 'ACCESSORY')
+        if self.replace_material:
+            current_clothing_item.material, current_clothing_item.image = create_model_material(context, texture_path, 'ACCESSORY')
 
         # Rename the image name
         current_clothing_item.image.name = 'TEX-Attachment' + str(model_properties.equipped_clothing_item_active_index) + instance_str
@@ -94,8 +100,7 @@ class PZ_ImportAccessoryModel(Operator):
                         return ({'CANCELLED'})
 
                     # Create the name for the new object
-                    sex_name = 'OBJ-MaleAccessory' if sex == 'MALE' else 'OBJ-FemaleAccessory'
-                    obj_name = sex_name + str(model_properties.equipped_clothing_item_active_index) + instance_str
+                    obj_name = 'OBJ-Accessory' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
                     # Remove pre-existing object with this name, if it exists
                     old_obj = bpy.data.objects.get(obj_name)
@@ -108,8 +113,7 @@ class PZ_ImportAccessoryModel(Operator):
                     # Rename the mesh data on the model object
                     data = model_obj.data
                     if data:
-                        sex_name = 'GEO-MaleAccessory' if sex == 'MALE' else 'GEO-FemaleAccessory'
-                        data.name = sex_name + str(model_properties.equipped_clothing_item_active_index) + instance_str
+                        data.name = 'GEO-Accessory' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
                     # Unlink this object from any collections it may have been linked to in the import process
                     for collection in model_obj.users_collection[:]:
@@ -183,15 +187,21 @@ class PZ_ImportAccessoryModel(Operator):
                     return model_obj
 
         # Call the import method for both the male and female model
-        if current_clothing_item.use_alt_model:
-            if current_clothing_item.data.male_alt_model_path != '' and current_clothing_item.data.female_alt_model_path != '':
-                current_clothing_item.male_model_object = import_accessory_model('MALE', current_clothing_item.data.male_alt_model_path)
-                current_clothing_item.female_model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_alt_model_path)
+        if model_properties.model_sex == 'MALE':
+            if current_clothing_item.use_alt_model:
+                if current_clothing_item.data.male_alt_model_path != '':
+                    current_clothing_item.model_object = import_accessory_model('MALE', current_clothing_item.data.male_alt_model_path)
+                else:
+                    current_clothing_item.model_object = import_accessory_model('MALE', current_clothing_item.data.male_model_path)
             else:
-                current_clothing_item.male_model_object = import_accessory_model('MALE', current_clothing_item.data.male_model_path)
-                current_clothing_item.female_model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_model_path)
+                current_clothing_item.model_object = import_accessory_model('MALE', current_clothing_item.data.male_model_path)
         else:
-            current_clothing_item.male_model_object = import_accessory_model('MALE', current_clothing_item.data.male_model_path)
-            current_clothing_item.female_model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_model_path)
+            if current_clothing_item.use_alt_model:
+                if current_clothing_item.data.female_alt_model_path != '':
+                    current_clothing_item.model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_alt_model_path)
+                else:
+                    current_clothing_item.model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_model_path)
+            else:
+                current_clothing_item.model_object = import_accessory_model('FEMALE', current_clothing_item.data.female_model_path)
 
         return ({'FINISHED'})

@@ -79,18 +79,11 @@ class PZ_HumanRigModelProperties(PropertyGroup):
     def update_body_texture(self, context):
         bpy.ops.zomboid.create_body_texture()
 
-    def update_clothing_sex_visibility_settings(self, context):
-        update_clothing_sex_viewport(self, context)
-        update_clothing_sex_render(self, context)
-
-    def update_hair_sex_visibility_settings(self, context):
-        update_hair_sex_viewport(self, context)
-        update_hair_sex_render(self, context)
-
     def update_sex_index(self, context):
         self.model_sex_index = 0 if self.model_sex == 'MALE' else 1
-        self.update_clothing_sex_visibility_settings(context)
-        self.update_hair_sex_visibility_settings(context)
+        switch_body_model(self, context)
+        switch_clothing_model_sex(self, context)
+        switch_hair_model_sex(self, context)
         self.update_body_texture(context)
 
     model_sex: EnumProperty(
@@ -133,7 +126,11 @@ class PZ_HumanRigModelProperties(PropertyGroup):
     ### SKIN SET ###
 
     def update_human_subtype(self, context):
-        self.use_skeleton = self.human_subtype == 'SKELETON'
+        # self.use_skeleton = self.human_subtype == 'SKELETON'
+        if self.human_subtype == 'SCARECROW':
+            self.model_sex = 'MALE'
+        else:
+            switch_body_model(self, context)
         self.update_body_texture(context)
 
     human_subtype: EnumProperty(
@@ -142,7 +139,7 @@ class PZ_HumanRigModelProperties(PropertyGroup):
             ('HUMAN', "Human", "Human and zombie textures", 0),
             ('SKELETON', "Skeleton", "Skeleton model and textures", 1),
             ('MANNEQUIN', "Mannequin", "Mannequin textures", 2),
-            ('SCARECROW', "Scarecrow", "Long curly hair texture", 3),
+            ('SCARECROW', "Scarecrow", "Scarecrow model and texture (Male only)", 3),
         ],
         default='HUMAN',
         update=update_human_subtype
@@ -345,4 +342,11 @@ class PZ_HumanRigModelProperties(PropertyGroup):
         description='Whether you can select the individual models of this rig in the viewport',
         default=False,
         update=update_model_selectability
+    )
+
+    hide_dress: BoolProperty(
+        name='Hide Dress',
+        description='Whether the dress part of the body mesh is hidden. Useful for people animating in the Solid view.',
+        default=False,
+        update=update_hide_dress
     )

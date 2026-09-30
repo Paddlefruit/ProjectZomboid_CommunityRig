@@ -17,6 +17,7 @@ def draw_body_subpanel(context, layout):
 
         # The property dictating the model's sex
         sex_row = panel_area.row()
+        sex_row.enabled = model_properties.human_subtype != 'SCARECROW'
         sex_row.scale_y = 1.5
         sex_row.prop(model_properties, 'model_sex', expand=True)
 

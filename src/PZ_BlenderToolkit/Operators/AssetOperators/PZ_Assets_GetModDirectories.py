@@ -48,7 +48,7 @@ class PZ_Assets_GetModDirectories(Operator):
                     mod_name = ''
                     mod_author = ''
                     try:
-                        with open(latest_submod_version_folder / 'mod.info', 'r') as file:
+                        with open(latest_submod_version_folder / 'mod.info', 'r', encoding='utf-8', errors='replace') as file:
                             for line in file:
                                 info_line = line.strip()
 

@@ -6,7 +6,7 @@ from bpy.types import Operator, Object
 from bpy.props import StringProperty, BoolProperty
 from ....Utility.PZ_MaterialMethods import resolve_image_users
 from ....Utility.PZ_AssetMethods import ADDON_ROOT
-from ....Utility.PZ_UpdateMethods import update_model_selectability
+from ....Utility.PZ_UpdateMethods import update_model_selectability, switch_body_model
 
 class PZ_HumanRig_CreateRig(Operator):
     bl_idname = "zomboid.create_rig"
@@ -63,12 +63,8 @@ class PZ_HumanRig_CreateRig(Operator):
         object_pointers.rig_object = new_rig.rig_object
         object_pointers.dummy01_object = bpy.data.objects.get('OBJ-Dummy01 ([INSTANCE])')
         object_pointers.translation_data_object = bpy.data.objects.get('OBJ-TranslationData ([INSTANCE])')
-        object_pointers.male_body_object = bpy.data.objects.get('OBJ-MaleBody ([INSTANCE])')
-        object_pointers.female_body_object = bpy.data.objects.get('OBJ-FemaleBody ([INSTANCE])')
-        object_pointers.male_skeleton_object = bpy.data.objects.get('OBJ-MaleSkeleton ([INSTANCE])')
-        object_pointers.female_skeleton_object = bpy.data.objects.get('OBJ-FemaleSkeleton ([INSTANCE])')
-        object_pointers.male_dress_object = bpy.data.objects.get('OBJ-MaleDress ([INSTANCE])')
-        object_pointers.female_dress_object = bpy.data.objects.get('OBJ-FemaleDress ([INSTANCE])')
+
+        object_pointers.body_object = bpy.data.objects.get('OBJ-Body ([INSTANCE])')
 
         object_pointers.body_material = bpy.data.materials.get('MAT-HumanBody ([INSTANCE])')
 
@@ -102,7 +98,7 @@ class PZ_HumanRig_CreateRig(Operator):
             obj.select_set(False)
         object_pointers.rig_object.select_set(True)
         context.view_layer.objects.active = object_pointers.rig_object
-
+        
         # Call the update operation that changes the selection properties of the models
         update_model_selectability(self, context)
 

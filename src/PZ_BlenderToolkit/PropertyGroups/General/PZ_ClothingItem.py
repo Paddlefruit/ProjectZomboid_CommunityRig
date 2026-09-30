@@ -126,10 +126,7 @@ class PZ_EquippedClothingItem(PropertyGroup):
     )
 
     # The model objects that this clothing item uses, if they exist
-    male_model_object: PointerProperty(
-        type=Object
-    )
-    female_model_object: PointerProperty(
+    model_object: PointerProperty(
         type=Object
     )
 

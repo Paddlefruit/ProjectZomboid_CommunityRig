@@ -203,19 +203,16 @@ class PZ_CreateBodyTexture(Operator):
         model_properties = context.active_object.pz_model_properties
         object_pointers = context.active_object.pz_object_pointers
 
-        mat_blend_path = Path(__file__).parent.parent.parent.parent.parent.parent / 'Assets' / 'Blend' / 'PZ_Materials.blend'
+        image_name = 'TEX-DefaultMale.png' if model_properties.model_sex == 'MALE' else 'TEX-DefaultFemale.png'
 
         # Assign the default image to the body material node tree
         if object_pointers.body_material:
-            image_name = 'TEX-DefaultMale' if model_properties.model_sex == 'MALE' else 'TEX-DefaultFemale'
-            image = bpy.data.images.get(image_name)
-            if image:
-                object_pointers.body_material.node_tree.nodes.get('NDE-TexSlot').image = image
-            else:
-                with bpy.data.libraries.load(str(mat_blend_path)) as (data_from, data_to):
-                    if image_name in data_from.images:
-                        data_to.images.append(image_name)
+
+            if bpy.data.images.get(image_name):
                 object_pointers.body_material.node_tree.nodes.get('NDE-TexSlot').image = bpy.data.images.get(image_name)
+            else:
+                image_path = Path(__file__).parent.parent.parent.parent.parent.parent / 'Assets' / 'Textures' / image_name
+                object_pointers.body_material.node_tree.nodes.get('NDE-TexSlot').image = bpy.data.images.load(str(image_path))
 
     # -------------------------------------------------------------#
     # Execute

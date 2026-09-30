@@ -40,6 +40,9 @@ class PZ_UI_HumanRig_RigPropertiesPanel(Panel):
         # Toggle for allowing the user to select the model in the viewport
         layout.prop(model_properties, 'models_selectable')
 
+        # Toggle for hiding the dress part of the body model
+        layout.prop(model_properties, 'hide_dress')
+
         # The operator for resetting the model
         layout.operator('zomboid.reset_model')
 

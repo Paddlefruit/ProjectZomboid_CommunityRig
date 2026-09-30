@@ -51,7 +51,7 @@ class PZ_RandomizeHairColor(Operator):
         # Call a tag update on the hair color drivers
         context.active_object.update_tag()
 
-        hair_mats = (object_pointers.male_hair_material, object_pointers.female_hair_material, object_pointers.beard_material)
+        hair_mats = (object_pointers.hair_material, object_pointers.beard_material)
 
         for mat in hair_mats:
             if mat:
