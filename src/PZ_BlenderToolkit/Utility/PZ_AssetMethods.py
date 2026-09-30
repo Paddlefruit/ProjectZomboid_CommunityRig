@@ -79,8 +79,15 @@ def build_asset_sources(pz_directory: str, mod_directories: list[PZ_ModDirectory
     """
     global asset_sources
 
+    # Check if this system is using the Linux directory style
+    vanilla_source = None
+    if (Path(pz_directory) / 'projectzomboid').is_dir():
+        vanilla_source = AssetSource("Project Zomboid", Path(pz_directory) / 'projectzomboid')
+    else:
+        vanilla_source = AssetSource("Project Zomboid", Path(pz_directory))
+
     asset_sources = [
-        AssetSource("Project Zomboid", Path(pz_directory))
+        vanilla_source
     ]
 
     for mod in mod_directories:
