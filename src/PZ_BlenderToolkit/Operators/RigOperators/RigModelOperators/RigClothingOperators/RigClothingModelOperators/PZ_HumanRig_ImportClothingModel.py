@@ -7,6 +7,7 @@ from bpy.props import BoolProperty
 from bpy.types import Operator
 from pathlib import Path
 from random import randint
+from mathutils import Vector
 
 from ......Utility.PZ_AssetMethods import directx_import_available
 from ......Utility.PZ_MaterialMethods import create_model_material
@@ -47,140 +48,178 @@ class PZ_ImportClothingModel(Operator):
         # Method that will be run for both sex's models
         def import_clothing_model(model_path: str):
             if Path(model_path).is_file():
-                with bpy.context.temp_override(active_object=context.active_object):
 
-                    # Get a list of all objects before the import
-                    objs_before = set(bpy.context.scene.objects)
-                    mats_before = set(bpy.data.materials)
+                # Store object mode that was used
+                prev_mode = context.active_object.mode
 
-                    # Run the import method for the respective model type
-                    match current_clothing_item.data.model_type:
-                        case '.x':
-                            if not directx_import_available():
-                                print("The .x importer is not enabled or installed")
-                                return ({'CANCELLED'})
+               # with bpy.context.temp_override(active_object=context.active_object):
 
-                            bpy.ops.import_scene.directx_x(
-                                filepath=model_path,
-                                import_textures=False,
-                                import_materials=False,
-                                import_armature=False,
-                                import_animation=False,
-                                use_import_collection=False
-                            )
-                        case '.fbx':
-                            bpy.ops.import_scene.fbx(
-                                filepath=model_path,
-                                global_scale=100.0
-                            )
-                        case '.glb':
-                            bpy.ops.import_scene.gltf(
-                                filepath=model_path,
-                                disable_bone_shape=True
-                            )
+                # Get a list of all objects before the import
+                objs_before = set(bpy.context.scene.objects)
+                mats_before = set(bpy.data.materials)
 
-                   # Get a list of all added objects to the scene
-                    objs_after = set(bpy.context.scene.objects)
-                    mats_after = set(bpy.data.materials)
+                # Run the import method for the respective model type
+                match current_clothing_item.data.model_type:
+                    case '.x':
+                        if not directx_import_available():
+                            print("The .x importer is not enabled or installed")
+                            return ({'CANCELLED'})
 
-                    imported_objects = list(objs_after - objs_before)
-                    imported_materials = list(mats_after - mats_before)
+                        bpy.ops.import_scene.directx_x(
+                            filepath=model_path,
+                            import_textures=False,
+                            import_materials=False,
+                            import_armature=False,
+                            import_animation=False,
+                            use_import_collection=False
+                        )
+                    case '.fbx':
+                        print(context.active_object)
+                        rig_object = context.active_object
+                        current_mode = context.active_object.mode
+                        bpy.ops.import_scene.fbx(
+                            filepath=model_path,
+                            global_scale=100.0
+                        )
+                        bpy.ops.object.select_all(action='DESELECT')
+                        for obj in context.selected_objects:
+                            obj.select_set(True)
+                        if rig_object:
+                            context.view_layer.objects.active = rig_object
+                            bpy.ops.object.mode_set(mode=current_mode)
+                    case '.glb':
+                        rig_object = context.active_object
+                        current_mode = context.active_object.mode
+                        bpy.ops.import_scene.gltf(
+                            filepath=model_path,
+                            disable_bone_shape=True
+                        )
+                        bpy.ops.object.select_all(action='DESELECT')
+                        for obj in context.selected_objects:
+                            obj.select_set(True)
+                        if rig_object:
+                            context.view_layer.objects.active = rig_object
+                            bpy.ops.object.mode_set(mode=current_mode)
 
-                    for mat in imported_materials:
-                        bpy.data.materials.remove(mat)
+                # Get a list of all added objects to the scene
+                objs_after = set(bpy.context.scene.objects)
+                mats_after = set(bpy.data.materials)
 
-                    # Method that checks edge cases where a model file has two meshes instead of one
-                    def check_multi_model(wanted_model_name, delete_model_name):
-                        x = None
-                        y = None
-                        for obj in imported_objects:
-                            if obj.name == wanted_model_name:
-                                x = obj
-                            elif obj.name == delete_model_name:
-                                y = obj
-                        if x is not None and y is not None:
-                            data = y.data
-                            imported_objects.remove(y)
-                            bpy.data.objects.remove(y, do_unlink=True)
-                            if data:
-                                bpy.data.meshes.remove(data, do_unlink=True)
+                imported_objects = list(objs_after - objs_before)
+                imported_materials = list(mats_after - mats_before)
 
-                    check_multi_model('Bob_Trousers', 'Bob_LongShorts')
-                    check_multi_model('F_HydrationBackpack', 'F_ALICE_PackODD')
+                for mat in imported_materials:
+                    bpy.data.materials.remove(mat)
 
-                    # Loop through all added objects, delete unneeded ones, and isolate the model object
-                    model_obj = None
+                # Method that checks edge cases where a model file has two meshes instead of one
+                def check_multi_model(wanted_model_name, delete_model_name):
+                    x = None
+                    y = None
                     for obj in imported_objects:
-                        match obj.type:
-                            case 'ARMATURE':
-                                bpy.data.objects.remove(obj, do_unlink=True)
-                            case 'EMPTY':
-                                bpy.data.objects.remove(obj, do_unlink=True)
-                            case 'MESH':
-                                model_obj = obj
+                        if obj.name == wanted_model_name:
+                            x = obj
+                        elif obj.name == delete_model_name:
+                            y = obj
+                    if x is not None and y is not None:
+                        data = y.data
+                        imported_objects.remove(y)
+                        bpy.data.objects.remove(y, do_unlink=True)
+                        if data:
+                            bpy.data.meshes.remove(data, do_unlink=True)
 
-                    if not model_obj:
-                        return ({'CANCELLED'})
+                check_multi_model('Bob_Trousers', 'Bob_LongShorts')
+                check_multi_model('F_HydrationBackpack', 'F_ALICE_PackODD')
 
-                    # Create the name for the new object
-                    obj_name = 'OBJ-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
+                # Loop through all added objects, delete unneeded ones, and isolate the model object
+                model_obj = None
+                for obj in imported_objects:
+                    match obj.type:
+                        case 'ARMATURE':
+                            bpy.data.objects.remove(obj, do_unlink=True)
+                        case 'EMPTY':
+                            bpy.data.objects.remove(obj, do_unlink=True)
+                        case 'MESH':
+                            model_obj = obj
 
-                    # Remove pre-existing object with this name, if it exists
-                    old_obj = bpy.data.objects.get(obj_name)
-                    if old_obj:
-                        bpy.data.objects.remove(old_obj, do_unlink=True)
+                if not model_obj:
+                    return ({'CANCELLED'})
 
-                    # Rename the new object
-                    model_obj.name = obj_name
+                # Create the name for the new object
+                obj_name = 'OBJ-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
-                    # Rename the mesh data on the model object
-                    data = model_obj.data
-                    if data:
-                        data.name = 'GEO-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
+                # Remove pre-existing object with this name, if it exists
+                old_obj = bpy.data.objects.get(obj_name)
+                if old_obj:
+                    bpy.data.objects.remove(old_obj, do_unlink=True)
 
-                    # Unlink this object from any collections it may have been linked to in the import process
-                    for collection in model_obj.users_collection[:]:
-                        collection.objects.unlink(model_obj)
+                # Rename the new object
+                model_obj.name = obj_name
 
-                    # Get the rig's model collection and add to it
-                    attachment_collection = object_pointers.model_collection
-                    attachment_collection.objects.link(model_obj)
+                # Rename the mesh data on the model object
+                data = model_obj.data
+                if data:
+                    data.name = 'GEO-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
-                    # Apply the material that was created to the model
-                    model_obj.active_material = current_clothing_item.material
+                # Unlink this object from any collections it may have been linked to in the import process
+                for collection in model_obj.users_collection[:]:
+                    collection.objects.unlink(model_obj)
 
-                    # Set the parent of the model object to the rig object
-                    model_obj.parent = context.active_object
+                # Get the rig's model collection and add to it
+                attachment_collection = object_pointers.model_collection
+                attachment_collection.objects.link(model_obj)
 
-                    # Apply additional transformations based on the model type
-                    match current_clothing_item.data.model_type:
-                        case '.x':
-                            model_obj.rotation_euler[2] += math.pi
-                            model_obj.scale[0] *= -1
-                            model_obj.scale *= 100
-                        case '.fbx':
-                            print('test')
-                            model_obj.rotation_euler[0] += math.pi / 2
-                            model_obj.scale[0] = 100.0
-                            model_obj.scale[1] = 100.0
-                            model_obj.scale[2] = 100.0
-                            model_obj.data.materials.clear()
-                        case '.glb':
-                            model_obj.scale[0] = 1.0
-                            model_obj.scale[1] = 1.0
-                            model_obj.scale[2] = 1.0
+                # Set the parent of the model object to the rig object
+                model_obj.parent = context.active_object
 
-                    # Remove any modifiers from the model object
-                    model_obj.modifiers.clear()
+                # Apply additional transformations based on the model type
+                match current_clothing_item.data.model_type:
+                    case '.x':
+                        model_obj.rotation_euler[2] += math.pi
+                        model_obj.scale[0] *= -1
+                        model_obj.scale *= 100
+                    case '.fbx':
+                        model_obj.rotation_euler[0] += math.pi / 2
+                        model_obj.scale[0] = 100.0
+                        model_obj.scale[1] = 100.0
+                        model_obj.scale[2] = 100.0
+                        model_obj.data.materials.clear()
+                    case '.glb':
+                        model_obj.scale[0] = 1.0
+                        model_obj.scale[1] = 1.0
+                        model_obj.scale[2] = 1.0
 
-                    # Add an Armature modifier to the model object
-                    armature_mod = model_obj.modifiers.new(name="Armature", type='ARMATURE')
-                    armature_mod.object = context.active_object
+                # Check one of the box verticies and see if it's below the object origin. If it is, there is likely an inccorect rotation
+                # for i in range(3):
+                #     if Vector(model_obj.bound_box[0]).z <= 0.3:
+                #         model_obj.rotation_mode = 'XYZ'
+                #         model_obj.rotation_euler[0] += math.pi/2
+                #     else:
+                #         break
 
-                    # Set initial selection properties
-                    model_obj.hide_select = not model_properties.models_selectable
-                    
-                    return model_obj
+                # Check the scale of the bounding box to see if it is scaled by a magnitude too small or a magnitude too large
+                dims = model_obj.dimensions
+                box_volume = dims.x * dims.y * dims.z
+
+                # if box_volume < 0.0001:
+                #     model_obj.scale *= 100
+                # elif box_volume > 0.1:
+                #     model_obj.scale /= 100
+                
+                # Remove any modifiers from the model object
+                model_obj.modifiers.clear()
+
+                # Apply the material that was created to the model
+                model_obj.active_material = current_clothing_item.material
+
+                # Add an Armature modifier to the model object
+                armature_mod = model_obj.modifiers.new(name="Armature", type='ARMATURE')
+                armature_mod.object = context.active_object
+
+                # Set initial selection properties
+                model_obj.hide_select = not model_properties.models_selectable
+                
+                return model_obj
+            return None
 
         # Call the import method for the current sex
         if model_properties.model_sex == 'MALE':

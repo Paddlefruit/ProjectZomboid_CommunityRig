@@ -15,7 +15,6 @@ class PZ_HumanRig_SortBodyClothingTextures(Operator):
 
         body_locations = addon_data.pz_body_locations
         equipped_clothing = context.active_object.pz_equipped_clothing_items
-        #body_clothing_textures = [item for item in equipped_clothing if item.data.clothing_type == 'BODYTEXTURE' and item.data.body_location]
 
         # Unfortunately there's not a simple way to reassign a collection, so we have to remake it here
 
@@ -42,7 +41,7 @@ class PZ_HumanRig_SortBodyClothingTextures(Operator):
                     'origin' : item.data.origin,
                     'textures' : texture_list,
 
-                    'render_order' : body_locations.get(item.data.body_location).order
+                    'render_order' : body_locations.get(item.data.body_location).order if item.data.body_location != 'NONE' else 0
                 })
 
                 original_indicies.append(index)

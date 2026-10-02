@@ -153,11 +153,10 @@ def update_model_selectability(self, context):
     ]
 
     # The clothing models on equipped clothing items
-    male_clothing_models = [obj.male_model_object for obj in equipped_clothing if obj.data.clothing_type != 'BODYTEXTURE' and obj.male_model_object]
-    female_clothing_models = [obj.female_model_object for obj in equipped_clothing if obj.data.clothing_type != 'BODYTEXTURE' and obj.female_model_object]
+    clothing_models = [obj.model_object for obj in equipped_clothing if obj.data.clothing_type != 'BODYTEXTURE' and obj.model_object]
 
     # The whole collection
-    model_objects = rig_models + male_clothing_models + female_clothing_models
+    model_objects = rig_models + clothing_models
 
     for model in model_objects:
         if model:

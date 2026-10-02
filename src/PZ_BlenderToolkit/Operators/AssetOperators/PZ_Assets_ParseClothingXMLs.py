@@ -16,6 +16,7 @@ class PZ_Assets_ParseClothingXMLs(Operator):
     item_count = 0
 
     def parse_folder(self, context, dir, clothing_items, origin):
+       # print(str(dir))
         for file in dir.glob("*.xml"):
             if file.is_file():
                 try:
@@ -153,6 +154,9 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                     if m is not None:
                         item.decal_group = m.text
 
+                    # Placeholder Body Location
+                    item.body_location = 'NONE'
+                    
                     # Origin
                     item.origin = origin
 

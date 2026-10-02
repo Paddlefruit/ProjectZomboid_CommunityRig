@@ -121,7 +121,7 @@ class PZ_HumanRig_RemoveClothingItem(Operator):
 
         # Check Body Locations to see if we need to remove the used location that this clothing item used
         if not self.is_batch_remove:
-           print(check_body_location_eligibility(self, context))
+            pass
            #check_body_location_properties(self, context)
 
         # Deincrement the active index

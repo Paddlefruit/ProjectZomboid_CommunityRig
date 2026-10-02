@@ -116,7 +116,7 @@ def build_asset_cache(pz_directory: str, mod_directories: list[PZ_ModDirectory])
 
     for source in asset_sources:
         for glob in cache_globs:
-            for file in source.root.rglob(glob):
+            for file in source.root.rglob(glob, case_sensitive=False):
                 if not file.is_file():
                     continue
                 asset_cache[sanitise_path(file.relative_to(source.root))] = file
@@ -130,6 +130,14 @@ def get_file_all_sources(path: str) -> Iterable[tuple[Path, str]]:
     @param path: Path relative to the base of an asset root.
     @return: All matching files and the name of their source.
     """
+
+    # paths: list[tuple[Path, str]] = []
+    # for source in asset_sources:
+    #     for dir in source.root.glob(Path(path).as_posix() + "/", case_sensitive=False):
+    #         if dir.is_file():
+    #             paths.append((dir, source.name))
+    # return paths
+
     return [(source.root / path, source.name) for source in asset_sources if (source.root / path).is_file()]
 
 
@@ -139,7 +147,13 @@ def get_zomboid_asset_folders(context, parent_path: Path) -> Iterable[tuple[Path
     
     @return: Iterable of a specified directory from every source that has it, and the name of that source.
     """
-    return [(source.root / parent_path, source.name) for source in asset_sources if (source.root / parent_path).is_dir()]
+
+    paths: list[tuple[Path, str]] = []
+    for source in asset_sources:
+        for dir in source.root.glob(parent_path.as_posix() + "/", case_sensitive=False):
+            paths.append((dir, source.name))
+    return paths
+
 
 def get_zomboid_asset(context, path: Path, allowed_types: list[str] = []) -> tuple[Path, str] | tuple[None, None]:
     """
