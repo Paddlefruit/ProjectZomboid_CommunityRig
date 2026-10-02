@@ -3,6 +3,7 @@
 import bpy  
 
 from bpy.types import Operator
+from ....Utility.PZ_AssetMethods import ADDON_ROOT
 
 class PZ_HumanRig_ExportAnimGLBs(Operator):
     bl_idname = "zomboid.export_anim_glbs"
@@ -30,6 +31,8 @@ class PZ_HumanRig_ExportAnimGLBs(Operator):
 
     def export_anim(self, context, action):
 
+        models_blend_path = ADDON_ROOT / 'Assets' / 'Blend' / 'CH-PZ_HumanRig_BaseModels.blend'
+
         # Get reference to the rig's properties
         object_pointers = context.active_object.pz_object_pointers
         export_properties = context.active_object.pz_export_properties
@@ -42,8 +45,33 @@ class PZ_HumanRig_ExportAnimGLBs(Operator):
             # Get references to the objects that will be exported
             dummy01 = object_pointers.dummy01_object
             bip01 = object_pointers.rig_object
-            mesh = object_pointers.male_body_object
             translation_data = object_pointers.translation_data_object
+
+            # Temporarially bring in the male model as a copy to be used as the mesh exported with the anim
+            with bpy.data.libraries.load(str(models_blend_path)) as (data_from, data_to):
+                if 'MaleBody_BASE' in data_from.objects:
+                    data_to.objects.append('MaleBody_BASE')
+            mesh = bpy.data.objects.get('MaleBody_BASE')
+            mesh.name = 'AnimBody'
+
+            object_pointers.model_collection.objects.link(mesh)
+
+            # Parent the imported object to the rig
+            mesh.parent = object_pointers.rig_object
+            mesh.matrix_parent_inverse = object_pointers.rig_object.matrix_world.inverted()
+        
+            # Offset the object based on the difference between the rig position and world origin
+            mesh.location += object_pointers.rig_object.location / 100
+        
+            # Rotate the body to the rig object
+            mesh.rotation_euler = object_pointers.rig_object.rotation_euler
+        
+            # Scale the body to the rig object
+            mesh.scale = object_pointers.rig_object.scale
+        
+            # Add the armature modifier to the object, set it to the rig
+            arm_modifier = mesh.modifiers.new(name='Armature', type='ARMATURE')
+            arm_modifier.object = object_pointers.rig_object
 
             # Rename the objects to their PZ names and store their Blender names to restore later
             prev_dummy01_name = dummy01.name
@@ -58,13 +86,6 @@ class PZ_HumanRig_ExportAnimGLBs(Operator):
             # Set the mode to Object Mode and deselect all objects
             bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
-
-            # Temporarily disable the visibility driver on the male body object
-            for driver in mesh.animation_data.drivers:
-                if driver.data_path == 'hide_viewport':
-                    viewport_driver = driver
-                    break
-            viewport_driver.mute = True
 
             # Temporarily enable selectability and visibility on the relevant objects
             dummy01.hide_select = False
@@ -128,9 +149,6 @@ class PZ_HumanRig_ExportAnimGLBs(Operator):
             translation_data.animation_data.nla_tracks.remove(
                 translation_data_track)
 
-            # Re-enable the mesh visibility driver
-            viewport_driver.mute = False
-
             # Restore the previous selection and visibility properties
             dummy01.hide_select = True
 
@@ -144,6 +162,12 @@ class PZ_HumanRig_ExportAnimGLBs(Operator):
             dummy01.name = prev_dummy01_name
             bip01.name = prev_bip01_name
             translation_data.name = prev_translation_data_name
+
+            # Delete the temporary model
+            data = mesh.data
+            bpy.data.objects.remove(mesh, do_unlink=True)
+            if data:
+                bpy.data.meshes.remove(data, do_unlink=True)
 
         context.scene.render.fps = 30
 

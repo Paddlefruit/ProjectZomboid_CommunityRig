@@ -40,36 +40,6 @@ class PZ_HumanRig_ObjectPointers(PropertyGroup):
         type=Object
     )
 
-    # # The pointer that points to the male body object
-    # male_body_object: PointerProperty(
-    #     type=Object
-    # )
-
-    # # The pointer that points to the female body object
-    # female_body_object: PointerProperty(
-    #     type=Object
-    # )
-
-    # # The pointer that points to the male skeleton object
-    # male_skeleton_object: PointerProperty(
-    #     type=Object
-    # )
-
-    # # The pointer that points to the female skeleton object
-    # female_skeleton_object: PointerProperty(
-    #     type=Object
-    # )
-
-    # # The pointer that points to the male dress object
-    # male_dress_object: PointerProperty(
-    #     type=Object
-    # )
-
-    # # The pointer that points to the female dress object
-    # female_dress_object: PointerProperty(
-    #     type=Object
-    # )
-
     # The pointer that points to the hair object
     hair_object: PointerProperty(
         type=Object
