@@ -165,33 +165,18 @@ class PZ_ImportHairModel(Operator):
                             obj.scale[2] = 100.0
                             obj.rotation_mode = 'XYZ'
 
-                    # Check the local height of the bounding box to see if it is rotated correctly
-                    
-                    # # Check one of the box verticies and see if it's below the object origin. If it is, there is likely an inccorect rotation
-                    # for i in range(4):
-                    #     bound_box = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-                    #     min_bound_z = min(corner.z for corner in bound_box)
-
-                    #     print(min_bound_z)
-                    #     print(obj.matrix_world.translation.z)
-
-                    #     if min_bound_z <= obj.matrix_world.translation.z:
-                    #         obj.rotation_euler[0] += math.pi/2
-                    #     else:
-                    #         break
                     if Vector(obj.bound_box[0]).z <= 0.3:
                         obj.rotation_mode = 'XYZ'
                         obj.rotation_euler[0] += math.pi/2
 
+                    # # Check the scale of the bounding box to see if it is scaled by a magnitude too small or a magnitude too large
+                    # dims = obj.dimensions
+                    # box_volume = dims.x * dims.y * dims.z
 
-                    # Check the scale of the bounding box to see if it is scaled by a magnitude too small or a magnitude too large
-                    dims = obj.dimensions
-                    box_volume = dims.x * dims.y * dims.z
-
-                    if box_volume < 0.0001:
-                        obj.scale *= 100
-                    elif box_volume > 0.01:
-                        obj.scale /= 100
+                    # if box_volume < 0.0001:
+                    #     obj.scale *= 100
+                    # elif box_volume > 0.01:
+                    #     obj.scale /= 100
 
 
                     for collection in obj.users_collection[:]:

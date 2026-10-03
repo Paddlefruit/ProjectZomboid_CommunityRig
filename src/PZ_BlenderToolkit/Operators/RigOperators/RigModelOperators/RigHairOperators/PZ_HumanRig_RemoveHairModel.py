@@ -47,11 +47,11 @@ class PZ_RemoveHairMesh(Operator):
                     if data:
                         bpy.data.meshes.remove(data, do_unlink=True)
 
-                    if object_pointers.beard_material:
-                        bpy.data.materials.remove(object_pointers.beard_material, do_unlink=True)
-    
-                    if object_pointers.beard_image:
-                        bpy.data.images.remove(object_pointers.beard_image, do_unlink=True)
+                if object_pointers.beard_material:
+                    bpy.data.materials.remove(object_pointers.beard_material, do_unlink=True)
+
+                if object_pointers.beard_image:
+                    bpy.data.images.remove(object_pointers.beard_image, do_unlink=True)
 
       #  bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
 
