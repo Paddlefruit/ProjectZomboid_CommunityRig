@@ -352,10 +352,11 @@ def create_model_material(context: Context, texture_path: str, category: str, ha
         links.new(tint_node.outputs['Result'], pbr_node.inputs['Base Color'])
         if custom_shader_node.inputs.get('Color') is not None:
             links.new(tint_node.outputs['Result'], custom_shader_node.inputs['Color'])
-    
+
+    # Delete the normal body mask alpha mask links if not a body material
     if category != 'BODY':
         for link in links:
-            if link.from_node == alpha_mix_node:
+            if link.from_node == nodes.get('NDE-MaskRamp'):
                 links.remove(link)
 
     return (mat, tex_node.image)
