@@ -71,9 +71,9 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                         else:
                             return ('', 'N/A', True)
 
-                    item.male_model_path, item.model_type, item.is_body_texture = get_model('m_MaleModel')
+                    item.male_model_path, item.male_model_type, item.is_body_texture = get_model('m_MaleModel')
                     item.male_alt_model_path = get_model('m_AltMaleModel')[0]
-                    item.female_model_path, item.model_type, item.is_body_texture = get_model('m_FemaleModel')
+                    item.female_model_path, item.female_model_type, item.is_body_texture = get_model('m_FemaleModel')
                     item.female_alt_model_path = get_model('m_AltFemaleModel')[0]
 
                     if item.male_model_path != '' or item.female_model_path != '':

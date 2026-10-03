@@ -46,7 +46,8 @@ class PZ_ImportClothingModel(Operator):
         current_clothing_item.image.name = 'TEX-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
 
         # Method that will be run for both sex's models
-        def import_clothing_model(model_path: str):
+        def import_clothing_model(model_path: str, model_type: str):
+            print(model_type)
             if Path(model_path).is_file():
 
                 # Store object mode that was used
@@ -59,7 +60,7 @@ class PZ_ImportClothingModel(Operator):
                 mats_before = set(bpy.data.materials)
 
                 # Run the import method for the respective model type
-                match current_clothing_item.data.model_type:
+                match model_type:
                     case '.x':
                         if not directx_import_available():
                             print("The .x importer is not enabled or installed")
@@ -191,7 +192,7 @@ class PZ_ImportClothingModel(Operator):
                 model_obj.parent = context.active_object
 
                 # Apply additional transformations based on the model type
-                match current_clothing_item.data.model_type:
+                match model_type:
                     case '.x':
                         model_obj.rotation_euler[2] += math.pi
                         model_obj.scale[0] *= -1
@@ -228,7 +229,8 @@ class PZ_ImportClothingModel(Operator):
 
                 # Set initial selection properties
                 model_obj.hide_select = not model_properties.models_selectable
-                
+
+                print(model_obj)
                 return model_obj
             return None
 
@@ -236,19 +238,19 @@ class PZ_ImportClothingModel(Operator):
         if model_properties.model_sex == 'MALE':
             if current_clothing_item.use_alt_model:
                 if current_clothing_item.data.male_alt_model_path != '':
-                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_alt_model_path)
+                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_alt_model_path, current_clothing_item.data.male_model_type)
                 else:
-                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_model_path)
+                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_model_path, current_clothing_item.data.male_model_type)
             else:
-                current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_model_path)
+                current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.male_model_path, current_clothing_item.data.male_model_type)
         else:
             if current_clothing_item.use_alt_model:
                 if current_clothing_item.data.female_alt_model_path != '':
-                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_alt_model_path)
+                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_alt_model_path, current_clothing_item.data.female_model_type)
                 else:
-                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_model_path)
+                    current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_model_path, current_clothing_item.data.female_model_type)
             else:
-                current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_model_path)
+                current_clothing_item.model_object = import_clothing_model(current_clothing_item.data.female_model_path, current_clothing_item.data.female_model_type)
 
         # Temporarily pause texture updates if indicated
         if self.stop_texture_updates:

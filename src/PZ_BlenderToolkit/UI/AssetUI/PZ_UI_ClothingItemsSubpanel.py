@@ -74,8 +74,11 @@ def draw_clothing_items_subpanel(context, layout):
                 box_right_column = box_split.column()
 
                 if addon_data.debug:
-                    box_left_column.label(text='Model Type:')
-                    box_right_column.label(text=item.model_type)
+                    box_left_column.label(text='Male Model Type:')
+                    box_right_column.label(text=item.male_model_type)
+
+                    box_left_column.label(text='Female Model Type:')
+                    box_right_column.label(text=item.female_model_type)
 
                 box_left_column.label(text='Male Model Path:')
                 box_right_column.prop(item, 'male_model_path', text='')

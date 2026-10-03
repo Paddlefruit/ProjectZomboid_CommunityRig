@@ -42,8 +42,11 @@ class PZ_ClothingItemReference(PropertyGroup):
         subtype='FILE_PATH'
     )
 
-    # The model format that this clothing item uses
-    model_type: StringProperty()
+    # The model format that the male clothing model uses
+    male_model_type: StringProperty()
+
+    # The model format that the male clothing model uses
+    female_model_type: StringProperty()
 
     # A collection of texture choice objects that will be pulled from when the clothing item is added
     texture_choices: CollectionProperty(type=PZ_ClothingItemTextureChoices)

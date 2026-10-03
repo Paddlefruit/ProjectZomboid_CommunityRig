@@ -91,7 +91,8 @@ class PZ_HumanRig_AddClothingItem(Operator):
             new_item.data.female_model_path = item.female_model_path
             new_item.data.female_alt_model_path = item.female_alt_model_path
 
-            new_item.data.model_type = item.model_type
+            new_item.data.male_model_type = item.male_model_type
+            new_item.data.female_model_type = item.female_model_type
 
             # Copy the texture choices
             for choice in item.texture_choices:
