@@ -179,12 +179,9 @@ class PZ_ImportHairModel(Operator):
                     #         obj.rotation_euler[0] += math.pi/2
                     #     else:
                     #         break
-                    for i in range(3):
-                        if Vector(obj.bound_box[0]).z <= 0.3:
-                            obj.rotation_mode = 'XYZ'
-                            obj.rotation_euler[0] += math.pi/2
-                        else:
-                            break
+                    if Vector(obj.bound_box[0]).z <= 0.3:
+                        obj.rotation_mode = 'XYZ'
+                        obj.rotation_euler[0] += math.pi/2
 
 
                     # Check the scale of the bounding box to see if it is scaled by a magnitude too small or a magnitude too large

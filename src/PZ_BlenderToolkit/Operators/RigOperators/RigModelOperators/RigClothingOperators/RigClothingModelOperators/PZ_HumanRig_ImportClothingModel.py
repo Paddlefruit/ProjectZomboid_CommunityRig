@@ -7,7 +7,7 @@ from bpy.props import BoolProperty
 from bpy.types import Operator
 from pathlib import Path
 from random import randint
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 from ......Utility.PZ_AssetMethods import directx_import_available
 from ......Utility.PZ_MaterialMethods import create_model_material
@@ -74,7 +74,6 @@ class PZ_ImportClothingModel(Operator):
                             use_import_collection=False
                         )
                     case '.fbx':
-                        print(context.active_object)
                         rig_object = context.active_object
                         current_mode = context.active_object.mode
                         bpy.ops.import_scene.fbx(
@@ -132,17 +131,28 @@ class PZ_ImportClothingModel(Operator):
 
                 # Loop through all added objects, delete unneeded ones, and isolate the model object
                 model_obj = None
+                armature_obj = None
+                objs_to_remove = []
                 for obj in imported_objects:
                     match obj.type:
                         case 'ARMATURE':
-                            bpy.data.objects.remove(obj, do_unlink=True)
+                            armature_obj = obj
+                            objs_to_remove.append(obj)
                         case 'EMPTY':
-                            bpy.data.objects.remove(obj, do_unlink=True)
+                            objs_to_remove.append(obj)
                         case 'MESH':
                             model_obj = obj
 
-                if not model_obj:
+                origin_difference = Vector((0.0, 0.0, 0.0))
+                if model_obj:
+                    if armature_obj:
+                        origin_difference = armature_obj.location - model_obj.location
+                else:
                     return ({'CANCELLED'})
+
+                # Delete unwanted object
+                for obj_to_remove in objs_to_remove:
+                    bpy.data.objects.remove(obj_to_remove, do_unlink=True)
 
                 # Create the name for the new object
                 obj_name = 'OBJ-Clothing' + str(model_properties.equipped_clothing_item_active_index) + instance_str
@@ -152,6 +162,15 @@ class PZ_ImportClothingModel(Operator):
                 if old_obj:
                     bpy.data.objects.remove(old_obj, do_unlink=True)
 
+
+                # Apply scale of model object at the data level
+                matrx = model_obj.matrix_local
+                loc, rot, scale = matrx.decompose()
+                matrix_scale = Matrix.LocRotScale(None, None, scale)
+                model_obj.data.transform(matrix_scale)
+                model_obj.scale = (1.0, 1.0, 1.0)
+
+                
                 # Rename the new object
                 model_obj.name = obj_name
 
@@ -184,27 +203,19 @@ class PZ_ImportClothingModel(Operator):
                         model_obj.scale[2] = 100.0
                         model_obj.data.materials.clear()
                     case '.glb':
-                        model_obj.scale[0] = 1.0
-                        model_obj.scale[1] = 1.0
-                        model_obj.scale[2] = 1.0
+                        model_obj.rotation_mode = 'XYZ'
+                        model_obj.rotation_euler[0] += math.pi / 2
+                        model_obj.scale[0] = 100.0
+                        model_obj.scale[1] = 100.0
+                        model_obj.scale[2] = 100.0
+                        model_obj.data.materials.clear()
 
-                # Check one of the box verticies and see if it's below the object origin. If it is, there is likely an inccorect rotation
-                # for i in range(3):
-                #     if Vector(model_obj.bound_box[0]).z <= 0.3:
-                #         model_obj.rotation_mode = 'XYZ'
-                #         model_obj.rotation_euler[0] += math.pi/2
-                #     else:
-                #         break
 
-                # Check the scale of the bounding box to see if it is scaled by a magnitude too small or a magnitude too large
-                dims = model_obj.dimensions
-                box_volume = dims.x * dims.y * dims.z
+                # Translate model by the difference of origins
+                model_obj.location -= origin_difference * 100
+                model_obj.location.xyz = model_obj.location.xzy
+                model_obj.location.y *= -1
 
-                # if box_volume < 0.0001:
-                #     model_obj.scale *= 100
-                # elif box_volume > 0.1:
-                #     model_obj.scale /= 100
-                
                 # Remove any modifiers from the model object
                 model_obj.modifiers.clear()
 
