@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from ..PropertyGroups.General.PZ_ModDirectory import PZ_ModDirectory
 
+
 def directx_import_available():
     checks = ['bl_ext.blender_org.io_directx_x',
               'bl_ext.user_default.io_directx_x'
@@ -17,18 +18,23 @@ def directx_import_available():
             return True
     return False
 
+
 VirtualPath = NewType("VirtualPath", str)
 """Sanitised path best created through sanitise_path()"""
 
-cache_globs: list[str] = [
+cache_files: list[str] = [
     "media/lua/shared/NPCs/BodyLocations.lua",
     "media/scripts/generated/items/clothing.txt",
     "media/scripts/generated/items/container.txt",
-    "media/clothing/**",
-    "media/textures/**",
-    "media/models_X/**",
 ]
-"""Glob patterns of files to add to the cache."""
+"""Relative files to files to add to the cache."""
+
+cache_paths: list[str] = [
+    "media/clothing",
+    "media/textures",
+    "media/models_X",
+]
+"""Relative paths to add to the cache."""
 
 asset_cache: dict[VirtualPath, Path] = {}
 """Cached asset paths by their virutal path."""
@@ -38,6 +44,7 @@ ADDON_ROOT: Path = Path(__file__).parent.parent
 
 ERROR_TEXTURE: Path = ADDON_ROOT / "Assets/Textures/TEX-Error.png"
 """Texture used to indicate that an error has occured relating to textures."""
+
 
 @dataclass(slots=True)
 class AssetSource:
@@ -63,6 +70,17 @@ def sanitise_path(path: Path) -> VirtualPath:
     """
     return VirtualPath(path.as_posix().lower())
 
+
+def sanitise_path_str(path: str) -> VirtualPath:
+    """
+    Returns the corresponding VirtualPath to a string path without creating a new Path object.
+
+    @arg path: Path string to sanitise.
+    @return: Sanitised path string.
+    """
+    return VirtualPath(path.replace("\\", "/").lower())
+
+
 def parse_path(path: str) -> Path:
     """
     Returns a path from a string in the format expected by the game.
@@ -71,6 +89,29 @@ def parse_path(path: str) -> Path:
     @return: Parsed path
     """
     return Path(path.replace("\\", "/"))
+
+
+def scan_path(
+    root_path: str,
+    max_depth: int = 1,
+    follow_symlinks: bool = False,
+) -> Iterator[str]:
+    queue: list[tuple[str, int]] = [(root_path, 1)]
+    while queue:
+        curr, depth = queue.pop(0)
+        if depth > max_depth:
+            continue
+
+        with os.scandir(curr) as entries:
+            for entry in entries:
+                yield entry.path
+
+                if not entry.is_dir(follow_symlinks=follow_symlinks):
+                    continue
+
+                if depth + 1 <= max_depth:
+                    queue.append((entry.path, depth + 1))
+
 
 def build_asset_sources(pz_directory: str, mod_directories: list[PZ_ModDirectory]) -> None:
     """
@@ -115,11 +156,16 @@ def build_asset_cache(pz_directory: str, mod_directories: list[PZ_ModDirectory])
     asset_cache = {}
 
     for source in asset_sources:
-        for glob in cache_globs:
-            for file in source.root.rglob(glob, case_sensitive=False):
-                if not file.is_file():
-                    continue
-                asset_cache[sanitise_path(file.relative_to(source.root))] = file
+        for cached_file in cache_files:
+            file: str = os.path.join(str(source.root), cached_file)
+            if os.path.isfile(file):
+                asset_cache[sanitise_path_str(cached_file)] = Path(file)
+
+        for cached_path in cache_paths:
+            root_path: str = os.path.join(str(source.root), cached_path)
+            for path in scan_path(root_path):
+                if os.path.isfile(path):
+                    asset_cache[sanitise_path_str(os.path.relpath(path, source.root))] = Path(path)
 
 
 def get_file_all_sources(path: str) -> Iterable[tuple[Path, str]]:
@@ -141,21 +187,19 @@ def get_file_all_sources(path: str) -> Iterable[tuple[Path, str]]:
     return [(source.root / path, source.name) for source in asset_sources if (source.root / path).is_file()]
 
 
-def get_zomboid_asset_folders(context, parent_path: Path) -> Iterable[tuple[Path, str]]:
+def get_zomboid_asset_folders(context, parent_path: str) -> Iterable[tuple[Path, str]]:
     """
     Returns an iterable of a specific directory from every source that contains it.
     
     @return: Iterable of a specified directory from every source that has it, and the name of that source.
     """
 
-    paths: list[tuple[Path, str]] = []
-    for source in asset_sources:
-        for dir in source.root.glob(parent_path.as_posix() + "/", case_sensitive=False):
-            paths.append((dir, source.name))
-    return paths
+    return [(Path(os.path.join(s.root, parent_path + "/")), s.name) for s in asset_sources]
 
 
-def get_zomboid_asset(context, path: Path, allowed_types: list[str] = []) -> tuple[Path, str] | tuple[None, None]:
+def get_zomboid_asset(
+    context, path: Path, allowed_types: list[str] = []
+) -> tuple[Path, str] | tuple[None, None]:
     """
     Returns a zomboid asset by its path, respecting overrides by mods.
 
@@ -164,6 +208,7 @@ def get_zomboid_asset(context, path: Path, allowed_types: list[str] = []) -> tup
     @return: The asset and source. Both will be None if the asset does not exist.
     """
     # optimisation: if only one suffix is allowed, just set the suffix so we can look it up without loops and stuff
+    # TODO(aoqia): use str instead of path here
     if len(allowed_types) == 1:
         path = path.parent / (path.name + allowed_types[0])
         allowed_types = []
@@ -207,6 +252,7 @@ def get_zomboid_asset(context, path: Path, allowed_types: list[str] = []) -> tup
         print('Could not find ' + path.as_posix())
         
     return (None, None)
+
 
 def get_zomboid_texture(context, path: Path) -> tuple[Path, str]:
     """
