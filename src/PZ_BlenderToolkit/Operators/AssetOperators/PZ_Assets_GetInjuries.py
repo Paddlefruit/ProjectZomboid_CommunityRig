@@ -3,10 +3,11 @@ import os
 import bpy
 import re
 
-from pathlib import Path
+import bpy
 from bpy.types import Operator
 
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
+from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders, scan_path
+
 
 class PZ_Assets_GetInjuries(Operator):
     bl_idname = "zomboid.get_injuries"
@@ -37,24 +38,27 @@ class PZ_Assets_GetInjuries(Operator):
         body_injuries.clear()
         zombie_injuries.clear()
 
-        for folder, _ in get_zomboid_asset_folders(context, Path("media/textures/BodyDmg")):
-            for file in folder.iterdir():
-                if file.is_file() and file.suffix == '.png':
-                    if 'M_ZedDmg' in file.name:
+        for folder, _ in get_zomboid_asset_folders(context, "media/textures/BodyDmg"):
+            for file in scan_path(folder, max_depth=-1):
+                file_name = os.path.basename(file)
+                _, file_stem = os.path.splitext(file_name)
+                if os.path.isfile(file) and file_stem == '.png':
+                    if file_name.startswith("M_ZedDmg"):
                         injury = zombie_injuries.add()
-                        injury.name = file.name
+                        injury.name = file_name
                         injury.texture_path = os.fspath(file)
                         continue
 
                 injury = body_injuries.add()
 
-                injury.sex = 'FEMALE' if 'FemaleBody' in file.name else 'MALE'
+                injury.sex = 'FEMALE' if 'FemaleBody' in file_name else 'MALE'
 
-                body_part = self.body_part_regex.search(file.name)
+                # TODO(aoqia): Replace regex with string operations
+                body_part = self.body_part_regex.search(file_name)
                 if body_part is not None:
                     injury.body_part = body_part.group()
 
-                damage_type = self.injury_type_regex.search(file.name)
+                damage_type = self.injury_type_regex.search(file_name)
                 if damage_type is not None:
                     match damage_type.group():
                         case 'scratches':
@@ -64,7 +68,7 @@ class PZ_Assets_GetInjuries(Operator):
                         case 'bites':
                             injury.damage_type = 'BITE'
                         case 'bandages':
-                            if '_blood' in file.name:
+                            if '_blood' in file_name:
                                 injury.damage_type = 'BANDAGEBLOODY'
                             else:
                                 injury.damage_type = 'BANDAGE'

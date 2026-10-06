@@ -98,6 +98,6 @@ class PZ_Assets_GetAttachmentPoints(Operator):
 
                                 continue
 
-        parse_file(get_zomboid_asset(context, Path("media/scripts/generated/models_characters.txt"))[0])
+        parse_file(get_zomboid_asset(context, "media/scripts/generated/models_characters.txt")[0])
 
         return ({'FINISHED'})

@@ -18,7 +18,7 @@ class PZ_Assets_ParseBodyLocationLua(Operator):
         body_locations.clear()
         addon_data.body_location_active_index = -1
 
-        lua, _ = get_zomboid_asset(context, Path("media/lua/shared/NPCs/BodyLocations.lua"))
+        lua, _ = get_zomboid_asset(context, "media/lua/shared/NPCs/BodyLocations.lua")
 
         if lua is not None:
             with lua.open('r', encoding='utf-8') as file:
