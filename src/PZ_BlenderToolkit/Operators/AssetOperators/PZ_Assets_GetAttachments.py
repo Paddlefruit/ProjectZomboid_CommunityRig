@@ -4,7 +4,13 @@ import bpy
 
 from pathlib import Path
 from bpy.types import Operator
-from ...Utility.PZ_AssetMethods import get_zomboid_asset, parse_path, get_zomboid_texture
+
+from ...Utility.PZ_AssetMethods import (
+    get_zomboid_asset,
+    get_zomboid_texture,
+    sanitise_path_str,
+)
+
 
 class PZ_Assets_GetAttachmentPoints(Operator):
     bl_idname = "zomboid.get_attachments"
@@ -76,7 +82,7 @@ class PZ_Assets_GetAttachmentPoints(Operator):
 
                                     new_attachment.name = current_item
 
-                                    x = get_zomboid_asset(context, Path('media/models_X') / parse_path(current_model_path), allowed_types=['.x', '.fbx', '.glb'])
+                                    x = get_zomboid_asset(context, os.path.join('media/models_X', sanitise_path_str(current_model_path)), allowed_types=['.x', '.fbx', '.glb'])
                                     assert x[0] is not None
                                     print(x)
                                     new_attachment.model_path = os.fspath(x[0])
@@ -85,7 +91,7 @@ class PZ_Assets_GetAttachmentPoints(Operator):
                                     new_attachment.texture_path = os.fspath(
                                         get_zomboid_texture(
                                             context,
-                                            Path('media/textures') / parse_path(current_model_path if current_texture_path == '' else current_texture_path)
+                                            os.path.join('media/textures', sanitise_path_str(current_model_path if current_texture_path == '' else current_texture_path))
                                         )[0]
                                     )
                                     
@@ -132,6 +138,6 @@ class PZ_Assets_GetAttachmentPoints(Operator):
 
                                 continue
 
-        parse_file(get_zomboid_asset(context, Path("media/scripts/generated/models_weapons.txt"))[0])
+        parse_file(get_zomboid_asset(context, "media/scripts/generated/models_weapons.txt")[0])
 
         return ({'FINISHED'})

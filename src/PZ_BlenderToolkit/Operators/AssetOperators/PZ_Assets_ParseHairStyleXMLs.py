@@ -7,7 +7,14 @@ from pathlib import Path
 from bpy.types import Operator 
 from typing import Literal
 
-from ...Utility.PZ_AssetMethods import get_zomboid_asset, get_file_all_sources, parse_path, get_zomboid_texture
+import bpy
+from ...Utility.PZ_AssetMethods import (
+    get_file_all_sources,
+    get_zomboid_asset,
+    get_zomboid_texture,
+    sanitise_path_str,
+)
+
 
 class PZ_Assets_ParseHairStyleXMLs(Operator):
     bl_idname = "zomboid.parse_hair_style_xmls"
@@ -33,13 +40,13 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
 
         m = hair.find('level')
         if m is not None and m.text is not None:
-            item.level = int(hair.find('level').text)
+            item.level = int(m.text)
         else:
             item.level = 0
 
         texture = hair.find('texture')
-        if texture is not None:
-            x = get_zomboid_texture(context, Path('media/textures') / parse_path(texture.text))
+        if texture is not None and texture.text:
+            x = get_zomboid_texture(context, os.path.join('media/textures', sanitise_path_str(texture.text)))
             item.texture_path = os.fspath(x[0])
 
         model = hair.find('model')
@@ -47,7 +54,11 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
         model_path: str = 'None'
         model_type: str = 'N/A'
         if model is not None and model.text:
-            x = get_zomboid_asset(context, Path('media/models_X') / parse_path(model.text), allowed_types=[".x", ".fbx", ".glb"])
+            x = get_zomboid_asset(
+                context,
+                os.path.join('media/models_X', sanitise_path_str(model.text)),
+                allowed_types=[".x", ".fbx", ".glb"]
+            )
             if x[0] is not None:
                 model_path = os.fspath(x[0])
                 model_type = x[1]
@@ -121,18 +132,18 @@ class PZ_Assets_ParseHairStyleXMLs(Operator):
 
             m = beard.find('level')
             if m is not None and m.text is not None:
-                item.level = int(beard.find('level').text)
+                item.level = int(m.text)
             else:
                 item.level = 0
 
             texture = beard.find('texture')
-            if texture is not None:
-                x = get_zomboid_texture(context, Path('media/textures') / parse_path(texture.text))
+            if texture is not None and texture.text:
+                x = get_zomboid_texture(context, os.path.join('media/textures', sanitise_path_str(texture.text)))
                 item.texture_path = os.fspath(x[0])
 
             model = beard.find('model')
             if model is not None and model.text:
-                x = get_zomboid_asset(context, Path('media/models_X') / parse_path(model.text), allowed_types=[".x", ".fbx", ".glb"])
+                x = get_zomboid_asset(context, os.path.join('media/models_X', str(sanitise_path_str(model.text))), allowed_types=[".x", ".fbx", ".glb"])
                 assert x[0] is not None
                 item.model_path = os.fspath(x[0])
                 item.model_type = x[1]
