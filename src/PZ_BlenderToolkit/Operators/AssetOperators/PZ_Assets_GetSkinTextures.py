@@ -7,7 +7,9 @@ import xml.etree.ElementTree as ET
 from bpy.types import Operator
 from pathlib import Path
 
-from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders
+import bpy
+from ...Utility.PZ_AssetMethods import get_zomboid_asset_folders, scan_path
+
 
 class PZ_Assets_GetSkinTextures(Operator):
     bl_idname = "zomboid.get_skin_textures"
@@ -107,10 +109,12 @@ class PZ_Assets_GetSkinTextures(Operator):
 
         for folder, mod_name in get_zomboid_asset_folders(context, "media/textures/Body"):
             # Skin Textures
-            for file in folder.iterdir():
-                if file.is_file():
-                    if file.stem in human_skin_tex_names + zombie_skin_tex_names + mannequin_tex_names + scarecrow_tex_names + skeleton_tex_names:    
-                        overwrite_check = skin_textures.find(file.stem)
+            for path in scan_path(folder):
+                path_name = os.path.basename(path)
+                path_root, path_stem = os.path.splitext(path_name)
+                if os.path.isfile(path):
+                    if path_root in human_skin_tex_names + zombie_skin_tex_names + mannequin_tex_names + scarecrow_tex_names + skeleton_tex_names:    
+                        overwrite_check = skin_textures.find(path_root)
                         if overwrite_check != -1:
                             if addon_data.allow_overwriting:
                                 skin_textures.remove(overwrite_check)
@@ -119,43 +123,44 @@ class PZ_Assets_GetSkinTextures(Operator):
                         
                         item = skin_textures.add()
 
-                        item.name = file.stem
-                        item.texture_path = os.fspath(file)
+                        item.name = path_stem
+                        item.texture_path = os.fspath(path)
                         item.origin = mod_name
 
-                        if file.stem in human_skin_tex_names:
+                        if path_stem in human_skin_tex_names:
                             item.body_type = 'HUMAN'
-                            item.sex = 'FEMALE' if 'FemaleBody' in file.stem else 'MALE'
-                            item.skin_tone = int(tone_regex.search(file.stem).group())
-                            item.chest_hair = file.stem.endswith('a')
+                            item.sex = 'FEMALE' if 'FemaleBody' in path_stem else 'MALE'
+                            item.skin_tone = int(tone_regex.search(path_stem).group())
+                            item.chest_hair = path_stem.endswith('a')
                             continue
 
-                        if file.stem in zombie_skin_tex_names:
+                        if path_stem in zombie_skin_tex_names:
                             item.body_type = 'ZOMBIE'
-                            item.zombification = int(zombification_regex.search(file.stem).group())
-                            item.sex = 'FEMALE' if 'F_' in file.stem else 'MALE'
-                            item.skin_tone = int(tone_regex.search(file.stem).group())
+                            item.zombification = int(zombification_regex.search(path_stem).group())
+                            item.sex = 'FEMALE' if 'F_' in path_stem else 'MALE'
+                            item.skin_tone = int(tone_regex.search(path_stem).group())
                             continue
                             
-                        if file.stem in mannequin_tex_names:
+                        if path_stem in mannequin_tex_names:
                             item.body_type = 'MANNEQUIN'
-                            item.sex = 'FEMALE' if 'F_' in file.stem else 'MALE'
+                            item.sex = 'FEMALE' if 'F_' in path_stem else 'MALE'
                             continue
 
-                        if file.stem in skeleton_tex_names:
+                        if path_stem in skeleton_tex_names:
                             item.body_type = 'SKELETON'
                             continue
 
-                        if file.stem in scarecrow_tex_names:
+                        if path_stem in scarecrow_tex_names:
                             item.body_type = 'SCARECROW'
                             continue
                 
-                if file.is_dir():
-
+                elif os.path.isdir(path):
                     # Stubble Textures
-                    if file.name.lower() == 'stubble':
-                        for subfile in file.iterdir():
-                            overwrite_check = stubble_textures.find(subfile.stem)
+                    if path_name.lower() == 'stubble':
+                        for subfile in scan_path(path):
+                            subfile_name = os.path.basename(subfile)
+                            subfile_root, subfile_stem = os.path.splitext(subfile_name)
+                            overwrite_check = stubble_textures.find(subfile_root)
                             if overwrite_check != -1:
                                 if addon_data.allow_overwriting:
                                     stubble_textures.remove(overwrite_check)
@@ -165,15 +170,17 @@ class PZ_Assets_GetSkinTextures(Operator):
                             item = stubble_textures.add()
                             
                             item.texture_path = os.fspath(subfile)
-                            item.name = subfile.stem
-                            item.sex = 'FEMALE' if 'F_' in subfile.stem else 'MALE'
-                            item.stubble_type = 'BEARD' if 'Beard' in subfile.stem else 'HAIR'
+                            item.name = subfile_stem
+                            item.sex = 'FEMALE' if 'F_' in subfile_stem else 'MALE'
+                            item.stubble_type = 'BEARD' if 'Beard' in subfile_stem else 'HAIR'
                             item.origin = mod_name
                     
                     # Visibility Masks
-                    if file.name.lower() == 'masks':
-                        for subfile in file.iterdir():
-                            overwrite_check = visibility_masks.find(subfile.stem)
+                    if path_name.lower() == 'masks':
+                        for subfile in scan_path(path):
+                            subfile_name = os.path.basename(subfile)
+                            subfile_root, subfile_stem = os.path.splitext(subfile_name)
+                            overwrite_check = visibility_masks.find(subfile_stem)
                             if overwrite_check != -1:
                                 if addon_data.allow_overwriting:
                                     visibility_masks.remove(overwrite_check)
@@ -182,18 +189,21 @@ class PZ_Assets_GetSkinTextures(Operator):
 
                             item = visibility_masks.add()
                             
-                            item.name = 'FullBody' if subfile.stem == 'Mask' else subfile.stem
+                            item.name = 'FullBody' if subfile_stem == 'Mask' else subfile_stem
                             item.texture_path = os.fspath(subfile)
 
             # Overlay Masks
-            if (folder.parent / 'BloodTextures').is_dir():
-
-                for file in (folder.parent / 'BloodTextures').iterdir():
+            folder_parent = os.path.dirname(folder)
+            blood_textures = os.path.join(folder_parent, 'BloodTextures')
+            if os.path.isdir(blood_textures):
+                for path in scan_path(blood_textures):
+                    path_name = os.path.basename(path)
+                    path_root, path_stem = os.path.splitext(path_name)
                     # No need for overwriting
-                    if 'BloodMask' in file.stem:
+                    if 'BloodMask' in path_stem:
                         item = overlay_masks.add()
                         
-                        item.name = overlay_mask_regex.search(file.stem).group()
-                        item.texture_path = os.fspath(file)
+                        item.name = overlay_mask_regex.search(path_stem).group()
+                        item.texture_path = os.fspath(path)
 
         return ({'FINISHED'})

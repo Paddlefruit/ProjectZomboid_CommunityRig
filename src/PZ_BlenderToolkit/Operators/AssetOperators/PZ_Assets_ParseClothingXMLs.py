@@ -4,14 +4,12 @@ import os
 import xml.etree.ElementTree as ET
 
 from bpy.types import Operator 
-from pathlib import Path
 
-from ...Utility.PZ_AssetMethods import get_zomboid_asset, get_zomboid_texture, get_zomboid_asset_folders, parse_path
 from ...Utility.PZ_AssetMethods import (
     get_zomboid_asset,
     get_zomboid_asset_folders,
     get_zomboid_texture,
-    parse_path,
+    parse_path_str,
     scan_path,
 )
 
@@ -70,15 +68,15 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                             end = path.find('.')
                             if end == -1:
                                 path = path[start:]
-                            else:
-                                path = path[start:end]
-                            
-                            path = parse_path(path)
-                            if not path.full_match("media/models_X/**", case_sensitive=False):
-                                path = Path('media/models_X') / path
-                            
-                            x, y = get_zomboid_asset(context, path, allowed_types=[".x", ".fbx", ".glb"])
-                            if y is not None:
+                        else:
+                            path = path[start:end]
+                        
+                        path = parse_path_str(path)
+                        if not path == "media/models_X" and not path.startswith("media/models_X/"):
+                            path = os.path.join('media/models_X', path)
+
+                        x, y = get_zomboid_asset(context, path, allowed_types=[".x", ".fbx", ".glb"])
+                        if y is not None:
                                 assert x is not None
                                 return (os.fspath(x), y, False)
                             else:
@@ -113,19 +111,20 @@ class PZ_Assets_ParseClothingXMLs(Operator):
                     else:
                         item.clothing_type = 'ACCESSORY'
 
-                    # Textures
-                    base_texture = root.find('m_BaseTextures')
-                    textures = root.findall('textureChoices')
-                    if base_texture is not None:
+                # Textures
+                base_texture = root.find('m_BaseTextures')
+                textures = root.findall('textureChoices')
+                if base_texture is not None and base_texture.text:
+                    tex = item.texture_choices.add()
+                    x = get_zomboid_texture(context, os.path.join("media/textures", parse_path_str(base_texture.text)))
+                    tex.texture_path = os.fspath(x[0])
+                for t in textures:
+                    if t is not None and t.text:
                         tex = item.texture_choices.add()
-                        x = get_zomboid_texture(context, Path("media/textures") / parse_path(base_texture.text))
-                        tex.texture_path = os.fspath(x[0])
-                    for t in textures:
-                        tex = item.texture_choices.add()
-                        x = get_zomboid_texture(context, Path("media/textures") / parse_path(t.text))
+                        x = get_zomboid_texture(context, os.path.join("media/textures", parse_path_str(t.text)))
                         tex.texture_path = os.fspath(x[0])
 
-                    # Tintable
+                # Tintable
                     m = root.find('m_AllowRandomTint')
                     if m is not None and m.text == 'true':
                         item.tintable = True
@@ -183,7 +182,7 @@ class PZ_Assets_ParseClothingXMLs(Operator):
         addon_data = bpy.context.preferences.addons['PZ_BlenderToolkit'].preferences
         clothing_items = addon_data.pz_clothing_item_references
         for folder, source in get_zomboid_asset_folders(context, "media/clothing/clothingItems"):
-            self.parse_folder(context, str(folder), clothing_items, source)
+            self.parse_folder(context, folder, clothing_items, source)
 
         self.report({'INFO'}, "Parsed " + str(self.item_count) + " Clothing Item XMLs")
 
