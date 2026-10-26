@@ -1,6 +1,5 @@
-# out
 build/
-
-# python
 __pycache__/
 *.egg-info
+.venv/
+.vscode/

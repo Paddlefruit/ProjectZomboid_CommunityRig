@@ -84,7 +84,7 @@ class PZ_CreateBodyTexture(Operator):
             # Get the body injury textures
             injury_props = [injury_properties.upper_torso_injury, injury_properties.lower_torso_injury, injury_properties.left_hand_injury,
                             injury_properties.right_hand_injury, injury_properties.left_forearm_injury, injury_properties.right_forearm_injury,
-                            injury_properties.left_upperarm_injury, injury_properties.right_upperarm_injury, injury_properties.head_injury,
+                            injury_properties.left_upperarm_injury, injury_properties.right_upperarm_injury,
                             injury_properties.neck_injury, injury_properties.groin_injury, injury_properties.left_thigh_injury,
                             injury_properties.right_thigh_injury, injury_properties.left_shin_injury, injury_properties.right_shin_injury,
                             injury_properties.left_foot_injury, injury_properties.right_foot_injury]
@@ -102,15 +102,14 @@ class PZ_CreateBodyTexture(Operator):
                 5: 'lower_right_arm',
                 6: 'upper_left_arm',
                 7: 'upper_right_arm',
-                8: 'head',
-                9: 'neck',
-                10: 'groin',
-                11: 'left_thigh',
-                12: 'right_thigh',
-                13: 'left_calf',
-                14: 'right_calf',
-                15: 'left_foot',
-                16: 'right_foot'
+                8: 'neck',
+                9: 'groin',
+                10: 'left_thigh',
+                11: 'right_thigh',
+                12: 'left_calf',
+                13: 'right_calf',
+                14: 'left_foot',
+                15: 'right_foot'
             }
 
             sex = model_properties.model_sex

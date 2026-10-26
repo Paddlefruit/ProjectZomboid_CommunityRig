@@ -22,6 +22,23 @@ class PZ_HumanRigInjuryProperties(PropertyGroup):
         if not model_properties.stop_texture_updates:
             bpy.ops.zomboid.create_body_texture()
 
+    # Head injury is a special case, as it uses an actual model rather than a body texture
+    def update_head_injury(self, context):
+        pass
+
+    head_injury: EnumProperty(  # 8
+        name='Head Injury',
+        items=[
+            ('NONE', "None", "No injury texture", 0),
+            ('BANDAGE', "Bandage", "Bandage injury texture", 1),
+            ('BANDAGEBLOODY', "Bandage (Bloody)",
+                "Bloody Bandage injury texture", 2)
+        ],
+        default='NONE',
+        update=update_head_injury,
+        override={"LIBRARY_OVERRIDABLE"}
+    )
+
     upper_torso_injury: EnumProperty(  # 0
         name='Upper Torso Injury',
         items=[
@@ -137,18 +154,6 @@ class PZ_HumanRigInjuryProperties(PropertyGroup):
             ('BANDAGE', "Bandage", "Bandage injury texture", 4),
             ('BANDAGEBLOODY', "Bandage (Bloody)",
                 "Bloody Bandage injury texture", 5)
-        ],
-        default='NONE',
-        update=update_body_injury,
-        override={"LIBRARY_OVERRIDABLE"}
-    )
-    head_injury: EnumProperty(  # 8
-        name='Head Injury',
-        items=[
-            ('NONE', "None", "No injury texture", 0),
-            ('BANDAGE', "Bandage", "Bandage injury texture", 1),
-            ('BANDAGEBLOODY', "Bandage (Bloody)",
-                "Bloody Bandage injury texture", 2)
         ],
         default='NONE',
         update=update_body_injury,
