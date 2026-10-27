@@ -6,6 +6,8 @@ import xml.etree.ElementTree as ET
 
 from bpy.types import Operator 
 from pathlib import Path
+from ...Utility.PZ_AssetMethods import scan_path
+
 
 class PZ_Assets_ParseDecalXMLs(Operator):
     bl_idname = "zomboid.parse_decal_xmls"
@@ -29,18 +31,21 @@ class PZ_Assets_ParseDecalXMLs(Operator):
         elif sys.platform == 'linux':
             xmls_dir = g.pz_directory + '/projectzomboid/media/clothing/clothingDecals'
 
-        xmls_dir = Path(xmls_dir)
-
         item_count = 0
-        for file in xmls_dir.glob("*.xml"):
-            if file.is_file():
-                decal = decals.add()
+        # NOTE: currently clothingDecals is a flat dir
+        #       if it becomes not flat in the future, change the depth here.
+        for file in scan_path(xmls_dir, max_depth=-1):
+            if not os.path.isfile(file) or not file.endswith(".xml"):
+                continue
 
-                # Parse the file name
-                decal.name = os.path.splitext(file.name)[0]
+            decal = decals.add()
 
-                # Begin parsing the XML contents of the file
-                tree = ET.parse(file)
+            # Parse the file name
+            file_name = os.path.basename(file)
+            decal.name = os.path.splitext(file_name)[0]
+
+            # Begin parsing the XML contents of the file
+            tree = ET.parse(file)
                 root = tree.getroot()
 
                 decal.texture_path = root.find('texture').text
